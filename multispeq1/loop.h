@@ -9,6 +9,9 @@
 // function declarations
 uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
 int check_protocol(char *str);
+void startTimers(uint16_t _pulsedistance,uint16_t _pulsesize);
+void stopTimers();
+
 
 void loop() {
 
@@ -682,17 +685,19 @@ void loop() {
         Serial_Print(offset_34);
         Serial_Print(",");
         Serial_Print_Line(offset_35);
+        // null or invalid string returns zero
+
 #endif
 
         // perform the protocol
         for (int x = 0; x < averages; x++) {                                                 // Repeat the protocol this many times
 
-          //            if (user_enter_long(1) == -1) {
-          //              q = number_of_protocols;
-          //              y = measurements;
-          //              u = protocols;
-          //              x = averages;
-          //            }
+          if (Serial_Available() && Serial_Input_Float("+", 1) == -1) {
+            q = number_of_protocols - 1;
+            y = measurements - 1;
+            u = protocols;
+            x = averages;
+          }
 
           int background_on = 0;
           long data_count = 0;
@@ -844,24 +849,12 @@ void loop() {
               analogWrite(pin, 0);
               reset_freq();                                                                              // reset analog frequencies
             }
-            if (environmental.getArray(i).getLong(1) == 0 \
-                && (String) environmental.getArray(i).getString(0) == "note") {                      // insert notes or other data.  Limit 999 chars, do not use following chars []+"'
-              if (x == 0) {                                                                // if it's the last measurement to average, then print the results
-                Serial_Print("\"note\":\"");
-                String note = user_enter_str(3000000, 0);                                           // wait for user to enter note
-                Serial_Print(note.c_str());
-                Serial_Print("\",");
-              }
-            }
           }
 
           //&&
           //          analogReadAveraging(analog_averages);                                      // set analog averaging (ie ADC takes one signal per ~3u)
 
           //////////////////////ADC SETUP////////////////////////
-
-
-          delay(2);
 
           //int actfull = 0;
           //          int _tcs_to_act = 0;
@@ -902,11 +895,7 @@ void loop() {
               /*
                  Using two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
               */
-              timer0.begin(pulse1, pulsedistance);                                      // Begin firsts pulse
-              noInterrupts();
-              delayMicroseconds(pulsesize);
-              interrupts();
-              timer1.begin(pulse2, pulsedistance);                                      // Begin second pulse
+              startTimers(pulsedistance, pulsesize);                                                  // restart the measurement light timer
             }
 
 #ifdef DEBUGSIMPLE
@@ -995,13 +984,6 @@ void loop() {
                     Serial_Print("\"message\":[");
                     message_flag = 1;
                   }
-                  //                  if (quit != -1) {                                                                          // if they haven't entered quit yet, check to make sure they didn't enter it since last time we checked
-                  //                    quit = user_enter_long(5);                                                               // check to see if user has quit (send -1 on USB or bluetooth serial)
-                  //                  }
-                  //                  if (quit == -1) {                                                                          // if the user quit the measurement, then post any data produced so far (skipPart) and quit (skipall)
-                  //                    Serial_Print("[]],");
-                  //                    goto skipPart;
-                  //                  }
                   Serial_Print("[\"");
                   Serial_Print(_message_type.c_str());                                                               // print message
                   Serial_Print("\",");
@@ -1010,34 +992,46 @@ void loop() {
                   Serial_Print("\",");
                   if (_message_type == "0") {
                     Serial_Print("\"\"]");
-                  }
+                  }                  
                   else if (_message_type == "alert") {                                                    // wait for user response to alert
+                    stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
                     while (1) {
-                      int response = user_enter_long(3000000);
+                      long response = Serial_Input_Long();
                       if (response == -1) {
                         Serial_Print("\"ok\"]");
                         break;
                       }
                     }
+                    startTimers(pulsedistance,pulsesize);                                                 // restart the measurement light timer
                   }
                   else if (_message_type == "confirm") {                                                  // wait for user's confirmation message.  If enters '1' then skip to end.
+                    stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
                     while (1) {
-                      int response = user_enter_long(3000000);
+                      long response = Serial_Input_Long();
                       if (response == 1) {
-                        Serial_Print("\"cancel\"]],");
-                        goto skipPart;
+                        Serial_Print("\"cancel\"]]");                                                     // set all loops (protocols, measurements, averages, etc.) to the last loop value so it exits gracefully
+                        q = number_of_protocols;
+                        y = measurements - 1;
+                        u = protocols - 1;
+                        x = averages;
+                        z = total_pulses;
+                        break;
                       }
                       if (response == -1) {
                         Serial_Print("\"ok\"]");
                         break;
                       }
                     }
+                  startTimers(pulsedistance,pulsesize);                                                 // restart the measurement light timer
                   }
                   else if (_message_type == "prompt") {                                                    // wait for user to input information, followed by +
-                    String response = user_enter_str(3000000, 0);
+                    stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
+                    char response[100];
+                    Serial_Input_Chars(response, "+", 0, sizeof(response));
                     Serial_Print("\"");
-                    Serial_Print(response.c_str());
+                    Serial_Print(response);
                     Serial_Print("\"]");
+                    startTimers(pulsedistance,pulsesize);                                                 // restart the measurement light timer
                   }
                   if (cycle != pulses.getLength() - 1) {                                                  // if it's not the last cycle, then add comma
                     Serial_Print(",");
@@ -1076,10 +1070,10 @@ void loop() {
               }
             }
 
-            if (Serial_Available() && user_enter_long(1) == -1) {                                                             // exit protocol completely if user enters -1+
+            if (Serial_Available() && Serial_Input_Float("+", 1) == -1) {                                                            // exit protocol completely if user enters -1+
               q = number_of_protocols;
-              y = measurements;
-              u = protocols;
+              y = measurements - 1;
+              u = protocols - 1;
               x = averages;
               z = total_pulses;
             }
@@ -1142,7 +1136,7 @@ void loop() {
 #ifdef PULSERDEBUG
               Serial_Printf("reference_start = %d, reference_now = %d,       _main_start = %d, main_now = %d", (int) _reference_start, (int) data_ref, (int) _main_start, (int) data);
 #endif
-              data = data + _main_start * (data_ref - _reference_start) / _reference_start; // adjust main value according to the % change in the reference relative to main on the first pulse.
+              data = data - _main_start * (data_ref - _reference_start) / _reference_start; // adjust main value according to the % change in the reference relative to main on the first pulse.  You adjust the main in the opposite direction of the reference (to compensate)
 #ifdef PULSERDEBUG
               float changed = (data_ref - _reference_start) / _reference_start;
               Serial_Printf(",      main = %d, ref = %d, data_normalized = %f, percent_change = %f\n", detector, _reference, data, changed);
@@ -1232,8 +1226,6 @@ void loop() {
           }
           background_on = 0;
           background_on = calculate_intensity_background(act_background_light, tcs_to_act, cycle, _light_intensity, act_background_light_intensity); // figure out background light intensity and state
-
-
 
           for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {
             if (_a_lights[i] != act_background_light) {                                  // turn off all lights unless they are the actinic background light
@@ -1413,22 +1405,13 @@ void loop() {
               analogWrite(pin, 0);
               reset_freq();                                                                              // reset analog frequencies
             }
-            if (environmental.getArray(i).getLong(1) == 1 \
-                && (String) environmental.getArray(i).getString(0) == "note") {                      // insert notes or other data.  Limit 999 chars, do not use following chars []+"'
-              if (x == 0) {                                                                // if it's the last measurement to average, then print the results
-                Serial_Print("\"note\":\"");
-                String note = user_enter_str(3000000, 0);                                           // wait for user to enter note
-                Serial_Print(note.c_str());
-                Serial_Print("\",");
-              }
-            }
           }
           if (x + 1 < averages) {                                                             //  to next average, unless it's the end of the very last run
             if (averages_delay > 0) {
-              user_enter_long(averages_delay * 1000);
+              Serial_Input_Long("+", averages_delay * 1000);
             }
             if (averages_delay_ms > 0) {
-              user_enter_long(averages_delay_ms);
+              Serial_Input_Long("+", averages_delay_ms);
             }
           }
         }
@@ -1486,10 +1469,10 @@ skipPart:
         if (q < number_of_protocols - 1 || u < protocols - 1) {                           // if it's not the last protocol in the measurement and it's not the last repeat of the current protocol, add a comma
           Serial_Print(",");
           if (protocols_delay > 0) {
-            user_enter_long(protocols_delay * 1000);
+            Serial_Input_Long("+", protocols_delay * 1000);
           }
           if (protocols_delay_ms > 0) {
-            user_enter_long(protocols_delay_ms);
+            Serial_Input_Long("+", protocols_delay_ms);
           }
         }
         else if (q == number_of_protocols - 1 && u == protocols - 1) {                  // if it is the last protocol, then close out the data json
@@ -1541,16 +1524,22 @@ skipPart:
     if (y < measurements - 1) {                                                    // add commas between measurements
       Serial_Print(",");
       if (measurements_delay > 0) {
-        user_enter_long(measurements_delay * 1000);
+        Serial_Input_Long("+", measurements_delay * 1000);
       }
       else if (measurements_delay_ms > 0) {
-        user_enter_long(measurements_delay_ms);
+        Serial_Input_Long("+", measurements_delay_ms);
       }
     }
   }
-  //skipall:
+  /*
+  // make sure one last time that all of the lights are turned off, including background light!
+  for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
+      digitalWriteFast(LED_to_pin[i], LOW);
+      Serial_Print_Line(LED_to_pin[i]);
+  }
+*/
+  
   Serial_Print("]}");
-  digitalWriteFast(act_background_light, LOW);                                    // turn off the actinic background light at the end of all measurements
   act_background_light = 13;                                                      // reset background light to teensy pin 13
   free(data_raw_average);                                                         // free the calloc() of data_raw_average
   free(json);                                                                     // free second json malloc
@@ -1588,12 +1577,12 @@ int check_protocol(char *str)
     return 0;
 
   // check CRC - 8 hex digits immediately after the closing }
-  char *ptr = strrchr(start,'}');  // find last }
+  char *ptr = strrchr(start, '}'); // find last }
   if (!ptr)                        // no } found - how can that be?
-     return 0;
+    return 0;
 
   if (!isxdigit(*(ptr + 1)))      // hex digit follows last }
-     return 1;                    // no CRC so OK
+    return 1;                    // no CRC so OK
 
   // CRC is there - check it
 
@@ -1601,10 +1590,23 @@ int check_protocol(char *str)
   crc32_buf (start, 1 + ptr - start);
 
   // note: must be exactly 8 upper case hex digits
-  if (strncmp(int32_to_hex (crc32_value()),ptr + 1,8) != 0) {
-     return 0;
+  if (strncmp(int32_to_hex (crc32_value()), ptr + 1, 8) != 0) {
+    return 0;
   }
 
   return 1;
 } // check_protocol()
+
+void startTimers(uint16_t _pulsedistance,uint16_t _pulsesize) {
+  timer0.begin(pulse1, _pulsedistance);                                      // Begin firsts pulse
+  noInterrupts();
+  delayMicroseconds(_pulsesize);
+  interrupts();
+  timer1.begin(pulse2, _pulsedistance);                                      // Begin second pulse
+}
+void stopTimers() {
+  timer0.end();                                                                  // if it's the last cycle and last pulse, then... stop the timers
+  timer1.end();  
+}
+
 

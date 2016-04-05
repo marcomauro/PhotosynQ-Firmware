@@ -16,6 +16,47 @@
 
 /*
 
+
+
+I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.  
+
+Get rid of user_enter… and replace with new user enter, then delete main function
+
+Convert all possible into an array to make designing protocols more user friendly
+turn pulse_distance and pulse_size → into an array
+
+Greg - find suitable small magnet to embed, talk with Geoff
+Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
+
+Using bluetooth ID as ID - 
+Firmware needs api call to write code to eeprom (unique ID).
+Android to check for empty (if all 0s, or all 1s, then set api call to make unique ID == mac address.
+Check protocol routines (produce error codes if fail):
+Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  This should run just before any new protocol - if it’s too low, report to the user
+(greg) Overheat LED check: adds up time + intensity + pulsesize and length of pulses, and calculates any overages.  Report overages - do not proceed if over.  Also needs a shutoff which is available through a 1000 call.  
+Syntax check: make sure that the structure of the JSON is correct, report corrupted
+CRC check: so we expect CRC on end of protocol JSON, and check to make sure it’s valid.  Report corrupted
+Make 1000 calls for all of the sensors (for chrome app to call)
+Sebastian - can we change the sensor read commands 1000 over to normal protocols - then you output as per normal?)
+Make the “environmental” a separate subroutine and pass the before or after 0,1 to it.
+Check with sebastian about adding comments to protocols
+Clean up the protocols - light intensity (make into a single 1000+ call, see old code to bring it in)
+Pull out the alert/confirm/prompt into a subroutine.
+If averages == 1, then print data in real time
+Check to make sure “averages” works in the protocols
+Clean up the pulsesize = 0 and all that stuff… meas_intensity…
+Actinic background light… make sure to update (currently set to 13)
+Attach par sensor to USB-C breakout, make calibration routine.
+Look up and see why iOS doesn’t connect.
+Test the power down feature from the bluetooth.  Determine how long it takes when powered down to come back to life (from bluetooth).  Include auto power off in the main while loop - auto-off after 10 seconds.  
+Troubleshoot issues with bluetooth between protocols.
+
+
+Start documenting the commands + parameters to pass…
+And the eeprom commands
+
+
+
    Next to do:
    Add calibration commands back in
    consolidate commands to end up with:
@@ -436,15 +477,15 @@ void setup() {
 #ifdef DEBUGSIMPLE
   Serial_Print_Line("serial works");
 #endif
-  delay(500);
+  delay(50);
 
   // Set up I2C bus
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_INT, I2C_RATE_400);  // using alternative wire library
-  Serial_Print_Line("I2C works");
+//  Serial_Print_Line("I2C works");
 
   // initialize SPI bus
   SPI.begin ();
-  Serial_Print_Line("SPI works");
+//  Serial_Print_Line("SPI works");
 
   // initialize DACs
   DAC_init();   

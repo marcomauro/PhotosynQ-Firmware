@@ -306,8 +306,7 @@ char *Serial_Input_Chars(char *string, const char *terminators, long unsigned in
 
   return string;
 
-}  // Serial_Input_String()
-
+}  // Serial_Input_Chars()
 
 
 // read a float value (see above)
@@ -336,8 +335,8 @@ String Serial_Input_String(const char *terminators, long unsigned int timeout)
   static String serial_string;
   char str[100];  // caution - fixed size buffer
 
-  serial_string = Serial_Input_Chars(str, terminators,timeout, strlen(str) - 1);
-
+  Serial_Input_Chars(str, terminators,timeout, sizeof(str) - 1);
+  
   serial_string = str;
 
   return serial_string;

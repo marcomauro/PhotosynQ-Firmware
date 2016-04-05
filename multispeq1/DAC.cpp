@@ -11,7 +11,7 @@
 
 static mcp4728 *dac[NUM_DACS];    // pointer only - initialize under more controlled circumstances so debugging is possible
 
-// map LED number (here numbered 0-9) to which DAC that pin is on
+// map LED number (here numbered 0-9) to which DAC IC that pin is on
 static short pin_to_dac[NUM_LED_PINS] = {0, 0, 0, 2, 0, 1, 2, 1, 1, 1};  // must be 0,1,2
 
 // map pin number (eg, 0-9) to which DAC channel that pin is on
@@ -21,7 +21,6 @@ static short pin_to_channel[NUM_LED_PINS] = {2, 3, 0, 0, 1, 1, 1, 3, 2, 0};   //
 
 int DAC_init(void)
 {
-
   // set up ldac pins
   pinMode(LDAC1, OUTPUT);
   digitalWriteFast(LDAC1, HIGH);

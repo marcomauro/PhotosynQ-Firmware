@@ -11,7 +11,6 @@
 
 #define ledPin 13
 
-
 #define TEST 0
 #if TEST
 
@@ -51,10 +50,7 @@ loop()
   MAG3110_print_values();
 }
 
-
-
 #endif
-
 
 #define MAG_ADDR  0x0E    // 7-bit address for the MAG3110, doesn't change
 

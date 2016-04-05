@@ -11,5 +11,3 @@ void crc32_byte (const uint32_t byte);
 void crc32_buf (const char * message, int size);
 void crc32_string (const char *message);
 
-
-

@@ -1,0 +1,28 @@
+   case 4045:
+        {
+          // JZ test - do not remove
+          // read multiple pulses for linearity test
+          const int LED = 5;                              // 1 = green, 2 = red
+          Serial_Print_Line("Pulse test");
+          AD7689_set(0);
+
+          for (int i = 1; i < 100; ++i) {                      // try a variety of intensities
+            DAC_set(LED, i);                               // set LED intensity
+            DAC_change();
+            digitalWriteFast(HOLDM, HIGH);                  // discharge cap
+            delay(100);
+            noInterrupts();
+            digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
+            delayMicroseconds(30);                          // allow slow actopulser to stabilize
+            digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)
+            delayMicroseconds(20);                          // measuring width
+            digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
+            AD7689_sample();
+            Serial_Printf("%d,%d\n", i,AD7689_read_sample() + 698);   // AD offset is 698
+            interrupts();
+          }
+          Serial_Print_Line("done");
+        }
+        break;
+
+

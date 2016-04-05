@@ -3,7 +3,7 @@
 //  This is used to set LED intensity
 //  Do not write to the DACs or ldac lines anywhere else.
 //  Any calls from outside this file assume that pins are numbered 1-x (vs 0-x).
-//  *** Important: assume that the DAC ICs have addresses of 1,2,3 (can be set with a routine below)
+//  *** Important: assume that the DAC ICs have i2C addresses of 1,2,3 (can be set with a routine below)
 //  Jon Zeeff, March, 2016
 
 #include "mcp4728.h"              // DAC

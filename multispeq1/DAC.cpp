@@ -47,6 +47,7 @@ int DAC_init(void)
 
 // set the DAC value for a particular LED pin (eg, 1-10)
 // doesn't take effect until DAC_change()
+// value is 0-4095 (12 bits)
 
 void DAC_set(unsigned int pin, unsigned int value)
 {

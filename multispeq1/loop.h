@@ -1557,13 +1557,14 @@ skipPart:
   Serial_Print_CRC();
 } // loop()
 
-
 // check a protocol for validity (matching [] and {})
 // return 1 if OK, otherwise 0
+// should also check CRC value if present
 
 int check_protocol(char *str)
 {
   int bracket = 0, curly = 0;
+  char *start = str;
 
   while (*str != 0) {
     switch (*str) {
@@ -1583,9 +1584,27 @@ int check_protocol(char *str)
     ++str;
   } // while
 
-  if (bracket == 0 && curly == 0)
-    return 1;
-  else
+  if (bracket != 0 || curly != 0)  // unbalanced - can't be correct
     return 0;
+
+  // check CRC - 8 hex digits immediately after the closing }
+  char *ptr = strrchr(start,'}');  // find last }
+  if (!ptr)                        // no } found - how can that be?
+     return 0;
+
+  if (!isxdigit(*(ptr + 1)))      // hex digit follows last }
+     return 1;                    // no CRC so OK
+
+  // CRC is there - check it
+
+  crc32_init();     // find crc of json (from first { to last })
+  crc32_buf (start, 1 + ptr - start);
+
+  // note: must be exactly 8 upper case hex digits
+  if (strncmp(int32_to_hex (crc32_value()),ptr + 1,8) != 0) {
+     return 0;
+  }
+
+  return 1;
 } // check_protocol()
 

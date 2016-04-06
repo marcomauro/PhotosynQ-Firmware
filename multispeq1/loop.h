@@ -9,7 +9,7 @@
 // function declarations
 uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
 int check_protocol(char *str);
-void startTimers(uint16_t _pulsedistance,uint16_t _pulsesize);
+void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize);
 void stopTimers();
 
 
@@ -90,7 +90,7 @@ void loop() {
         break;
       case 1000:                                                                    // print "Ready" to USB and Bluetooth
         Serial_Print(DEVICE_NAME);
-        Serial_Print_Line(" Ready");
+        Serial_Print_Line("Ready");
         break;
       case 666:
         Serial_Print("wake up");
@@ -304,7 +304,7 @@ void loop() {
           const int SAMPLES = 100;
           uint16_t val[SAMPLES];
           Serial_Print_Line("JZ test");
-          DAC_set(LED, 5);                               // set LED intensity
+          DAC_set(LED, 40);                               // set LED intensity
           DAC_change();
           AD7689_set(0);                                  // select ADC channel
           digitalWriteFast(HOLDM, HIGH);                  // discharge cap
@@ -341,22 +341,15 @@ void loop() {
         set_device_info(1);  // works
         break;
 
-      case 4046: {
-          Serial_Print("enter string\n");
-          String s = Serial_Input_String("+", 10000);
-          Serial_Print_Line(s);
-        }
-        break;
-
       case 4047:
         {
           // JZ test - do not remove
-          // read multiple pulses for linearity test
-          const int LED = 5;                              // 1 = green, 2 = red
-          Serial_Print_Line("Pulse test");
+          // read multiple pulses with increasing intensity for linearity test
+          const int LED = 3;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR
+          Serial_Print_Line("DAC vs intensity test");
           AD7689_set(0);
-
-          for (int i = 1; i < 100; ++i) {                      // try a variety of intensities
+          const int MAX = 4095;                            // try a variety of intensities 0 up to 4095
+          for (int i = 1; i < MAX; i += MAX / 100) {
             DAC_set(LED, i);                               // set LED intensity
             DAC_change();
             digitalWriteFast(HOLDM, HIGH);                  // discharge cap
@@ -364,12 +357,16 @@ void loop() {
             noInterrupts();
             digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
             delayMicroseconds(30);                          // allow slow actopulser to stabilize
-            digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)
-            delayMicroseconds(20);                          // measuring width
+            digitalWriteFast(HOLDM, LOW);                   // start integrating
+            delayMicroseconds(100);                          // pulse width (depends on sensitivity needed)
             digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
-            AD7689_sample();
-            Serial_Printf("%d,%d\n", i, AD7689_read_sample() + 698);  // AD offset is 698
+            const int SAMPLES = 11;                         // reduce noise
+            uint16_t val[SAMPLES];
+            AD7689_read_array(val, SAMPLES);                // read values
             interrupts();
+            int data = median16(val, SAMPLES);
+            if (data > 65400) break;                         // saturated the ADC, no point in continuing
+            Serial_Printf("%d,%d\n", i, data);               // AD offset was 698 for LED 5
           }
           Serial_Print_Line("done");
         }
@@ -1026,7 +1023,7 @@ void loop() {
                   Serial_Print("\",");
                   if (_message_type == "0") {
                     Serial_Print("\"\"]");
-                  }                  
+                  }
                   else if (_message_type == "alert") {                                                    // wait for user response to alert
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
                     while (1) {
@@ -1036,7 +1033,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers(pulsedistance,pulsesize);                                                 // restart the measurement light timer
+                    startTimers(pulsedistance, pulsesize);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "confirm") {                                                  // wait for user's confirmation message.  If enters '1' then skip to end.
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1056,7 +1053,7 @@ void loop() {
                         break;
                       }
                     }
-                  startTimers(pulsedistance,pulsesize);                                                 // restart the measurement light timer
+                    startTimers(pulsedistance, pulsesize);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "prompt") {                                                    // wait for user to input information, followed by +
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1065,7 +1062,7 @@ void loop() {
                     Serial_Print("\"");
                     Serial_Print(response);
                     Serial_Print("\"]");
-                    startTimers(pulsedistance,pulsesize);                                                 // restart the measurement light timer
+                    startTimers(pulsedistance, pulsesize);                                                // restart the measurement light timer
                   }
                   if (cycle != pulses.getLength() - 1) {                                                  // if it's not the last cycle, then add comma
                     Serial_Print(",");
@@ -1566,13 +1563,13 @@ skipPart:
     }
   }
   /*
-  // make sure one last time that all of the lights are turned off, including background light!
-  for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
+    // make sure one last time that all of the lights are turned off, including background light!
+    for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
       digitalWriteFast(LED_to_pin[i], LOW);
       Serial_Print_Line(LED_to_pin[i]);
-  }
-*/
-  
+    }
+  */
+
   Serial_Print("]}");
   act_background_light = 13;                                                      // reset background light to teensy pin 13
   free(data_raw_average);                                                         // free the calloc() of data_raw_average
@@ -1616,7 +1613,7 @@ int check_protocol(char *str)
     return 0;
 
   if (!isxdigit(*(ptr + 1)))      // hex digit follows last }
-    return 1;                    // no CRC so OK
+    return 1;                    // no CRC so report OK
 
   // CRC is there - check it
 
@@ -1625,22 +1622,24 @@ int check_protocol(char *str)
 
   // note: must be exactly 8 upper case hex digits
   if (strncmp(int32_to_hex (crc32_value()), ptr + 1, 8) != 0) {
-    return 0;
+    return 0;                 // bad CRC
   }
 
   return 1;
 } // check_protocol()
 
-void startTimers(uint16_t _pulsedistance,uint16_t _pulsesize) {
-  timer0.begin(pulse1, _pulsedistance);                                      // Begin firsts pulse
+// schedule the turn on and off of the LED(s) via an ISR
+
+void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
+  timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
   noInterrupts();
   delayMicroseconds(_pulsesize);
   interrupts();
-  timer1.begin(pulse2, _pulsedistance);                                      // Begin second pulse
+  timer1.begin(pulse2, _pulsedistance);                                      // schedule off
 }
 void stopTimers() {
   timer0.end();                                                                  // if it's the last cycle and last pulse, then... stop the timers
-  timer1.end();  
+  timer1.end();
 }
 
 

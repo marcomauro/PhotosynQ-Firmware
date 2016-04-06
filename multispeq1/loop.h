@@ -90,7 +90,7 @@ void loop() {
         break;
       case 1000:                                                                    // print "Ready" to USB and Bluetooth
         Serial_Print(DEVICE_NAME);
-        Serial_Print_Line("Ready");
+        Serial_Print_Line(" Ready");
         break;
       case 666:
         Serial_Print("wake up");
@@ -513,18 +513,16 @@ void loop() {
           sampling_speed = 3;
         }
         int act_background_light_intensity = hashTable.getLong("act_background_light_intensity");  // sets intensity of background actinic.  Choose this OR tcs_to_act.
-        int tcs_to_act =          hashTable.getLong("tcs_to_act");                               // sets the % of response from the tcs light sensor to act as actinic during the run (values 1 - 100).  If tcs_to_act is not defined (ie == 0), then the act_background_light intensity is set to actintensity1.
+        int tcs_to_act =            hashTable.getLong("tcs_to_act");                               // sets the % of response from the tcs light sensor to act as actinic during the run (values 1 - 100).  If tcs_to_act is not defined (ie == 0), then the act_background_light intensity is set to actintensity1.
         //int offset_off =          hashTable.getLong("offset_off");                               // turn off detector offsets (default == 0 which is on, set == 1 to turn offsets off)
 
         ///*
-        long pulsedistance =      hashTable.getLong("pulsedistance");                            // distance between measuring pulses in us.  Minimum 1000 us.
-        //        int pulsedistance_array[pulses.getLength()] = hashTable.getArray("pulsedistance");                            // distance between measuring pulses in us.  Minimum 1000 us.
-        //        for (int i = 0; i < pulses.getLength(); i++) {                                      // count the number of non zero lights and total pulses
-        //          pulsedistance
-        //        }
+//        long pulsedistance =      hashTable.getLong("pulsedistance");                            // distance between measuring pulses in us.  Minimum 1000 us.
+        JsonArray pulsedistance =   hashTable.getArray("pulsedistance");                            // distance between measuring pulses in us.  Minimum 1000 us.
+//        long pulsesize =          hashTable.getLong("pulsesize");                                // Size of the measuring pulse (5 - 100us).  This also acts as gain control setting - shorter pulse, small signal. Longer pulse, larger signal.
+        JsonArray pulsesize =       hashTable.getArray("pulsesize");                            // distance between measuring pulses in us.  Minimum 1000 us.
 
-        long pulsesize =          hashTable.getLong("pulsesize");                                // Size of the measuring pulse (5 - 100us).  This also acts as gain control setting - shorter pulse, small signal. Longer pulse, larger signal.
-        JsonArray a_lights =   hashTable.getArray("a_lights");
+        JsonArray a_lights =        hashTable.getArray("a_lights");
         JsonArray a_intensities =   hashTable.getArray("a_intensities");
         JsonArray m_intensities =   hashTable.getArray("m_intensities");
 
@@ -708,7 +706,8 @@ void loop() {
         r_average_forpar = 0;
         g_average_forpar = 0;
         b_average_forpar = 0;
-        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
+//!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
+//        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
 
 #ifdef DEBUGSIMPLE
         Serial_Print_Line("");
@@ -733,8 +732,10 @@ void loop() {
           int background_on = 0;
           long data_count = 0;
           int message_flag = 0;                                                              // flags to indicate if an alert, prompt, or confirm have been called at least once (to print the object name to data JSON)
-          int _pulsedistance = 0;
-          int _pulsesize = 0;
+          uint16_t _pulsedistance;                                                    // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
+          uint16_t _pulsesize;
+          uint16_t _pulsedistance_prev;
+          uint16_t _pulsesize_prev;
           uint16_t _reference = 0;                                                                 // create the reference flag
           uint16_t _reference_flag = 0;                                                           // used to note if this is the first measurement
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
@@ -903,49 +904,14 @@ void loop() {
 
           for (int z = 0; z < total_pulses; z++) {                                      // cycle through all of the pulses from all cycles
             int first_flag = 0;                                                           // flag to note the first pulse of a cycle
-            //int dac1_flag = 0;                                                            // this sets which dac will need to have the EEPROM loaded to change the output, first for measuring lights then for actinic lights
-            //int dac2_flag = 0;
-            //int dac3_flag = 0;
-            //int a_on[10];
-            //int act1_on = 0;
-            //int act2_on = 0;
-            //int act3_on = 0;
-            //int act4_on = 0;
             int _spec = 0;                                                              // create the spec flag for the coralspeq
             int _intTime = 0;                                                           // create the _intTime flag for the coralspeq
             int _delay_time = 0;                                                        // create the _delay_time flag for the coralspeq
             int _read_time = 0;                                                         // create the _read_time flag for the coralspeq
-            int _accumulateMode = 0;                                                    // create the _accumulateMode flag for the coralspeq
+            int _accumulateMode = 0;                                                    // create the _accumulateMode flag for the coralspeq            
 
-            if (cycle == 0 && pulse == 0) {                                             // if it's the beginning of a measurement, then...                                                             // wait a few milliseconds so that the actinic pulse presets can stabilize
-              //              volatile unsigned long* systimer = (volatile unsigned long*) 0xE000E018;                    // call system clock
-              //              Serial_Flush_Output();                                                          // flush any remaining serial output info before moving forward
-
-              digitalWriteFast(act_background_light_prev, LOW);                        // turn off actinic background light
-
-              /*
-                 Using two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
-              */
-              startTimers(pulsedistance, pulsesize);                                                  // restart the measurement light timer
-            }
-
-#ifdef DEBUGSIMPLE
-            Serial_Print_Line("");
-            Serial_Print("cycle, measurement number, measurement array size,total pulses ");
-            Serial_Print(cycle);
-            Serial_Print(", ");
-            Serial_Print(meas_number);
-            Serial_Print(", ");
-            Serial_Print(meas_array_size);
-            Serial_Print(",");
-            Serial_Print_Line(total_pulses);
-            Serial_Print("measurement light, detector,data raw average,data point        ");
-            Serial_Print(_meas_light);
-            Serial_Print(", ");
-            Serial_Print_Line(detector);
-#endif
-            if (pulse == 0) {                                                                             // if it's the first pulse of a cycle, we need to set up the new set of lights and intensities...
-              meas_array_size = meas_lights.getArray(cycle).getLength();                                  // get the number of measurement/detector subsets in the new cycle
+            if (pulse == 0) {                                                                                     // if it's the first pulse of a cycle, we need to set up the new set of lights and intensities...
+              meas_array_size = meas_lights.getArray(cycle).getLength();                                          // get the number of measurement/detector subsets in the new cycle
 #ifdef PULSERDEBUG
               Serial_Printf("\n _number_samples and _reference: %d %d \n", _number_samples, _reference);
 #endif
@@ -956,13 +922,13 @@ void loop() {
                 Serial_Printf("\n all a_lights_prev: %d\n", _a_lights_prev[i]);
 #endif
               }
-              for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {                      // save the current list of act lights, determine if they should be on, and determine their intensity
+              for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {                                   // save the current list of act lights, determine if they should be on, and determine their intensity
                 _a_lights[i] = a_lights.getArray(cycle).getLong(i);
                 _a_intensities[i] = a_intensities.getArray(cycle).getLong(i);
 #ifdef PULSERDEBUG
                 Serial_Printf("\n all a_lights, intensities: %d,%d\n", _a_lights[i], _a_intensities[i]);
-#endif
-              }
+#endif              
+              }          
 
 #ifdef CORAL_SPEQ
               _spec = spec.getLong(cycle);                                                      // pull whether the spec will get called in this cycle or not for coralspeq and set parameters.  If they are empty (not defined by the user) set them to the default value
@@ -984,14 +950,32 @@ void loop() {
                   _accumulateMode = false;
                 }
               }
-#endif
-              first_flag = 1;                                                                             // flip flag indicating that it's the 0th pulse and a new cycle
+#endif              
+              if (cycle != 0) {
+                _pulsedistance_prev = _pulsedistance;
+                _pulsesize_prev = _pulsesize;            
+              }
+              _pulsedistance = pulsedistance.getLong(cycle);                                                    // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
+              _pulsesize = pulsesize.getLong(cycle);
+              first_flag = 1;                                                                                   // flip flag indicating that it's the 0th pulse and a new cycle
+              if (cycle == 0) {                                                                                 // if it's the beginning of a measurement (cycle == 0 and pulse == 0), then...
+                digitalWriteFast(act_background_light_prev, LOW);                                               // turn off actinic background light and...
+                startTimers(_pulsedistance, _pulsesize);                                                        // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
+              }
+              else if (cycle != 0 && (_pulsedistance != _pulsedistance_prev || _pulsesize != _pulsesize_prev)) {    // if it's not the 0th cycle and the last pulsesize or pulsedistance was different than the current one, then stop the old timers and set new ones.   If they were the same, avoid resetting the timers by skipping this part.
+  //              stopTimers();                                                                                   // stop the old timers
+                startTimers(_pulsedistance, _pulsesize);                                    // restart the measurement light timer
+              }
             }
 
+
+#ifdef PULSERDEBUG
+            Serial_Printf("pulsedistance = %d, pulsesize = %d, cycle = %d, measurement number = %d, measurement array size = %d,total pulses = %d\n",(int) _pulsedistance, (int) _pulsesize,(int) cycle,(int) meas_number,(int) meas_array_size,(int) total_pulses);
+#endif            
             _number_samples = number_samples.getLong(cycle);                                               // set the _number_samples for this cycle
             _meas_light = meas_lights.getArray(cycle).getLong(meas_number % meas_array_size);             // move to next measurement light
             uint16_t _m_intensity = m_intensities.getArray(cycle).getLong(meas_number % meas_array_size);  // move to next measurement light intensity
-            uint16_t detector = detectors.getArray(cycle).getLong(meas_number % meas_array_size);                  // move to next detector
+            uint16_t detector = detectors.getArray(cycle).getLong(meas_number % meas_array_size);          // move to next detector
             uint16_t _reference = reference.getArray(cycle).getLong(meas_number % meas_array_size);
             if (_number_samples == 0) {                                                                    // if _number_samples wasn't set or == 0, set it automatically to 40 (default)
               _number_samples = 11;
@@ -1033,7 +1017,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers(pulsedistance, pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "confirm") {                                                  // wait for user's confirmation message.  If enters '1' then skip to end.
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1053,7 +1037,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers(pulsedistance, pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "prompt") {                                                    // wait for user to input information, followed by +
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1062,7 +1046,7 @@ void loop() {
                     Serial_Print("\"");
                     Serial_Print(response);
                     Serial_Print("\"]");
-                    startTimers(pulsedistance, pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   if (cycle != pulses.getLength() - 1) {                                                  // if it's not the last cycle, then add comma
                     Serial_Print(",");
@@ -1071,19 +1055,6 @@ void loop() {
                     Serial_Print("],");
                   }
                 }
-                /*
-                                _pulsedistance_prev = pulsedistance.getArray(cycle-1);                                       // now get and set the pulses size and distance
-                                _pulsesize_prev = pulsesize.getArray(cycle-1);
-                                _pulsedistance = pulsedistance.getArray(cycle);                                       // now get and set the pulses size and distance
-                                _pulsesize = pulsesize.getArray(cycle);
-                                if ((pulsesize[cycle-1] != pulsesize[cycle]) || (pulsedistance[cycle-1] != pulsedistance[cycle])) {    // if the pulsedistance or pulsesize has changed from the last pulse set, then
-                                  timer0.begin(pulse1, pulsedistance[cycle]);                                      // Begin firsts pulse
-                                  noInterrupts();
-                                  delayMicroseconds(pulsesize[cycle]);
-                                  interrupts();
-                                  timer1.begin(pulse2, pulsedistance[cycle]);                                      // Begin second pulse
-                                }
-                */
               }
               calculate_intensity(_meas_light, tcs_to_act, cycle, _light_intensity);                   // in addition, calculate the intensity of the current measuring light
 
@@ -1101,7 +1072,7 @@ void loop() {
               }
             }
 
-            if (Serial_Available() && Serial_Input_Float("+", 1) == -1) {                                                            // exit protocol completely if user enters -1+
+            if (Serial_Available() && Serial_Input_Float("+", 1) == -1) {                                      // exit protocol completely if user enters -1+
               q = number_of_protocols;
               y = measurements - 1;
               u = protocols - 1;
@@ -1109,23 +1080,20 @@ void loop() {
               z = total_pulses;
             }
 
-            uint16_t sample_adc[_number_samples];
+            uint16_t sample_adc[_number_samples];                                                             // initialize the variables to hold the main and reference detector data
             uint16_t sample_adc_ref[_number_samples];
-            uint16_t startTimer;
-            uint16_t endTimer;
+//            uint16_t startTimer;                                                                            // to measure the actual time it takes to perform the ADC reads on the sample (for debugging)
+//            uint16_t endTimer;
 
-            while (on == 0 || off == 0) {                                                             // if the measuring light turned on and off (pulse1 and pulse2 are background interrupt routines for on and off) happened, then...
+
+
+
+
+
+            while (on == 0 || off == 0) {                                                                     // if the measuring light turned on and off (pulse1 and pulse2 are background interrupt routines for on and off) happened, then...
             }
-
-            startTimer = micros();
+//            startTimer = micros();
             noInterrupts();                                                                            // turn off interrupts because we're checking volatile variables set in the interrupts
-
-            /*
-                        for (int i=0;i<_number_samples;i++) {
-                          AD7689_sample();
-                          sample_adc[i] = AD7689_read_sample();                                              // just reads the detector defined by the user
-                        }
-            */
 
             if (_reference != 0) {
               AD7689_read_arrays((detector - 1), sample_adc, (_reference - 1), sample_adc_ref, _number_samples); // also reads reference detector - note this function takes detectors 0 - 3, so must subtract detector value by 1
@@ -1135,7 +1103,7 @@ void loop() {
             }
 
             interrupts();                                                                                // turn off interrupts because we're checking volatile variables set in the interrupts
-            endTimer = micros();
+//            endTimer = micros();
             digitalWriteFast(HOLDM, HIGH);                                                            // turn off sample and hold, and turn on lights for next pulse set
             digitalWriteFast(HOLDADD, HIGH);                                                            // turn off sample and hold, and turn on lights for next pulse set
 
@@ -1517,19 +1485,9 @@ skipPart:
         for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {
           _a_lights[i] = 0;
         }
-        //_act1_light = 0;
-        //_act2_light = 0;
-        //_act3_light = 0;
-        //_act4_light = 0;
-        pulsesize = 0;                                                                // measured in microseconds
-        pulsedistance = 0;
-        act_intensity = 0;                                                            // intensity at LOW setting below
-        meas_intensity = 0;                                                            // 255 is max intensity during pulses, 0 is minimum // for additional adjustment, change resistor values on the board
-        cal_intensity = 0;
         relative_humidity_average = 0;                                                // reset all environmental variables to zero
         temperature_average = 0;
         objt_average = 0;
-        co2_value_average = 0;
         lux_average = 0;
         r_average = 0;
         g_average = 0;
@@ -1629,7 +1587,6 @@ int check_protocol(char *str)
 } // check_protocol()
 
 // schedule the turn on and off of the LED(s) via an ISR
-
 void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
   timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
   noInterrupts();

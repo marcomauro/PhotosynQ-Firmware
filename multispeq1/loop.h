@@ -304,7 +304,7 @@ void loop() {
           const int SAMPLES = 100;
           uint16_t val[SAMPLES];
           Serial_Print_Line("JZ test");
-          DAC_set(LED, 5);                               // set LED intensity
+          DAC_set(LED, 40);                               // set LED intensity
           DAC_change();
           AD7689_set(0);                                  // select ADC channel
           digitalWriteFast(HOLDM, HIGH);                  // discharge cap
@@ -339,13 +339,6 @@ void loop() {
 
       case 4045:
         set_device_info(1);  // works
-        break;
-
-      case 4046: {
-          Serial_Print("enter string\n");
-          String s = Serial_Input_String("+", 10000);
-          Serial_Print_Line(s);
-        }
         break;
 
       case 4047:

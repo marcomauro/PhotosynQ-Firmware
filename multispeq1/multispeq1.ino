@@ -5,7 +5,7 @@
 
 
 // FIRMWARE VERSION OF THIS FILE (SAVED TO EEPROM ON FIRMWARE FLASH)
-#define FIRMWARE_VERSION .50
+#define FIRMWARE_VERSION ".50"
 #define DEVICE_NAME "MultispeQ"
 
 // update DAC and get lights working in [{}]
@@ -15,13 +15,16 @@
 
 /*
 
++ test do we need to calibrate offsets (like we did with the betas?)
+
 Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
 Using bluetooth ID as ID - 
 Firmware needs api call to write code to eeprom (unique ID).
 Get rid of user_enter… and replace with new user enter, then delete main function
 Pull out the alert/confirm/prompt into a subroutine.
 If averages == 1, then print data in real time
-Actinic background light… make sure to update (currently set to 13)
+Reimplement Actinic background light… make sure to update (currently set to 13)
+reimplement print_offset and get_offset
 
 Make the “environmental” a separate subroutine and pass the before or after 0,1 to it.
 
@@ -204,15 +207,17 @@ And the eeprom commands
 // routines for over-the-air firmware updates
 void upgrade_firmware(void);
 void boot_check(void);
+int Light_Intensity(int var1);
 
-void call_print_calibration (int _print);
+//void call_print_calibration (int _print);
 
 
 // replace legacy routines with new equivalents
+/*
 #define user_enter_str(timeout, pwr_off) Serial_Input_String("+", (unsigned long) timeout)
 #define user_enter_dbl(timeout) Serial_Input_Double("+", (unsigned long) timeout)
 #define user_enter_long(timeout) Serial_Input_Long("+",(unsigned long) timeout)
-
+*/
 
 // remove these after PCB testing
 #define GAIN_BITS 0        // extra effective bits due to gain being higher than beta detector - example, 4x more gain = 2.0 bits
@@ -222,8 +227,8 @@ void call_print_calibration (int _print);
 
 
 //////////////////////DEVICE ID FIRMWARE VERSION////////////////////////
-float device_id = 0;
-float manufacture_date = 0;
+//float device_id = 0;
+//float manufacture_date = 0;
 
 //////////////////////PIN DEFINITIONS AND TEENSY SETTINGS////////////////////////
 //Serial, I2C, SPI...
@@ -374,23 +379,8 @@ float calibration_other2 [NUM_PINS] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-#if 1
-// delete this
-float pwr_off_ms[2] = {
-  120000, 0
-};    // number of milliseconds before unit auto powers down.
-#endif
-
 // ???
 int averages = 1;
-int pwr_off_state = 0;
-int pwr_off_lights_state = 0;
-int act_intensity = 0;
-int meas_intensity = 0;
-int cal_intensity = 0;
-JsonArray act_intensities;                         // write to input register of a dac1. channel 0 for low (actinic).  1 step = +3.69uE (271 == 1000uE, 135 == 500uE, 27 == 100uE)
-JsonArray meas_intensities;                        // write to input register of a dac1. channel 3 measuring light.  0 (high) - 4095 (low).  2092 = 0.  From 2092 to zero, 1 step = +.2611uE
-JsonArray cal_intensities;                        // write to input register of a dac1. channel 2 calibrating light.  0 (low) - 4095 (high).
 
 //////////////////////Shared Variables///////////////////////////
 volatile int off = 0, on = 0;
@@ -398,14 +388,8 @@ int analogresolutionvalue;
 IntervalTimer timer0, timer1, timer2;
 float data = 0;
 float data_ref = 0;
-int act_background_light = 13;
-extern float light_y_intercept;
-float offset_34 = 0;                                                          // create detector offset variables
-float offset_35 = 0;
-float slope_34 = 0;
-float yintercept_34 = 0;
-float slope_35 = 0;
-float yintercept_35 = 0;
+int act_background_light = 0;
+//extern float light_y_intercept;
 //char* bt_response = "OKOKlinvorV1.8OKsetPINOKsetnameOK115200"; // Expected response from bt module after programming is done.
 float freqtimer0;
 float freqtimer1;
@@ -426,12 +410,14 @@ extern float lux_average_forpar;
 extern float r_average_forpar;
 extern float g_average_forpar;
 extern float b_average_forpar;
+
+/*
 extern float light_y_intercept;
 extern float lux_to_uE(float _lux_average);
 extern int Light_Intensity(int var1);
 extern int calculate_intensity(int _light, int tcs_on, int _cycle, float _light_intensity);
 extern int calculate_intensity_background(int _light, int tcs_on, int _cycle, float _light_intensity, int _background_intensity);
-
+*/
 
 ////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
 float analog_read_average = 0;
@@ -440,11 +426,6 @@ float relative_humidity_average = 0;
 float temperature_average = 0;
 float objt_average = 0;
 float co2_value_average = 0;
-
-float tryit [5];  // ??
-
-int startit = 0;
-int donenow = 0;
 
 // pressure/temp/humidity sensors
 Adafruit_BME280 bme1;        // I2C sensor
@@ -501,12 +482,6 @@ void setup() {
   // pins used to turn on/off detector integration/discharge
   pinMode(HOLDM, OUTPUT);
   pinMode(HOLDADD, OUTPUT);
-
-  //  pinMode(PWR_OFF, OUTPUT);
-  //  pinMode(PWR_OFF_LIGHTS, OUTPUT);
-  //  pinMode(BATT_LEVEL, INPUT);
-  //  digitalWriteFast(PWR_OFF, LOW);                                               // pull high to power off, pull low to keep power.
-  //  digitalWriteFast(PWR_OFF_LIGHTS, HIGH);                                               // pull high to power on, pull low to power down.
   pinMode(BLANK, OUTPUT);                                                            // used as a blank pin to pull high and low if the meas lights is otherwise blank (set to 0)
 
 #if 0
@@ -527,7 +502,7 @@ void setup() {
   analogWriteFrequency(3, 187500);                                              // Pins 3 and 5 are each on timer 0 and 1, respectively.  This will automatically convert all other pwm pins to the same frequency.
   analogWriteFrequency(5, 187500);
 
-  /*
+#ifdef PULSERDEBUG
     // Set pinmodes for the coralspeq
     //pinMode(SPEC_EOS, INPUT);
     pinMode(SPEC_GAIN, OUTPUT);
@@ -539,8 +514,9 @@ void setup() {
     digitalWrite(SPEC_CLK, HIGH);
     digitalWrite(SPEC_GAIN, HIGH); //High Gain
     //digitalWrite(SPEC_GAIN, LOW); //LOW Gain
-  */
+#endif
 
+/*
   // convert to new eeprom method
   {
     float tmp = 0;
@@ -548,7 +524,7 @@ void setup() {
     if (tmp != (float) FIRMWARE_VERSION)                                                 // if the current firmware version isn't what's saved in EEPROM memory, then...
       EEPROM_writeAnything(16, (float) FIRMWARE_VERSION);                         // save the current firmware version
   }
-
+*/
   /*NOTES*/  // REINITIATE ONCE MAG AND ACCEL ARE CONNECTED
   //  MAG3110_init();           // initialize compass
   //  MMA8653FC_init();         // initialize accelerometer
@@ -642,119 +618,7 @@ void pulse2() {
 // this routine gets called repeatibly after setup()
 #include "loop.h"
 
-
-void pwr_off() {
-  /*
-    //  digitalWriteFast(PWR_OFF, HIGH);
-    //  delay(50);
-    //  digitalWriteFast(PWR_OFF, LOW);
-    Serial_Print("{\"pwr_off\":\"does nothing!\"}");
-    Serial_Print_CRC();
-  */
-}
-
-void print_offset(int _open) {
-  if (_open == 0) {
-    Serial_Print("{");
-  }
-  Serial_Print("\"slope_34\":");
-  Serial_Print(slope_34, 6);
-  Serial_Print(",");
-  Serial_Print("\"yintercept_34\":");
-  Serial_Print(yintercept_34, 6);
-  Serial_Print(",");
-  Serial_Print("\"slope_35\":");
-  Serial_Print(slope_35, 6);
-  Serial_Print(",");
-  Serial_Print("\"yintercept_35\":");
-  Serial_Print(yintercept_35, 6);
-
-  if (_open == 1) {
-    Serial_Print(",");
-  }
-  else {
-    Serial_Print("}");
-    Serial_Print_CRC();
-  }
-}
-
-
-void print_cal_userdef(String name, float array[], int last, int array_length) {                                                  // little function to clean up printing calibration values
-
-  Serial_Print("\"");
-  Serial_Print(name.c_str());
-  Serial_Print("\":[");
-  for (int i = 0; i < array_length; i++) {                                                // recall the calibration arrays
-    Serial_Print(array[i], 0);
-    if (i != array_length - 1) {
-      Serial_Print(",");
-    }
-  }
-  Serial_Print("]");
-  if (last != 1) {                                                                                        // if it's not the last one, then add comma.  otherwise, add curly.
-    Serial_Print(",");
-  }
-  else {
-    Serial_Print("}");
-  }
-}
-
-void print_sensor_calibration(int _open) {
-  if (_open == 0) {
-    Serial_Print("{");
-  }
-  Serial_Print("\"light_slope\":");
-  Serial_Print(light_slope, 6);
-  Serial_Print(",");
-  Serial_Print("\"light_y_intercept\":");
-  Serial_Print(light_y_intercept, 6);
-  if (_open == 1) {
-    Serial_Print(",");
-  }
-  else {
-    Serial_Print("}");
-  }
-}
-
-void print_cal(String name, float array[], int last) {                                                   // little function to clean up printing calibration values
-  Serial_Print("\"");
-  Serial_Print(name.c_str());
-  Serial_Print("\":[");
-  for (unsigned i = 0; i < sizeof(all_pins) / sizeof(int); i++) {                                              // recall the calibration arrays
-    Serial_Print(array[i], 0);
-    if (i != sizeof(all_pins) / sizeof(int) - 1) {
-      Serial_Print(",");
-    }
-  }
-  Serial_Print("]");
-  if (last != 1) {                                                                                        // if it's not the last one, then add comma.  otherwise, add curly.
-    Serial_Print(",");
-  }
-  else {
-    Serial_Print("}");
-  }
-}
-
-
-// replace this routine
-void reset_all(int which) {
-  int clean_part1 [1439] = {};
-  int clean_part2 [320] = {};
-  if (which == 0) {
-    EEPROM_writeAnything(0, clean_part1);                                                     // only reset the arrays, leave other calibrations
-    EEPROM_writeAnything(1448, clean_part2);                                                     // only reset the arrays, leave other calibrations
-  }
-  else {
-    EEPROM_writeAnything(60, clean_part1);                                                     // only reset the arrays, leave other calibrations
-    EEPROM_writeAnything(1448, clean_part2);                                                     // only reset the arrays, leave other calibrations
-  }
-
-
-  Serial_Print("{\"complete\":\"True\"}");
-  Serial_Print_CRC();
-  call_print_calibration(1);
-}
-
+/*
 void call_print_calibration (int _print) {
 
   // delete all of these
@@ -780,613 +644,51 @@ void call_print_calibration (int _print) {
   EEPROM_readAnything(1120, calibration_other1);
   EEPROM_readAnything(1240, calibration_other2);
   EEPROM_readAnything(1440, pwr_off_ms);
-
-  if (_print == 1) {                                                                                      // if this should be printed to COM port --
-    Serial_Print("{");
-    print_offset(1);
-    print_sensor_calibration(1);
-    print_cal("all_pins", all_pins, 0);
-    print_cal("calibration_slope", calibration_slope, 0);
-    print_cal("calibration_yint", calibration_yint , 0);
-    print_cal("calibration_slope_factory", calibration_slope_factory , 0);
-    print_cal("calibration_yint_factory", calibration_yint_factory , 0);
-    print_cal("calibration_baseline_slope", calibration_baseline_slope , 0);
-    print_cal("calibration_baseline_yint", calibration_baseline_yint , 0);
-    print_cal("calibration_blank1", calibration_blank1 , 0);
-    print_cal("calibration_blank2", calibration_blank2 , 0);
-    print_cal("calibration_other1", calibration_other1 , 0);
-    print_cal("calibration_other2", calibration_other2 , 0);
-    print_cal_userdef("userdef0", userdef0 , 0, 2);
-    print_cal_userdef("userdef1", userdef1 , 0, 2);
-    print_cal_userdef("userdef2", userdef2 , 0, 2);
-    print_cal_userdef("userdef3", userdef3 , 0, 2);
-    print_cal_userdef("userdef4", userdef4 , 0, 2);
-    print_cal_userdef("userdef5", userdef5 , 0, 2);
-    print_cal_userdef("userdef6", userdef6 , 0, 2);
-    print_cal_userdef("userdef7", userdef7 , 0, 2);
-    print_cal_userdef("userdef8", userdef8 , 0, 2);
-    print_cal_userdef("userdef9", userdef9 , 0, 2);
-    print_cal_userdef("userdef10", userdef10 , 0, 2);
-    print_cal_userdef("userdef11", userdef11 , 0, 2);
-    print_cal_userdef("userdef12", userdef12 , 0, 2);
-    print_cal_userdef("userdef13", userdef13 , 0, 2);
-    print_cal_userdef("userdef14", userdef14 , 0, 2);
-    print_cal_userdef("userdef15", userdef15 , 0, 2);
-    print_cal_userdef("userdef16", userdef16 , 0, 2);
-    print_cal_userdef("userdef17", userdef17 , 0, 2);
-    print_cal_userdef("userdef18", userdef18 , 0, 2);
-    print_cal_userdef("userdef19", userdef19 , 0, 2);
-    print_cal_userdef("userdef20", userdef20 , 0, 2);
-    print_cal_userdef("userdef21", userdef21 , 0, 2);
-    print_cal_userdef("userdef22", userdef22 , 0, 2);
-    print_cal_userdef("userdef23", userdef23 , 0, 2);
-    print_cal_userdef("userdef24", userdef24 , 0, 2);
-    print_cal_userdef("userdef25", userdef25 , 0, 2);
-    print_cal_userdef("userdef26", userdef26 , 0, 2);
-    print_cal_userdef("userdef27", userdef27 , 0, 2);
-    print_cal_userdef("userdef28", userdef28 , 0, 2);
-    print_cal_userdef("userdef29", userdef29 , 0, 2);
-    print_cal_userdef("userdef30", userdef30 , 0, 2);
-    print_cal_userdef("userdef31", userdef31 , 0, 2);
-    print_cal_userdef("userdef32", userdef32 , 0, 2);
-    print_cal_userdef("userdef33", userdef33 , 0, 2);
-    print_cal_userdef("userdef34", userdef34 , 0, 2);
-    print_cal_userdef("userdef35", userdef35 , 0, 2);
-    print_cal_userdef("userdef36", userdef36 , 0, 2);
-    print_cal_userdef("userdef37", userdef37 , 0, 2);
-    print_cal_userdef("userdef38", userdef38 , 0, 2);
-    print_cal_userdef("userdef39", userdef39 , 0, 2);
-    print_cal_userdef("userdef40", userdef40 , 0, 2);
-    print_cal_userdef("userdef41", userdef41 , 0, 2);
-    print_cal_userdef("userdef42", userdef42 , 0, 2);
-    print_cal_userdef("userdef43", userdef43 , 0, 2);
-    print_cal_userdef("userdef44", userdef44 , 0, 2);
-    print_cal_userdef("userdef45", userdef45 , 0, 2);
-    print_cal_userdef("userdef46", userdef46 , 0, 3);
-    print_cal_userdef("userdef47", userdef47 , 0, 3);
-    print_cal_userdef("userdef48", userdef48 , 0, 3);
-    print_cal_userdef("userdef49", userdef49 , 0, 3);
-    print_cal_userdef("userdef50", userdef50 , 0, 3);
-    print_cal_userdef("pwr_off_ms", pwr_off_ms, 1, 2);
-    Serial_Print_CRC();
-  }
 }
-
-// no longer needed
-void save_calibration_slope (int _pin, float _slope_val, int location) {
-  for (unsigned i = 0; i < sizeof(all_pins) / sizeof(int); i++) {                                              // loop through
-    if (all_pins[i] == _pin) {                                                                        // when you find the pin your looking for
-      EEPROM_writeAnything(location + i * 4, _slope_val);
-      //        save_eeprom_dbl(_slope_val,location+i*10);                                                                   // then in the same index location in the calibrations array, save the inputted value.
-    }
-  }
-}
-
-// no longer needed
-float save_calibration_yint (int _pin, float _yint_val, int location) {
-  for (unsigned i = 0; i < sizeof(all_pins) / sizeof(int); i++) {                                              // loop through all_pins
-    if (all_pins[i] == _pin) {                                                                        // when you find the pin your looking for
-      EEPROM_writeAnything(location + i * 4, _yint_val);
-      //        save_eeprom_dbl(_yint_val,location+i*10);                                                                   // then in the same index location in the calibrations array, save the inputted value.
-    }
-  }
-  return 0.0;
-}
-
-void add_calibration (int location) {                                                                 // here you can save one of the calibration values.  This may be a regular calibration, or factory calibration (which saves both factory and regular values)
-  call_print_calibration(1);                                                                            // call and print calibration info from eeprom
-  int pin = 0;
-  float slope_val = 0;
-  float yint_val = 0;
-  while (1) {
-    pin = user_enter_dbl(60000);                                                                      // define the pin to add a calibration value to
-    if (pin == -1) {                                                                                    // if user enters -1, exit from this calibration
-      goto final;
-    }
-    slope_val = user_enter_dbl(60000);                                                                  // now enter that calibration value
-    if (slope_val == -1) {
-      goto final;
-    }
-    yint_val = user_enter_dbl(60000);                                                                  // now enter that calibration value
-    if (yint_val == -1) {
-      goto final;
-    }                                                                                            // THIS IS STUPID... not sure why but for some reason you have to split up the eeprom saves or they just won't work... at leats this works...
-    save_calibration_slope(pin, slope_val, location);                                                    // save the value in the calibration string which corresponding pin index in all_pins
-    save_calibration_yint(pin, yint_val, location + 120);                                                  // save the value in the calibration string which corresponding pin index in all_pins
-    //skipit:
-    delay(1);
-  }
-final:
-
-  call_print_calibration(1);
-}
-
-void calculate_offset(int _pulsesize) {                                                                    // calculate the offset, based on the pulsesize and the calibration values offset = a*'pulsesize'+b
-  offset_34 = slope_34 * _pulsesize + yintercept_34;
-  offset_35 = slope_35 * _pulsesize + yintercept_35;
-#ifdef DEBUGSIMPLE
-  Serial_Print("offset for detector 34, 35   ");
-  // Serial_Print(offset_34, 2);
-  Serial_Print(",");
-  // Serial_Print(offset_35, 2);
-#endif
-}
-
-// note: all userdefs of the same size should be put into an array
-
-void print_get_userdef0(int _0, int _1, int _2, int _3, int _4, int _5, int _6, int _7, int _8, int _9, int _10, int _11, int _12, int _13, int _14, int _15, int _16, int _17, int _18, int _19, int _20, int _21, int _22, int _23, int _24, int _25, int _26, int _27, int _28, int _29, int _30, int _31, int _32, int _33, int _34, int _35, int _36, int _37, int _38, int _39, int _40, int _41, int _42, int _43, int _44, int _45, int _46, int _47, int _48, int _49, int _50) {
-  if (_0 == 1) {
-    Serial_Print("\"get_userdef0\":[");
-    Serial_Print(userdef0[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef0[1], 6);
-    Serial_Print("],");
-  }
-  if (_1 == 1) {
-    Serial_Print("\"get_userdef1\":[");
-    Serial_Print(userdef1[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef1[1], 6);
-    Serial_Print("],");
-  }
-  if (_2 == 1) {
-    Serial_Print("\"get_userdef2\":[");
-    Serial_Print(userdef2[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef2[1], 6);
-    Serial_Print("],");
-  }
-  if (_3 == 1) {
-    Serial_Print("\"get_userdef3\":[");
-    Serial_Print(userdef3[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef3[1], 6);
-    Serial_Print("],");
-  }
-  if (_4 == 1) {
-    Serial_Print("\"get_userdef4\":[");
-    Serial_Print(userdef4[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef4[1], 6);
-    Serial_Print("],");
-  }
-  if (_5 == 1) {
-    Serial_Print("\"get_userdef5\":[");
-    Serial_Print(userdef5[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef5[1], 6);
-    Serial_Print("],");
-  }
-  if (_6 == 1) {
-    Serial_Print("\"get_userdef6\":[");
-    Serial_Print(userdef6[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef6[1], 6);
-    Serial_Print("],");
-  }
-  if (_7 == 1) {
-    Serial_Print("\"get_userdef7\":[");
-    Serial_Print(userdef7[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef7[1], 6);
-    Serial_Print("],");
-  }
-  if (_8 == 1) {
-    Serial_Print("\"get_userdef8\":[");
-    Serial_Print(userdef8[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef8[1], 6);
-    Serial_Print("],");
-  }
-  if (_9 == 1) {
-    Serial_Print("\"get_userdef9\":[");
-    Serial_Print(userdef9[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef9[1], 6);
-    Serial_Print("],");
-  }
-  if (_10 == 1) {
-    Serial_Print("\"get_userdef10\":[");
-    Serial_Print(userdef10[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef10[1], 6);
-    Serial_Print("],");
-  }
-  if (_11 == 1) {
-    Serial_Print("\"get_userdef11\":[");
-    Serial_Print(userdef11[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef11[1], 6);
-    Serial_Print("],");
-  }
-  if (_12 == 1) {
-    Serial_Print("\"get_userdef12\":[");
-    Serial_Print(userdef12[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef12[1], 6);
-    Serial_Print("],");
-  }
-  if (_13 == 1) {
-    Serial_Print("\"get_userdef13\":[");
-    Serial_Print(userdef13[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef13[1], 6);
-    Serial_Print("],");
-  }
-  if (_14 == 1) {
-    Serial_Print("\"get_userdef14\":[");
-    Serial_Print(userdef14[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef14[1], 6);
-    Serial_Print("],");
-  }
-  if (_15 == 1) {
-    Serial_Print("\"get_userdef15\":[");
-    Serial_Print(userdef15[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef15[1], 6);
-    Serial_Print("],");
-  }
-  if (_16 == 1) {
-    Serial_Print("\"get_userdef16\":[");
-    Serial_Print(userdef16[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef16[1], 6);
-    Serial_Print("],");
-  }
-  if (_17 == 1) {
-    Serial_Print("\"get_userdef17\":[");
-    Serial_Print(userdef17[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef17[1], 6);
-    Serial_Print("],");
-  }
-  if (_18 == 1) {
-    Serial_Print("\"get_userdef18\":[");
-    Serial_Print(userdef18[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef18[1], 6);
-    Serial_Print("],");
-  }
-  if (_19 == 1) {
-    Serial_Print("\"get_userdef19\":[");
-    Serial_Print(userdef19[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef19[1], 6);
-    Serial_Print("],");
-  }
-  if (_20 == 1) {
-    Serial_Print("\"get_userdef20\":[");
-    Serial_Print(userdef20[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef20[1], 6);
-    Serial_Print("],");
-  }
-  if (_21 == 1) {
-    Serial_Print("\"get_userdef21\":[");
-    Serial_Print(userdef21[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef21[1], 6);
-    Serial_Print("],");
-  }
-  if (_22 == 1) {
-    Serial_Print("\"get_userdef22\":[");
-    Serial_Print(userdef22[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef22[1], 6);
-    Serial_Print("],");
-  }
-  if (_23 == 1) {
-    Serial_Print("\"get_userdef23\":[");
-    Serial_Print(userdef23[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef23[1], 6);
-    Serial_Print("],");
-  }
-  if (_24 == 1) {
-    Serial_Print("\"get_userdef24\":[");
-    Serial_Print(userdef24[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef24[1], 6);
-    Serial_Print("],");
-  }
-  if (_25 == 1) {
-    Serial_Print("\"get_userdef25\":[");
-    Serial_Print(userdef25[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef25[1], 6);
-    Serial_Print("],");
-  }
-  if (_26 == 1) {
-    Serial_Print("\"get_userdef26\":[");
-    Serial_Print(userdef26[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef26[1], 6);
-    Serial_Print("],");
-  }
-  if (_27 == 1) {
-    Serial_Print("\"get_userdef27\":[");
-    Serial_Print(userdef27[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef27[1], 6);
-    Serial_Print("],");
-  }
-  if (_28 == 1) {
-    Serial_Print("\"get_userdef28\":[");
-    Serial_Print(userdef28[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef28[1], 6);
-    Serial_Print("],");
-  }
-  if (_29 == 1) {
-    Serial_Print("\"get_userdef29\":[");
-    Serial_Print(userdef29[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef29[1], 6);
-    Serial_Print("],");
-  }
-  if (_30 == 1) {
-    Serial_Print("\"get_userdef30\":[");
-    Serial_Print(userdef30[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef30[1], 6);
-    Serial_Print("],");
-  }
-  if (_31 == 1) {
-    Serial_Print("\"get_userdef31\":[");
-    Serial_Print(userdef31[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef31[1], 6);
-    Serial_Print("],");
-  }
-  if (_32 == 1) {
-    Serial_Print("\"get_userdef32\":[");
-    Serial_Print(userdef32[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef32[1], 6);
-    Serial_Print("],");
-  }
-  if (_33 == 1) {
-    Serial_Print("\"get_userdef33\":[");
-    Serial_Print(userdef33[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef33[1], 6);
-    Serial_Print("],");
-  }
-  if (_34 == 1) {
-    Serial_Print("\"get_userdef34\":[");
-    Serial_Print(userdef34[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef34[1], 6);
-    Serial_Print("],");
-  }
-  if (_35 == 1) {
-    Serial_Print("\"get_userdef35\":[");
-    Serial_Print(userdef35[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef35[1], 6);
-    Serial_Print("],");
-  }
-  if (_36 == 1) {
-    Serial_Print("\"get_userdef36\":[");
-    Serial_Print(userdef36[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef36[1], 6);
-    Serial_Print("],");
-  }
-  if (_37 == 1) {
-    Serial_Print("\"get_userdef37\":[");
-    Serial_Print(userdef37[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef37[1], 6);
-    Serial_Print("],");
-  }
-  if (_38 == 1) {
-    Serial_Print("\"get_userdef38\":[");
-    Serial_Print(userdef38[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef38[1], 6);
-    Serial_Print("],");
-  }
-  if (_39 == 1) {
-    Serial_Print("\"get_userdef39\":[");
-    Serial_Print(userdef39[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef39[1], 6);
-    Serial_Print("],");
-  }
-  if (_40 == 1) {
-    Serial_Print("\"get_userdef40\":[");
-    Serial_Print(userdef40[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef40[1], 6);
-    Serial_Print("],");
-  }
-  if (_41 == 1) {
-    Serial_Print("\"get_userdef41\":[");
-    Serial_Print(userdef41[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef41[1], 6);
-    Serial_Print("],");
-  }
-  if (_42 == 1) {
-    Serial_Print("\"get_userdef42\":[");
-    Serial_Print(userdef42[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef42[1], 6);
-    Serial_Print("],");
-  }
-  if (_43 == 1) {
-    Serial_Print("\"get_userdef43\":[");
-    Serial_Print(userdef43[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef43[1], 6);
-    Serial_Print("],");
-  }
-  if (_44 == 1) {
-    Serial_Print("\"get_userdef44\":[");
-    Serial_Print(userdef44[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef44[1], 6);
-    Serial_Print("],");
-  }
-  if (_45 == 1) {
-    Serial_Print("\"get_userdef45\":[");
-    Serial_Print(userdef45[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef45[1], 6);
-    Serial_Print("],");
-  }
-  if (_46 == 1) {
-    Serial_Print("\"get_userdef46\":[");
-    Serial_Print(userdef46[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef46[1], 6);
-    Serial_Print(",");
-    Serial_Print(userdef46[2], 6);
-    Serial_Print("],");
-  }
-  if (_47 == 1) {
-    Serial_Print("\"get_userdef47\":[");
-    Serial_Print(userdef47[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef47[1], 6);
-    Serial_Print(",");
-    Serial_Print(userdef47[2], 6);
-    Serial_Print("],");
-  }
-  if (_48 == 1) {
-    Serial_Print("\"get_userdef48\":[");
-    Serial_Print(userdef48[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef48[1], 6);
-    Serial_Print(",");
-    Serial_Print(userdef48[2], 6);
-    Serial_Print("],");
-  }
-  if (_49 == 1) {
-    Serial_Print("\"get_userdef49\":[");
-    Serial_Print(userdef49[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef49[1], 6);
-    Serial_Print(",");
-    Serial_Print(userdef49[2], 6);
-    Serial_Print("],");
-  }
-  if (_50 == 1) {
-    Serial_Print("\"get_userdef50\":[");
-    Serial_Print(userdef50[0], 6);
-    Serial_Print(",");
-    Serial_Print(userdef50[1], 6);
-    Serial_Print(",");
-    Serial_Print(userdef50[2], 6);
-    Serial_Print("],");
-  }
-}
-
-void add_userdef(int location, int num_of_objects, int bytes, int power_off) {
-
-  float userdef;
-
-  if (power_off == 1) {
-    call_print_calibration(1);
-    for (int i = 0; i < num_of_objects; i++) {                  // loop "num_of_objects" times for objects which are "bytes" size for each object
-      userdef = user_enter_dbl(60000);
-      EEPROM_writeAnything(location + i * bytes, userdef);
-    }
-  }
-  else if (power_off != 1) {
-
-    for (int i = 0; i < num_of_objects; i++) {                  // loop "num_of_objects" times for objects which are "bytes" size for each object
-      userdef = user_enter_dbl(60000);
-      if (userdef > 0 && userdef < 5000) {                                                // in case pwr_off_ms is less than 5 seconds, set it to 2 minutes by default, otherwise leave it as whatever the user defined in EEPROM
-        userdef = 120000;
-      }
-      else if (userdef < 0) {                                                               // in case pwr_off_ms is < 0 , then make it maximum time (functionally never turn off)
-        userdef = 99999999;
-      }
-      Serial_Print(userdef, 6);
-      EEPROM_writeAnything(location + i * bytes, userdef);
-    }
-  }
-
-  if (power_off == 1) {
-    call_print_calibration(1);
-  }
-}
-
-void calibrate_offset() {
-
-  call_print_calibration(1);
-
-  slope_34 = user_enter_dbl(60000);
-  EEPROM_writeAnything(24, slope_34);
-
-  yintercept_34 = user_enter_dbl(60000);
-  EEPROM_writeAnything(28, yintercept_34);
-
-  slope_35 = user_enter_dbl(60000);
-  EEPROM_writeAnything(32, slope_35);
-
-  yintercept_35 = user_enter_dbl(60000);
-  EEPROM_writeAnything(36, yintercept_35);
-
-  call_print_calibration(1);
-}
-
-/*
-  void calibrate_light_sensor() {
-
-  call_print_calibration(1);
-
-  light_slope = user_enter_dbl(60000);
-  EEPROM_writeAnything(4, light_slope);
-
-  light_y_intercept = user_enter_dbl(60000);
-  EEPROM_writeAnything(8, light_y_intercept);
-
-  call_print_calibration(1);
-  }
 */
 
-// input device ID and manufacture date and write to eeprom
 
 void set_device_info(int _set) {
-  Serial_Print("{\"device_name\":\"");   // Printf is easier
-  Serial_Print(DEVICE_NAME);
+  Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%f\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%f\"}\n",DEVICE_NAME, device_id,FIRMWARE_VERSION, manufacture_date);
+/*
+//  Serial_Print(DEVICE_NAME);
   Serial_Print("\",\"device_id\":\"");
-  Serial_Print(device_id, 0);
+  Serial_Print(device_id);
   Serial_Print("\",\"device_firmware\":");
   Serial_Print((String) FIRMWARE_VERSION);
   Serial_Print(",\"device_manufacture\":\"");
-  Serial_Print(manufacture_date, 0);
-  Serial_Print("\",");
-  EEPROM_readAnything(1440, pwr_off_ms);
-  print_cal_userdef("auto_power_off", pwr_off_ms, 1, 2);
+  Serial_Print(manufacture_date);
+  Serial_Print("\"");
+//  EEPROM_readAnything(1440, pwr_off_ms);
+//  print_cal_userdef("auto_power_off", pwr_off_ms, 1, 2);
+*/
   Serial_Print_CRC();
 
   if (_set == 1) {
-    // please enter new device ID (integers only) followed by '+'
-    device_id = user_enter_dbl(60000);
+    // please enter new device ID (12 digit BLE MAC address) followed by '+'
+    device_id = Serial_Input_Long("+",0);
+/*                                                                             // when initializing for the first time and device_id == 0, this prevents you from updating so commenting out for now
     if (device_id <= 0) {
       goto device_end;
     }
-    EEPROM_writeAnything(12, device_id);
+*/
     // please enter new date of manufacture (yyyymm) followed by '+'
-    manufacture_date = user_enter_dbl(60000);
+    manufacture_date = Serial_Input_Long("+",0);
+/*                                                                             // when initializing for the first time and manufacture_date == 0, this prevents you from updating so commenting out for now
     if (manufacture_date <= 0) {
       goto device_end;
     }
-    EEPROM_writeAnything(20, manufacture_date);
-    set_device_info(0);
+*/
+    set_device_info(0);                                                       // I don't know why this doesn't work, but for some reason it fails on the Serial_Printf statement above when it does set_device_info again).
   }
   return;
-  
+
+ /*
 device_end:
   Serial_Print_Line("timeout or null string");
   delay(1);
+*/
 }
-
 
 #ifdef CORAL_SPEQ
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode)
@@ -1532,130 +834,6 @@ void accel (uint16_t array[]) {};
 uint16_t atod (int channel) {
   return 0;
 };
-
-
-
-void get_calibration_userdef() {
-
-  Serial_Print("\"get_userdef0\": [");
-  Serial_Print(userdef0[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef0[1], 6);
-  Serial_Print("],");
-
-  Serial_Print("\"get_userdef1\":");
-  Serial_Print(userdef1[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef1[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef2\":");
-  Serial_Print(userdef2[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef2[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef3\":");
-  Serial_Print(userdef3[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef3[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef4\":");
-  Serial_Print(userdef4[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef4[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef5\":");
-  Serial_Print(userdef5[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef5[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef6\":");
-  Serial_Print(userdef6[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef6[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef7\":");
-  Serial_Print(userdef7[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef7[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef8\":");
-  Serial_Print(userdef8[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef8[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef9\":");
-  Serial_Print(userdef9[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef9[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-
-  Serial_Print("\"get_userdef10\":");
-  Serial_Print(userdef10[0], 6);
-  Serial_Print(",");
-  Serial_Print(userdef10[1], 6);
-  Serial_Print("],");
-  Serial_Print(",");
-}
-
-// ??
-
-void get_calibration(float slope[], float yint[], float _slope, float _yint, JsonArray cal, String name) {
-  if (cal.getLong(0) > 0) {                                                          // if get_ir_baseline is true, then...
-    Serial_Print("\"");
-    Serial_Print(name.c_str());
-    Serial_Print("\": [");
-    if (_slope != 0) {
-      Serial_Print(_slope, 6);
-      if (yint [0] != 0) {
-        Serial_Print(",");
-        Serial_Print(_yint, 6);                                                 // ignore second value if it's 0
-      }
-    }
-    else if (_slope == 0) {
-      for (int z = 0; z < cal.getLength(); z++) {                                      // check each pins in the get_ir_baseline array, and for each pin...
-        Serial_Print("[");
-        Serial_Print((int)cal.getLong(z));                                                 // print the pin name
-        Serial_Print(",");
-        for (unsigned i = 0; i < sizeof(all_pins) / sizeof(int); i++) {                    // look through available pins, pull out the baseline slope and yint associated with requested pin
-          if (all_pins[i] == cal.getLong(z)) {
-            if (_slope == 0) {                                                        // if this is an array, then print this way...
-              Serial_Print(slope[i], 6);
-              if (yint [0] != 0) {
-                Serial_Print(",");
-                Serial_Print(yint[i], 6);                                               // ignore second value if it's 0
-              }
-            }
-            Serial_Print("]");
-            goto cal_end;                                                                            // bail if you found your pin
-          }
-        }
-cal_end:
-        delay(1);
-        if (z != cal.getLength() - 1) {                                                // add a comma if it's not the last value
-          Serial_Print(",");
-        }
-      }
-    }
-    Serial_Print("],");
-  }
-}
 
 
 // qsort uint16_t comparison function (tri-state) - needed for median16() 

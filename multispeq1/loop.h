@@ -27,7 +27,7 @@ void loop() {
   int _a_lights [10] = {};
   int _a_intensities [10] = {};
   int _a_lights_prev [10] = {};
-  int act_background_light_prev = BLANK;
+  int act_background_light_prev = 0;
   int cycle = 0;                                                                // current cycle number (start counting at 0!)
   int pulse = 0;                                                                // current pulse number
   //int total_cycles;                                                           // Total number of cycles - note first cycle is cycle 0
@@ -215,7 +215,7 @@ void loop() {
           int leave = 0;
           int sensor_value;
           while (leave != -1) {
-            leave = Serial_Input_Float("+", 2000);
+            leave = Serial_Input_Long("+", 2000);
             sensor_value = 10;
             //          sensor_value = MLX90614_Read(0);
             Serial_Print(sensor_value);
@@ -225,19 +225,23 @@ void loop() {
           Serial_Print_CRC();
         }
         break;
-      case 1018:                                                                          // test the Serial_Input_Chars() command
-        char S[10];
-        Serial_Print_Line(userdef1[0], 4);
-        Serial_Input_Chars(S, "+", 20000, sizeof(S));
-        Serial_Printf("output is %s \n", S);
-        userdef1[0] = atof(S);
-        break;
+        /*
+                    case 1018:                                                                          // test the Serial_Input_Chars() command
+                      char S[10];
+                      Serial_Print_Line(userdef[0], 4);
+                      Serial_Input_Chars(S, "+", 20000, sizeof(S));
+                      Serial_Printf("output is %s \n", S);
+                      userdef[0] = atof(S);
+                      break;
+        */
+
       case 1019:                                                                          // test the Serial_Input_Float command
-        Serial_Print_Line(userdef1[0], 4);
-        userdef1[0] = Serial_Input_Float("+", 20000);
-        Serial_Printf("output is %f \n", userdef1[0]);
+        Serial_Print_Line(light_yint, 4);
+        light_yint = Serial_Input_Long("+", 20000);
+        Serial_Printf("output is %f \n", light_yint);
         // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
         break;
+
       case 1027:
         _reboot_Teensyduino_();                                                    // restart teensy
         break;
@@ -295,7 +299,13 @@ void loop() {
                 Serial_Print("new new new");
         */
         break;
-
+      case 1028:
+        Serial_Print_Line(manufacture_date);
+        Serial_Print_Line(mag_bias[1]);
+        Serial_Print_Line(mag_cal[1][1]);
+        Serial_Print_Line(device_id);
+        Serial.print(device_id);
+        break;
       case 4044:
         {
           // JZ test - do not remove
@@ -336,7 +346,6 @@ void loop() {
           Serial_Printf("time = %d usec for %d samples\n", delta_time, SAMPLES);
         }
         break;
-
       case 4045:
         set_device_info(1);  // works
         break;
@@ -426,7 +435,7 @@ void loop() {
   crc32_init();          // reset CRC
 
   Serial_Print("{\"device_id\": ");
-  Serial_Print(device_id, 0);
+  Serial_Print(device_id);
   Serial_Print(",\"firmware_version\":");
   Serial_Print((String) FIRMWARE_VERSION);
   Serial_Print(",\"sample\":[");
@@ -481,7 +490,7 @@ void loop() {
         int protocols_delay =     hashTable.getLong("protocols_delay");                         // delay between protocols within a measurement
         int protocols_delay_ms =     hashTable.getLong("protocols_delay_ms");                         // delay between protocols within a measurement in milliseconds
         if (hashTable.getLong("act_background_light") == 0) {                                    // The Teensy pin # to associate with the background actinic light.  This light continues to be turned on EVEN BETWEEN PROTOCOLS AND MEASUREMENTS.  It is always Teensy pin 13 by default.
-          act_background_light =  13;                                                            // change to new background actinic light
+          act_background_light =  0;                                                            // change to new background actinic light
         }
         else {
           act_background_light =  hashTable.getLong("act_background_light");
@@ -512,91 +521,20 @@ void loop() {
         if (sampling_speed == 0) {                                                                   // if sampling_speed don't exist, set it to 3 automatically.
           sampling_speed = 3;
         }
-        int act_background_light_intensity = hashTable.getLong("act_background_light_intensity");  // sets intensity of background actinic.  Choose this OR tcs_to_act.
-        int tcs_to_act =            hashTable.getLong("tcs_to_act");                               // sets the % of response from the tcs light sensor to act as actinic during the run (values 1 - 100).  If tcs_to_act is not defined (ie == 0), then the act_background_light intensity is set to actintensity1.
+//        int tcs_to_act =            hashTable.getLong("tcs_to_act");                               // sets the % of response from the tcs light sensor to act as actinic during the run (values 1 - 100).  If tcs_to_act is not defined (ie == 0), then the act_background_light intensity is set to actintensity1.
         //int offset_off =          hashTable.getLong("offset_off");                               // turn off detector offsets (default == 0 which is on, set == 1 to turn offsets off)
 
         ///*
-//        long pulsedistance =      hashTable.getLong("pulsedistance");                            // distance between measuring pulses in us.  Minimum 1000 us.
         JsonArray pulsedistance =   hashTable.getArray("pulsedistance");                            // distance between measuring pulses in us.  Minimum 1000 us.
-//        long pulsesize =          hashTable.getLong("pulsesize");                                // Size of the measuring pulse (5 - 100us).  This also acts as gain control setting - shorter pulse, small signal. Longer pulse, larger signal.
         JsonArray pulsesize =       hashTable.getArray("pulsesize");                            // distance between measuring pulses in us.  Minimum 1000 us.
 
         JsonArray a_lights =        hashTable.getArray("a_lights");
         JsonArray a_intensities =   hashTable.getArray("a_intensities");
         JsonArray m_intensities =   hashTable.getArray("m_intensities");
 
-        int get_offset =          hashTable.getLong("get_offset");                               // include detector offset information in the output
+//        int get_offset =          hashTable.getLong("get_offset");                               // include detector offset information in the output
         // NOTE: it takes about 50us to set a DAC channel via I2C at 2.4Mz.
 
-#if 0
-        JsonArray get_ir_baseline = hashTable.getArray("get_ir_baseline");                      // include the ir_baseline information from the device for the specified pins
-        JsonArray get_tcs_cal =   hashTable.getArray("get_tcs_cal");                            // include the get_tcs_cal information from the device for the specified pins
-        JsonArray get_lights_cal = hashTable.getArray("get_lights_cal");                        // include get_lights_cal information from the device for the specified pins
-        JsonArray get_blank_cal = hashTable.getArray("get_blank_cal");                          // include the get_blank_cal information from the device for the specified pins
-        JsonArray get_other_cal = hashTable.getArray("get_other_cal");                        // include the get_other_cal information from the device for the specified pins
-
-        int get_userdef0 =  hashTable.getLong("get_userdef0");                        // include the saved userdef0 information from the device
-        int get_userdef1 =  hashTable.getLong("get_userdef1");                        // include the saved userdef1 information from the device
-        int get_userdef2 =  hashTable.getLong("get_userdef2");                        // include the saved userdef2 information from the device
-        int get_userdef3 =  hashTable.getLong("get_userdef3");                        // include the saved userdef3 information from the device
-        int get_userdef4 =  hashTable.getLong("get_userdef4");                        // include the saved userdef4 information from the device
-        int get_userdef5 =  hashTable.getLong("get_userdef5");                        // include the saved userdef5 information from the device
-        int get_userdef6 =  hashTable.getLong("get_userdef6");                        // include the saved userdef6 information from the device
-        int get_userdef7 =  hashTable.getLong("get_userdef7");                        // include the saved userdef7 information from the device
-        int get_userdef8 =  hashTable.getLong("get_userdef8");                        // include the saved userdef8 information from the device
-        int get_userdef9 =  hashTable.getLong("get_userdef9");                        // include the saved userdef9 information from the device
-        int get_userdef10 =  hashTable.getLong("get_userdef10");                        // include the saved userdef10 information from the device
-        int get_userdef11 =  hashTable.getLong("get_userdef11");                        // include the saved userdef11 information from the device
-        int get_userdef12 =  hashTable.getLong("get_userdef12");                        // include the saved userdef12 information from the device
-        int get_userdef13 =  hashTable.getLong("get_userdef13");                        // include the saved userdef13 information from the device
-        int get_userdef14 =  hashTable.getLong("get_userdef14");                        // include the saved userdef14 information from the device
-        int get_userdef15 =  hashTable.getLong("get_userdef15");                        // include the saved userdef15 information from the device
-        int get_userdef16 =  hashTable.getLong("get_userdef16");                        // include the saved userdef16 information from the device
-        int get_userdef17 =  hashTable.getLong("get_userdef17");                        // include the saved userdef17 information from the device
-        int get_userdef18 =  hashTable.getLong("get_userdef18");                        // include the saved userdef18 information from the device
-        int get_userdef19 =  hashTable.getLong("get_userdef19");                        // include the saved userdef19 information from the device
-        int get_userdef20 =  hashTable.getLong("get_userdef20");                        // include the saved userdef20 information from the device
-        int get_userdef21 =  hashTable.getLong("get_userdef21");                        // include the saved userdef21 information from the device
-        int get_userdef22 =  hashTable.getLong("get_userdef22");                        // include the saved userdef22 information from the device
-        int get_userdef23 =  hashTable.getLong("get_userdef23");                        // include the saved userdef23 information from the device
-        int get_userdef24 =  hashTable.getLong("get_userdef24");                        // include the saved userdef24 information from the device
-        int get_userdef25 =  hashTable.getLong("get_userdef25");                        // include the saved userdef25 information from the device
-        int get_userdef26 =  hashTable.getLong("get_userdef26");                        // include the saved userdef26 information from the device
-        int get_userdef27 =  hashTable.getLong("get_userdef27");                        // include the saved userdef27 information from the device
-        int get_userdef28 =  hashTable.getLong("get_userdef28");                        // include the saved userdef28 information from the device
-        int get_userdef29 =  hashTable.getLong("get_userdef29");                        // include the saved userdef29 information from the device
-        int get_userdef30 =  hashTable.getLong("get_userdef30");                        // include the saved userdef30 information from the device
-        int get_userdef31 =  hashTable.getLong("get_userdef31");                        // include the saved userdef31 information from the device
-        int get_userdef32 =  hashTable.getLong("get_userdef32");                        // include the saved userdef32 information from the device
-        int get_userdef33 =  hashTable.getLong("get_userdef33");                        // include the saved userdef33 information from the device
-        int get_userdef34 =  hashTable.getLong("get_userdef34");                        // include the saved userdef34 information from the device
-        int get_userdef35 =  hashTable.getLong("get_userdef35");                        // include the saved userdef35 information from the device
-        int get_userdef36 =  hashTable.getLong("get_userdef36");                        // include the saved userdef36 information from the device
-        int get_userdef37 =  hashTable.getLong("get_userdef37");                        // include the saved userdef37 information from the device
-        int get_userdef38 =  hashTable.getLong("get_userdef38");                        // include the saved userdef38 information from the device
-        int get_userdef39 =  hashTable.getLong("get_userdef39");                        // include the saved userdef39 information from the device
-        int get_userdef40 =  hashTable.getLong("get_userdef40");                        // include the saved userdef40 information from the device
-        int get_userdef41 =  hashTable.getLong("get_userdef41");                        // include the saved userdef41 information from the device
-        int get_userdef42 =  hashTable.getLong("get_userdef42");                        // include the saved userdef42 information from the device
-        int get_userdef43 =  hashTable.getLong("get_userdef43");                        // include the saved userdef43 information from the device
-        int get_userdef44 =  hashTable.getLong("get_userdef44");                        // include the saved userdef44 information from the device
-        int get_userdef45 =  hashTable.getLong("get_userdef45");                        // include the saved userdef45 information from the device
-        int get_userdef46 =  hashTable.getLong("get_userdef46");                        // include the saved userdef46 information from the device
-        int get_userdef47 =  hashTable.getLong("get_userdef47");                        // include the saved userdef47 information from the device
-        int get_userdef48 =  hashTable.getLong("get_userdef48");                        // include the saved userdef48 information from the device
-        int get_userdef49 =  hashTable.getLong("get_userdef49");                        // include the saved userdef49 information from the device
-        int get_userdef50 =  hashTable.getLong("get_userdef50");                        // include the saved userdef50 information from the device
-#endif
-
-        ///*
-        //JsonArray act1_lights =   hashTable.getArray("act1_lights");
-        //JsonArray act2_lights =   hashTable.getArray("act2_lights");
-        //JsonArray act3_lights =   hashTable.getArray("act3_lights");
-        //JsonArray act4_lights =   hashTable.getArray("act4_lights");
-        act_intensities =         hashTable.getArray("act_intensities");                         // write to input register of a dac1. channel 0 for low (actinic).  1 step = +3.69uE (271 == 1000uE, 135 == 500uE, 27 == 100uE)
-        meas_intensities =        hashTable.getArray("meas_intensities");                        // write to input register of a dac1. channel 3 measuring light.  0 (high) - 4095 (low).  2092 = 0.  From 2092 to zero, 1 step = +.2611uE
-        cal_intensities =         hashTable.getArray("cal_intensities");                         // write to input register of a dac1. channel 2 calibrating light.  0 (low) - 4095 (high).
         JsonArray detectors =     hashTable.getArray("detectors");                               // the Teensy pin # of the detectors used during those pulses, as an array of array.  For example, if pulses = [5,2] and detectors = [[34,35],[34,35]] .
         JsonArray meas_lights =   hashTable.getArray("meas_lights");
         JsonArray message =       hashTable.getArray("message");                                // sends the user a message to which they must reply <answer>+ to continue
@@ -605,11 +543,12 @@ void loop() {
 
         // ********************INPUT DATA FOR CORALSPEQ*******************
         JsonArray spec =          hashTable.getArray("spec");                                // defines whether the spec will be called during each array.  note for each single plus, the spec will call and add 256 values to data_raw!
+#ifdef CORAL_SPEQ
         JsonArray delay_time =    hashTable.getArray("delay_time");                                         // delay per half clock (in microseconds).  This ultimately conrols the integration time.
         JsonArray read_time =     hashTable.getArray("read_time");                                        // Amount of time that the analogRead() procedure takes (in microseconds)
         JsonArray intTime =       hashTable.getArray("intTime");                                         // delay per half clock (in microseconds).  This ultimately conrols the integration time.
         JsonArray accumulateMode = hashTable.getArray("accumulateMode");
-        //total_cycles =            pulses.getLength() - 1;                                        // (start counting at 0!)
+#endif
 
         long size_of_data_raw = 0;
         long total_pulses = 0;
@@ -671,9 +610,11 @@ void loop() {
         Serial_Print(protocol_id.c_str());
         Serial_Print("\",");
 
-        if (get_offset == 1) {
-          print_offset(1);
-        }
+        /*
+                if (get_offset == 1) {
+                  print_offset(1);
+                }
+        */
         /*
                 print_get_userdef0(get_userdef0,get_userdef1,get_userdef2,get_userdef3,get_userdef4,get_userdef5,get_userdef6,get_userdef7,get_userdef8,get_userdef9,get_userdef10,get_userdef11,get_userdef12,get_userdef13,get_userdef14,get_userdef15,get_userdef16,get_userdef17,get_userdef18,get_userdef19,get_userdef20,get_userdef21,get_userdef22,get_userdef23,get_userdef24,get_userdef25,get_userdef26,get_userdef27,get_userdef28,get_userdef29,get_userdef30,get_userdef31,get_userdef32,get_userdef33,get_userdef34,get_userdef35,get_userdef36,get_userdef37,get_userdef38,get_userdef39,get_userdef40,get_userdef41,get_userdef42,get_userdef43,get_userdef44,get_userdef45,get_userdef46,get_userdef47,get_userdef48,get_userdef49,get_userdef50); // check to see if we need to print any of the user defined calibrations
 
@@ -706,8 +647,8 @@ void loop() {
         r_average_forpar = 0;
         g_average_forpar = 0;
         b_average_forpar = 0;
-//!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
-//        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
+        //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
+        //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
 
 #ifdef DEBUGSIMPLE
         Serial_Print_Line("");
@@ -722,7 +663,7 @@ void loop() {
         // perform the protocol
         for (int x = 0; x < averages; x++) {                                                 // Repeat the protocol this many times
 
-          if (Serial_Available() && Serial_Input_Float("+", 1) == -1) {
+          if (Serial_Available() && Serial_Input_Long("+", 1) == -1) {
             q = number_of_protocols - 1;
             y = measurements - 1;
             u = protocols;
@@ -736,7 +677,6 @@ void loop() {
           uint16_t _pulsesize;
           uint16_t _pulsedistance_prev;
           uint16_t _pulsesize_prev;
-          uint16_t _reference = 0;                                                                 // create the reference flag
           uint16_t _reference_flag = 0;                                                           // used to note if this is the first measurement
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
@@ -801,17 +741,19 @@ void loop() {
               Light_Intensity(1);
               if (x == averages - 1) {
                 Serial_Print("\"light_intensity\":");
-                Serial_Print(lux_to_uE(lux_average_forpar), 2);
-                Serial_Print(",");
-                Serial_Print("\"r\":");
-                Serial_Print(lux_to_uE(r_average_forpar), 2);
-                Serial_Print(",");
-                Serial_Print("\"g\":");
-                Serial_Print(lux_to_uE(g_average_forpar), 2);
-                Serial_Print(",");
-                Serial_Print("\"b\":");
-                Serial_Print(lux_to_uE(b_average_forpar), 2);
-                Serial_Print(",");
+                /*
+                                Serial_Print(lux_to_uE(lux_average_forpar), 2);
+                                Serial_Print(",");
+                                Serial_Print("\"r\":");
+                                Serial_Print(lux_to_uE(r_average_forpar), 2);
+                                Serial_Print(",");
+                                Serial_Print("\"g\":");
+                                Serial_Print(lux_to_uE(g_average_forpar), 2);
+                                Serial_Print(",");
+                                Serial_Print("\"b\":");
+                                Serial_Print(lux_to_uE(b_average_forpar), 2);
+                                Serial_Print(",");
+                */
               }
             }
             if (environmental.getArray(i).getLong(1) == 0 \
@@ -890,7 +832,10 @@ void loop() {
 
           //int actfull = 0;
           //          int _tcs_to_act = 0;
-          float _light_intensity = lux_to_uE(lux_local);
+
+//          float _light_intensity = 0;
+
+          //          float _light_intensity = lux_to_uE(lux_local);
           //          _tcs_to_act = (uE_to_intensity(act_background_light,_light_intensity)*tcs_to_act)/100;  // set intensity of actinic background light
 #ifdef DEBUGSIMPLE
           Serial_Print_Line("");
@@ -905,11 +850,12 @@ void loop() {
           for (int z = 0; z < total_pulses; z++) {                                      // cycle through all of the pulses from all cycles
             int first_flag = 0;                                                           // flag to note the first pulse of a cycle
             int _spec = 0;                                                              // create the spec flag for the coralspeq
+#ifdef CORAL_SPEQ
             int _intTime = 0;                                                           // create the _intTime flag for the coralspeq
             int _delay_time = 0;                                                        // create the _delay_time flag for the coralspeq
             int _read_time = 0;                                                         // create the _read_time flag for the coralspeq
-            int _accumulateMode = 0;                                                    // create the _accumulateMode flag for the coralspeq            
-
+            int _accumulateMode = 0;                                                    // create the _accumulateMode flag for the coralspeq
+#endif
             if (pulse == 0) {                                                                                     // if it's the first pulse of a cycle, we need to set up the new set of lights and intensities...
               meas_array_size = meas_lights.getArray(cycle).getLength();                                          // get the number of measurement/detector subsets in the new cycle
 #ifdef PULSERDEBUG
@@ -927,8 +873,8 @@ void loop() {
                 _a_intensities[i] = a_intensities.getArray(cycle).getLong(i);
 #ifdef PULSERDEBUG
                 Serial_Printf("\n all a_lights, intensities: %d,%d\n", _a_lights[i], _a_intensities[i]);
-#endif              
-              }          
+#endif
+              }
 
 #ifdef CORAL_SPEQ
               _spec = spec.getLong(cycle);                                                      // pull whether the spec will get called in this cycle or not for coralspeq and set parameters.  If they are empty (not defined by the user) set them to the default value
@@ -950,10 +896,10 @@ void loop() {
                   _accumulateMode = false;
                 }
               }
-#endif              
+#endif
               if (cycle != 0) {
                 _pulsedistance_prev = _pulsedistance;
-                _pulsesize_prev = _pulsesize;            
+                _pulsesize_prev = _pulsesize;
               }
               _pulsedistance = pulsedistance.getLong(cycle);                                                    // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
               _pulsesize = pulsesize.getLong(cycle);
@@ -963,15 +909,15 @@ void loop() {
                 startTimers(_pulsedistance, _pulsesize);                                                        // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
               }
               else if (cycle != 0 && (_pulsedistance != _pulsedistance_prev || _pulsesize != _pulsesize_prev)) {    // if it's not the 0th cycle and the last pulsesize or pulsedistance was different than the current one, then stop the old timers and set new ones.   If they were the same, avoid resetting the timers by skipping this part.
-  //              stopTimers();                                                                                   // stop the old timers
+                //              stopTimers();                                                                                   // stop the old timers
                 startTimers(_pulsedistance, _pulsesize);                                    // restart the measurement light timer
               }
             }
 
 
 #ifdef PULSERDEBUG
-            Serial_Printf("pulsedistance = %d, pulsesize = %d, cycle = %d, measurement number = %d, measurement array size = %d,total pulses = %d\n",(int) _pulsedistance, (int) _pulsesize,(int) cycle,(int) meas_number,(int) meas_array_size,(int) total_pulses);
-#endif            
+            Serial_Printf("pulsedistance = %d, pulsesize = %d, cycle = %d, measurement number = %d, measurement array size = %d,total pulses = %d\n", (int) _pulsedistance, (int) _pulsesize, (int) cycle, (int) meas_number, (int) meas_array_size, (int) total_pulses);
+#endif
             _number_samples = number_samples.getLong(cycle);                                               // set the _number_samples for this cycle
             _meas_light = meas_lights.getArray(cycle).getLong(meas_number % meas_array_size);             // move to next measurement light
             uint16_t _m_intensity = m_intensities.getArray(cycle).getLong(meas_number % meas_array_size);  // move to next measurement light intensity
@@ -1011,7 +957,7 @@ void loop() {
                   else if (_message_type == "alert") {                                                    // wait for user response to alert
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
                     while (1) {
-                      long response = Serial_Input_Long();
+                      long response = Serial_Input_Long("+",0);
                       if (response == -1) {
                         Serial_Print("\"ok\"]");
                         break;
@@ -1022,7 +968,7 @@ void loop() {
                   else if (_message_type == "confirm") {                                                  // wait for user's confirmation message.  If enters '1' then skip to end.
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
                     while (1) {
-                      long response = Serial_Input_Long();
+                      long response = Serial_Input_Long("+",0);
                       if (response == 1) {
                         Serial_Print("\"cancel\"]]");                                                     // set all loops (protocols, measurements, averages, etc.) to the last loop value so it exits gracefully
                         q = number_of_protocols;
@@ -1056,7 +1002,7 @@ void loop() {
                   }
                 }
               }
-              calculate_intensity(_meas_light, tcs_to_act, cycle, _light_intensity);                   // in addition, calculate the intensity of the current measuring light
+              //              calculate_intensity(_meas_light, tcs_to_act, cycle, _light_intensity);                   // in addition, calculate the intensity of the current measuring light
 
               DAC_set(_meas_light, _m_intensity);
               DAC_change();
@@ -1072,7 +1018,7 @@ void loop() {
               }
             }
 
-            if (Serial_Available() && Serial_Input_Float("+", 1) == -1) {                                      // exit protocol completely if user enters -1+
+            if (Serial_Available() && Serial_Input_Long("+", 1) == -1) {                                      // exit protocol completely if user enters -1+
               q = number_of_protocols;
               y = measurements - 1;
               u = protocols - 1;
@@ -1082,8 +1028,8 @@ void loop() {
 
             uint16_t sample_adc[_number_samples];                                                             // initialize the variables to hold the main and reference detector data
             uint16_t sample_adc_ref[_number_samples];
-//            uint16_t startTimer;                                                                            // to measure the actual time it takes to perform the ADC reads on the sample (for debugging)
-//            uint16_t endTimer;
+            //            uint16_t startTimer;                                                                            // to measure the actual time it takes to perform the ADC reads on the sample (for debugging)
+            //            uint16_t endTimer;
 
 
 
@@ -1092,7 +1038,7 @@ void loop() {
 
             while (on == 0 || off == 0) {                                                                     // if the measuring light turned on and off (pulse1 and pulse2 are background interrupt routines for on and off) happened, then...
             }
-//            startTimer = micros();
+            //            startTimer = micros();
             noInterrupts();                                                                            // turn off interrupts because we're checking volatile variables set in the interrupts
 
             if (_reference != 0) {
@@ -1103,7 +1049,7 @@ void loop() {
             }
 
             interrupts();                                                                                // turn off interrupts because we're checking volatile variables set in the interrupts
-//            endTimer = micros();
+            //            endTimer = micros();
             digitalWriteFast(HOLDM, HIGH);                                                            // turn off sample and hold, and turn on lights for next pulse set
             digitalWriteFast(HOLDADD, HIGH);                                                            // turn off sample and hold, and turn on lights for next pulse set
 
@@ -1224,7 +1170,9 @@ void loop() {
             }
           }
           background_on = 0;
-          background_on = calculate_intensity_background(act_background_light, tcs_to_act, cycle, _light_intensity, act_background_light_intensity); // figure out background light intensity and state
+          /*
+                    background_on = calculate_intensity_background(act_background_light, tcs_to_act, cycle, _light_intensity, act_background_light_intensity); // figure out background light intensity and state
+          */
 
           for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {
             if (_a_lights[i] != act_background_light) {                                  // turn off all lights unless they are the actinic background light
@@ -1232,35 +1180,15 @@ void loop() {
             }
           }
 
-
-
-          /*
-                    if (_act1_light != act_background_light) {                                  // turn off all lights unless they are the actinic background light
-                      digitalWriteFast(_act1_light, LOW);
-                    }
-                    if (_act2_light != act_background_light) {
-                      digitalWriteFast(_act2_light, LOW);
-                    }
-                    if (_act3_light != act_background_light) {
-                      digitalWriteFast(_act3_light, LOW);
-                    }
-                    if (_act4_light != act_background_light) {
-                      digitalWriteFast(_act4_light, LOW);
-                    }
-          */
-
           if (background_on == 1) {
-            digitalWriteFast(LDAC1, LOW);
-            delayMicroseconds(1);
-            digitalWriteFast(LDAC1, HIGH);
+            DAC_change();                                                                               // initiate actinic lights which were set above
             digitalWriteFast(act_background_light, HIGH);                                // turn on actinic background light in case it was off previously.
           }
           else {
             digitalWriteFast(act_background_light, LOW);                                // turn on actinic background light in case it was off previously.
           }
 
-          timer0.end();                                                                  // if it's the last cycle and last pulse, then... stop the timers
-          timer1.end();
+          stopTimers();
           cycle = 0;                                                                     // ...and reset counters
           pulse = 0;
           on = 0;
@@ -1324,17 +1252,19 @@ void loop() {
               Light_Intensity(1);
               if (x == averages - 1) {
                 Serial_Print("\"light_intensity\":");
-                Serial_Print(lux_to_uE(lux_average_forpar), 2);
-                Serial_Print(",");
-                Serial_Print("\"r\":");
-                Serial_Print(lux_to_uE(r_average_forpar), 2);
-                Serial_Print(",");
-                Serial_Print("\"g\":");
-                Serial_Print(lux_to_uE(g_average_forpar), 2);
-                Serial_Print(",");
-                Serial_Print("\"b\":");
-                Serial_Print(lux_to_uE(b_average_forpar), 2);
-                Serial_Print(",");
+                /*
+                  Serial_Print(lux_to_uE(lux_average_forpar), 2);
+                  Serial_Print(",");
+                  Serial_Print("\"r\":");
+                  Serial_Print(lux_to_uE(r_average_forpar), 2);
+                  Serial_Print(",");
+                  Serial_Print("\"g\":");
+                  Serial_Print(lux_to_uE(g_average_forpar), 2);
+                  Serial_Print(",");
+                  Serial_Print("\"b\":");
+                  Serial_Print(lux_to_uE(b_average_forpar), 2);
+                  Serial_Print(",");
+                */
               }
             }
             if (environmental.getArray(i).getLong(1) == 1 \
@@ -1414,10 +1344,6 @@ void loop() {
             }
           }
         }
-
-
-        // skip to the end of the protocol
-skipPart:
 
 #ifdef CORAL_SPEQ
         if (spec_on == 1) {                                                                    // if the spec is being used, then read it and print data_raw as spec values.  Otherwise, print data_raw as multispeq detector values as per normal
@@ -1529,7 +1455,7 @@ skipPart:
   */
 
   Serial_Print("]}");
-  act_background_light = 13;                                                      // reset background light to teensy pin 13
+  act_background_light = 0;                                                      // reset background light to teensy pin 13
   free(data_raw_average);                                                         // free the calloc() of data_raw_average
   free(json);                                                                     // free second json malloc
   Serial_Print_CRC();

@@ -1,0 +1,11 @@
+
+On 04/07/2016 12:52 PM, James Gregson wrote:
+> Hi Jon,
+>
+> I'm no lawyer, but I don't think the GPL restricts distributing compiled code commercially provided you also provide open access to the code. Regardless, given that your code is open-sourced I'm fine with you guys using the parser for free and glad that you've found it to be useful.
+>
+> Thanks for checking!
+>
+> James
+>
+

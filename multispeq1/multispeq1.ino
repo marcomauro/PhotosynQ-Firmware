@@ -435,7 +435,6 @@ Adafruit_BME280 bme2;       // I2C sensor
 
 void setup() {
 
-#define DEBUGSIMPLE
   delay(500);
 
   // set up serial ports (Serial and Serial1)
@@ -445,7 +444,6 @@ void setup() {
 #ifdef DEBUGSIMPLE
   Serial_Print_Line("serial works");
 #endif
-  delay(50);
 
   // Set up I2C bus
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_INT, I2C_RATE_400);  // using alternative wire library
@@ -555,10 +553,13 @@ void setup() {
 #undef DEBUGSIMPLE
 
 // test expressions - works! pass it a string and it is evaluated
-  double expr(const char s[]);
-  Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
+//  double expr(const char s[]);
+//  Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
 
-  Serial_Print("Ready");
+  if (sizeof(eeprom_class) > 2048)                    // check that we haven't exceeded eeprom space
+     Serial_Printf("not enough eeprom\n");
+
+  Serial_Print_Line("MultispeQ Ready");
 
 }  // setup()
 
@@ -649,46 +650,27 @@ void call_print_calibration (int _print) {
 
 
 void set_device_info(int _set) {
-  Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%f\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%f\"}\n",DEVICE_NAME, device_id,FIRMWARE_VERSION, manufacture_date);
-/*
-//  Serial_Print(DEVICE_NAME);
-  Serial_Print("\",\"device_id\":\"");
-  Serial_Print(device_id);
-  Serial_Print("\",\"device_firmware\":");
-  Serial_Print((String) FIRMWARE_VERSION);
-  Serial_Print(",\"device_manufacture\":\"");
-  Serial_Print(manufacture_date);
-  Serial_Print("\"");
-//  EEPROM_readAnything(1440, pwr_off_ms);
-//  print_cal_userdef("auto_power_off", pwr_off_ms, 1, 2);
-*/
+  Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}",DEVICE_NAME, eeprom->device_id,FIRMWARE_VERSION, eeprom->manufacture_date);
   Serial_Print_CRC();
-
+  
   if (_set == 1) {
     // please enter new device ID (12 digit BLE MAC address) followed by '+'
-    device_id = Serial_Input_Long("+",0);
-/*                                                                             // when initializing for the first time and device_id == 0, this prevents you from updating so commenting out for now
-    if (device_id <= 0) {
-      goto device_end;
-    }
-*/
+    eeprom->device_id = Serial_Input_Long("+",0);
+    delay(100);
+
     // please enter new date of manufacture (yyyymm) followed by '+'
-    manufacture_date = Serial_Input_Long("+",0);
-/*                                                                             // when initializing for the first time and manufacture_date == 0, this prevents you from updating so commenting out for now
-    if (manufacture_date <= 0) {
-      goto device_end;
-    }
-*/
-    set_device_info(0);                                                       // I don't know why this doesn't work, but for some reason it fails on the Serial_Printf statement above when it does set_device_info again).
-  }
+    eeprom->manufacture_date = Serial_Input_Long("+",0);
+    delay(100);
+
+    // print again for verification
+    
+    Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}",DEVICE_NAME, eeprom->device_id,FIRMWARE_VERSION, eeprom->manufacture_date);
+    Serial_Print_CRC();
+  } // if
+  
   return;
 
- /*
-device_end:
-  Serial_Print_Line("timeout or null string");
-  delay(1);
-*/
-}
+} // set_device_info()
 
 #ifdef CORAL_SPEQ
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode)

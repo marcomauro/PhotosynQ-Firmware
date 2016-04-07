@@ -83,6 +83,8 @@ void loop() {
       continue;                     // go read another command
     }
 
+    crc32_init();                   // clear CRC value since below may print
+    
     switch (atoi(choose)) {
       case 440:
         // set real-time clock (needed if battery is removed)
@@ -225,15 +227,15 @@ void loop() {
           Serial_Print_CRC();
         }
         break;
-        /*
-                    case 1018:                                                                          // test the Serial_Input_Chars() command
-                      char S[10];
-                      Serial_Print_Line(userdef[0], 4);
-                      Serial_Input_Chars(S, "+", 20000, sizeof(S));
-                      Serial_Printf("output is %s \n", S);
-                      userdef[0] = atof(S);
-                      break;
-        */
+      /*
+                  case 1018:                                                                          // test the Serial_Input_Chars() command
+                    char S[10];
+                    Serial_Print_Line(userdef[0], 4);
+                    Serial_Input_Chars(S, "+", 20000, sizeof(S));
+                    Serial_Printf("output is %s \n", S);
+                    userdef[0] = atof(S);
+                    break;
+      */
 
       case 1019:                                                                          // test the Serial_Input_Float command
         Serial_Print_Line(light_yint, 4);
@@ -300,11 +302,10 @@ void loop() {
         */
         break;
       case 1028:
-        Serial_Print_Line(manufacture_date);
+        Serial_Printf("%d\n",eeprom->manufacture_date);
         Serial_Print_Line(mag_bias[1]);
         Serial_Print_Line(mag_cal[1][1]);
-        Serial_Print_Line(device_id);
-        Serial.print(device_id);
+        Serial_Printf("%ld\n",eeprom->device_id);
         break;
       case 4044:
         {
@@ -346,8 +347,9 @@ void loop() {
           Serial_Printf("time = %d usec for %d samples\n", delta_time, SAMPLES);
         }
         break;
+        
       case 4045:
-        set_device_info(1);  // works
+        set_device_info(1);  //  works now
         break;
 
       case 4047:
@@ -387,7 +389,6 @@ void loop() {
     }  // switch()
 
     Serial_Flush_Output();     // force all output to go out
-    crc32_init();              // reset CRC in case anything above printed
 
   } // for
 
@@ -434,10 +435,8 @@ void loop() {
 
   crc32_init();          // reset CRC
 
-  Serial_Print("{\"device_id\": ");
-  Serial_Print(device_id);
-  Serial_Print(",\"firmware_version\":");
-  Serial_Print((String) FIRMWARE_VERSION);
+  Serial_Printf("{\"device_id\":%ld",eeprom->device_id);
+  Serial_Printf(",\"firmware_version\":%s",FIRMWARE_VERSION);
   Serial_Print(",\"sample\":[");
 
   // loop through the all measurements to create a measurement group
@@ -521,7 +520,7 @@ void loop() {
         if (sampling_speed == 0) {                                                                   // if sampling_speed don't exist, set it to 3 automatically.
           sampling_speed = 3;
         }
-//        int tcs_to_act =            hashTable.getLong("tcs_to_act");                               // sets the % of response from the tcs light sensor to act as actinic during the run (values 1 - 100).  If tcs_to_act is not defined (ie == 0), then the act_background_light intensity is set to actintensity1.
+        //        int tcs_to_act =            hashTable.getLong("tcs_to_act");                               // sets the % of response from the tcs light sensor to act as actinic during the run (values 1 - 100).  If tcs_to_act is not defined (ie == 0), then the act_background_light intensity is set to actintensity1.
         //int offset_off =          hashTable.getLong("offset_off");                               // turn off detector offsets (default == 0 which is on, set == 1 to turn offsets off)
 
         ///*
@@ -532,7 +531,7 @@ void loop() {
         JsonArray a_intensities =   hashTable.getArray("a_intensities");
         JsonArray m_intensities =   hashTable.getArray("m_intensities");
 
-//        int get_offset =          hashTable.getLong("get_offset");                               // include detector offset information in the output
+        //        int get_offset =          hashTable.getLong("get_offset");                               // include detector offset information in the output
         // NOTE: it takes about 50us to set a DAC channel via I2C at 2.4Mz.
 
         JsonArray detectors =     hashTable.getArray("detectors");                               // the Teensy pin # of the detectors used during those pulses, as an array of array.  For example, if pulses = [5,2] and detectors = [[34,35],[34,35]] .
@@ -673,10 +672,10 @@ void loop() {
           int background_on = 0;
           long data_count = 0;
           int message_flag = 0;                                                              // flags to indicate if an alert, prompt, or confirm have been called at least once (to print the object name to data JSON)
-          uint16_t _pulsedistance;                                                    // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
-          uint16_t _pulsesize;
-          uint16_t _pulsedistance_prev;
-          uint16_t _pulsesize_prev;
+          uint16_t _pulsedistance=0;                                                    // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
+          uint16_t _pulsesize=0;
+          uint16_t _pulsedistance_prev=0;
+          uint16_t _pulsesize_prev=0;
           uint16_t _reference_flag = 0;                                                           // used to note if this is the first measurement
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
@@ -833,7 +832,7 @@ void loop() {
           //int actfull = 0;
           //          int _tcs_to_act = 0;
 
-//          float _light_intensity = 0;
+          //          float _light_intensity = 0;
 
           //          float _light_intensity = lux_to_uE(lux_local);
           //          _tcs_to_act = (uE_to_intensity(act_background_light,_light_intensity)*tcs_to_act)/100;  // set intensity of actinic background light
@@ -957,7 +956,7 @@ void loop() {
                   else if (_message_type == "alert") {                                                    // wait for user response to alert
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
                     while (1) {
-                      long response = Serial_Input_Long("+",0);
+                      long response = Serial_Input_Long("+", 0);
                       if (response == -1) {
                         Serial_Print("\"ok\"]");
                         break;
@@ -968,7 +967,7 @@ void loop() {
                   else if (_message_type == "confirm") {                                                  // wait for user's confirmation message.  If enters '1' then skip to end.
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
                     while (1) {
-                      long response = Serial_Input_Long("+",0);
+                      long response = Serial_Input_Long("+", 0);
                       if (response == 1) {
                         Serial_Print("\"cancel\"]]");                                                     // set all loops (protocols, measurements, averages, etc.) to the last loop value so it exits gracefully
                         q = number_of_protocols;

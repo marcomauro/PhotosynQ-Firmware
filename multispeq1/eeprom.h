@@ -1,10 +1,13 @@
 
 // Many variables used have to be stored/retrieved from eeprom.  All such variables are stored in a structure, with #defines for
 // historical and convenience reasons.
-// This structure is stored directly in eeprom memory (but it could be mirrored in regular ram).  Max size is 2K.
+// This structure is stored directly in eeprom memory
 // Assume that there was a calibration process that initialized the eeprom.
 
 // DANGER:  do not do too many writes to eeprom variables - cycles are limited
+// WARNING: max size is 2K
+// WARNING: do a delay(100) after every write.  If not, program may freeze.
+
 // Jon Zeeff 2016
 
 // this structure overlays eeprom ram
@@ -16,8 +19,8 @@ class eeprom_class
   public:
     // each of these needs a comment
 //    char device_id[12];                  // this is the bluetooth's unique MAC address
-    float device_id;
-    float manufacture_date;
+    long device_id;
+    uint16_t manufacture_date;
     float mag_bias[3];       // magnetometer/compass calibration
     float mag_cal[3][3];
     float accel_bias[3];
@@ -62,8 +65,8 @@ class eeprom_class
     float colorcal_intensity3_slope[11];
     float colorcal_intensity3_yint[11];
 
-    // consider making these all an array of single float values
-    float userdef[50]; // like this
+    // user set values
+    float userdef[50];  
 
     /*
         float calibration_slope;
@@ -150,8 +153,8 @@ class eeprom_class * const eeprom = FlexRAM;
 //#define userdef[x] eeprom->userdef[x]
 
 
-#define device_id eeprom->device_id
-#define manufacture_date eeprom->manufacture_date
+// since eeprom requires a delay(100) after write, it's better to not use these.  This makes the delay() requirement clearer.
+
 #define mag_bias eeprom->mag_bias
 #define mag_cal eeprom->mag_cal
 #define accel_bias eeprom->accel_bias

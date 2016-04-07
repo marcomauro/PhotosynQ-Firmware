@@ -1590,7 +1590,7 @@ int check_protocol(char *str)
 void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
   timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
   noInterrupts();
-  delayMicroseconds(_pulsesize);
+  delayMicroseconds(_pulsesize);                                             // I don't this accounts for the actopulser stabilization delay - JZ
   interrupts();
   timer1.begin(pulse2, _pulsedistance);                                      // schedule off
 }

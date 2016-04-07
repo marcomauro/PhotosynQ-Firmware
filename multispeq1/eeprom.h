@@ -43,8 +43,8 @@ class eeprom_class
     float calibration_other2;
     float pwr_off_ms[2];               // number of milliseconds before unit auto powers down (why two values?)
 
-//    float userdef[50];
-
+    // consider making these all an array of single float values
+//    float userdef[50]; // like this
 
     float userdef0[2];
     float userdef1[2];

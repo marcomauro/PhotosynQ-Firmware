@@ -1,5 +1,4 @@
 
-
 // Firmware for MultispeQ 1.0 hardware.   Part of the PhotosynQ project.
 
 // setup() and support routines - also see loop.h
@@ -15,7 +14,6 @@
 //
 
 /*
-
 
 Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
 Using bluetooth ID as ID - 
@@ -35,15 +33,17 @@ x turn pulse_distance and pulse_size → into an array
 
 x Greg - find suitable small magnet to embed, talk with Geoff
 
-Android to check for empty (if all 0s, or all 1s, then set api call to make unique ID == mac address.
+Android to check for empty ID (if all 0s, or all 1s, then set api call to make unique ID == BLE mac address.
 Check protocol routines (produce error codes if fail):
-Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  This should run just before any new protocol - if it’s too low, report to the user
-(greg) Overheat LED check: adds up time + intensity + pulsesize and length of pulses, and calculates any overages.  Report overages - do not proceed if over.  Also needs a shutoff which is available through a 1000 call.  
-Syntax check: make sure that the structure of the JSON is correct, report corrupted
-CRC check: so we expect CRC on end of protocol JSON, and check to make sure it’s valid.  Report corrupted
-Make 1000 calls for all of the sensors (for chrome app to call)
+   Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  This should run just before any new protocol - if it’s too low, report to the user
+   (greg) Overheat LED check: adds up time + intensity + pulsesize and length of pulses, and calculates any overages.  Report overages - do not proceed if over.  Also needs a shutoff which is available through a 1000 call.  
+   Syntax check: make sure that the structure of the JSON is correct, report corrupted
+   CRC check: so we expect CRC on end of protocol JSON, and check to make sure it’s valid.  Report corrupted
+   LED intensity range check?  Ie, certain LEDs can only go up to a certain intensity 
+
+Define and then code 1000+ calls for all of the sensors (for chrome app to call)
 Sebastian - can we change the sensor read commands 1000 over to normal protocols - then you output as per normal?)
-Check with sebastian about adding comments to protocols
+Check with sebastian about adding comments to protocols (even the inventor of json thinks there is a place for them)
 Clean up the protocols - light intensity (make into a single 1000+ call, see old code to bring it in)
 Check to make sure “averages” works in the protocols
 Clean up the pulsesize = 0 and all that stuff… meas_intensity…
@@ -56,8 +56,6 @@ Troubleshoot issues with bluetooth between protocols.
 Start documenting the commands + parameters to pass…
 And the eeprom commands
 
-
-
    Next to do:
    Add calibration commands back in
    consolidate commands to end up with:
@@ -66,6 +64,7 @@ And the eeprom commands
    First thing - go through eeprom.h and set all of the variables in top and bottom of file...
    expose only a portion to users via 1000+ commands
 
+   I suggest that all userdefs be a single float - JZ
    read_userdef - option to get a single userdef or all userdefs.  include the long arrays (like calibration_slope) as well as the offset and other variables which are not currently saved as userdefs.  All saved values are saveable in get_userdef.  This should have a print option when someone wants to also print it, and a get all option to print all userdefs (as JSON follow existing structure).
    replaces get_calibration, get_calibration_userdef, call_print_calibration, print_sensor_calibration, print_offset, set_device_info
 
@@ -80,12 +79,6 @@ And the eeprom commands
    Note: eeprom writing needs refactoring - eliminate all EEPROMxAnything()
 
    Here's the remaining commands in this file which should be moved.  I've organized them by function.  Actually this will be nice as some of them need to be renamed and cleaned up anyway.
-
-  // wait for user commands (string, long, or double), time-out can be passed as well
-  delete these - no longer in use - JZ
-  user_enter_str
-  user_enter_long
-  user_enter_dbl
 
   // power off
   pwr_off
@@ -126,10 +119,6 @@ And the eeprom commands
   // Device info command
   set_device_info
 
-  // Flush outgoing BT and USB commands
-  delete this - JZ
-  serial_bt_flush  (replace with Serial_Flush())
-
   // EEPROMxAnything - delete this and use new eeprom.h
 
   NEXT STEPS:
@@ -151,10 +140,7 @@ And the eeprom commands
   interpret the JSON prior to starting the measurement.  Interpreting it between pulses would likely cause delays and increase the shortest possible measurement pulse distance.
   The other option is to interpret each JSON and rebuild the arrays at the beginning of the measurement - this would be quite tedious and hard to do.
 
-
-
 */
-
 
 /*
   ////////////////////// HARDWARE NOTES //////////////////////////
@@ -351,8 +337,9 @@ static const int max_jsons = 15;                                                
 
 #define NUM_PINS 26
 
-
 // MCU pins that are controllable by the user
+// More explanation???
+
 float all_pins [NUM_PINS] = {
   15, 16, 11, 12, 2, 20, 14, 10, 34, 35, 36, 37, 38, 3, 4, 9, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33
 };
@@ -386,7 +373,6 @@ float calibration_other1 [NUM_PINS] = {
 float calibration_other2 [NUM_PINS] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-
 
 #if 1
 // delete this
@@ -623,20 +609,25 @@ void reset_freq() {
   */
 }
 
-// ??
-void pulse1() {                                                           // interrupt service routine which turns the measuring light on
+// interrupt service routine which turns the measuring light on
+
+void pulse1() {                                                           
 #ifdef PULSERDEBUG
   startTimer = micros();
 #endif
   digitalWriteFast(LED_to_pin[_meas_light], HIGH);            // turn on measuring light
-  delayMicroseconds(10);                           // this delay gives the op amp the time needed to turn the light on completely + stabilize.  Very low intensity measuring pulses may require an even longer delay here.
-  digitalWriteFast(HOLDM, LOW);                                                            // turn off sample and hold, and turn on lights for next pulse set
-  digitalWriteFast(HOLDADD, LOW);                                                            // turn off sample and hold, and turn on lights for next pulse set
-  on = 1;
+  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn 
+                                     // the light on completely + stabilize.  
+                                     // Very low intensity measuring pulses may require an even longer delay here.
+  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold, and turn on lights for next pulse set
+  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold, and turn on lights for next pulse set
+  on = 1;                               // flag for foreground to read
 }
 
+// interrupt service routine which turns the measuring light off
+// consider merging this into pulse1()
 
-void pulse2() {                                                             // interrupt service routine which turns the measuring light off                  // turn off measuring light, tick counter
+void pulse2() {                            
 #ifdef PULSERDEBUG
   endTimer = micros();
 #endif
@@ -917,7 +908,8 @@ void calculate_offset(int _pulsesize) {                                         
 #endif
 }
 
-// all userdefs of the same size should be put into an array
+// note: all userdefs of the same size should be put into an array
+
 void print_get_userdef0(int _0, int _1, int _2, int _3, int _4, int _5, int _6, int _7, int _8, int _9, int _10, int _11, int _12, int _13, int _14, int _15, int _16, int _17, int _18, int _19, int _20, int _21, int _22, int _23, int _24, int _25, int _26, int _27, int _28, int _29, int _30, int _31, int _32, int _33, int _34, int _35, int _36, int _37, int _38, int _39, int _40, int _41, int _42, int _43, int _44, int _45, int _46, int _47, int _48, int _49, int _50) {
   if (_0 == 1) {
     Serial_Print("\"get_userdef0\":[");
@@ -1353,6 +1345,8 @@ void calibrate_offset() {
   }
 */
 
+// input device ID and manufacture date and write to eeprom
+
 void set_device_info(int _set) {
   Serial_Print("{\"device_name\":\"");   // Printf is easier
   Serial_Print(DEVICE_NAME);
@@ -1530,23 +1524,12 @@ void compass (uint16_t array[]) {};
 void accel (uint16_t array[]) {};
 
 // read this channel from ??, replys with one number (16 bit)
+// maybe best to take 33 readings and return the median
 uint16_t atod (int channel) {
   return 0;
 };
 
 
-
-#if 0
-// deprecated - use Serial_Flush() instead
-void serial_bt_flush() {
-  while (Serial.available() > 0) {                                                 // Flush incoming serial of the failed command
-    Serial.read();
-  }
-  while (Serial1.available() > 0) {                                                 // Flush incoming serial of the failed command
-    Serial1.read();
-  }
-}
-#endif
 
 void get_calibration_userdef() {
 
@@ -1626,6 +1609,8 @@ void get_calibration_userdef() {
   Serial_Print("],");
   Serial_Print(",");
 }
+
+// ??
 
 void get_calibration(float slope[], float yint[], float _slope, float _yint, JsonArray cal, String name) {
   if (cal.getLong(0) > 0) {                                                          // if get_ir_baseline is true, then...

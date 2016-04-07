@@ -346,7 +346,7 @@ void loop() {
           // JZ test - do not remove
           // read multiple pulses with increasing intensity for linearity test
           const int LED = 3;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR
-          Serial_Print_Line("DAC vs intensity test");
+          Serial_Print_Line("DAC,intensity);
           AD7689_set(0);
           const int MAX = 4095;                            // try a variety of intensities 0 up to 4095
           for (int i = 1; i < MAX; i += MAX / 100) {

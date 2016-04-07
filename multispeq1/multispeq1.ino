@@ -572,13 +572,17 @@ void setup() {
 #ifdef MLX90615
   MLX90615_init();          // IR sensor
 #ifdef DEBUGSIMPLE
-  Serial.printf("IR temp = %F\n", MLX90615_Read(0));
+  Serial.printf("IR temp = %f C\n", MLX90615_Read(0));
 #endif
 #endif
 
 #undef DEBUGSIMPLE
 
-  Serial.println("Ready");
+// test expressions - works! pass it a string and it is evaluated
+  double expr(const char s[]);
+  Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
+
+  Serial_Print("Ready");
 
 }  // setup()
 

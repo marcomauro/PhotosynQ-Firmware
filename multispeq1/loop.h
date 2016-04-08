@@ -227,24 +227,21 @@ void loop() {
           Serial_Print_CRC();
         }
         break;
-      /*
-                  case 1018:                                                                          // test the Serial_Input_Chars() command
-                    char S[10];
-                    Serial_Print_Line(userdef[0], 4);
-                    Serial_Input_Chars(S, "+", 20000, sizeof(S));
-                    Serial_Printf("output is %s \n", S);
-                    userdef[0] = atof(S);
-                    break;
-      */
+      case 1019:                                                                          // test the Serial_Input_Chars() command
+        char S[10];
+        Serial_Print_Line(eeprom->userdef[0], 4);
+        Serial_Input_Chars(S, "+", 20000, sizeof(S));
+        Serial_Printf("output is %s \n", S);
+        eeprom->userdef[0] = atof(S);
+        break;
 
-      /*
-            case 1019:                                                                          // test the Serial_Input_Float command
-              Serial_Print_Line(light_yint, 4);
-              light_yint = Serial_Input_Long("+", 20000);
-              Serial_Printf("output is %f \n", light_yint);
-              // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
-              break;
-      */
+      case 1020:                                                                          // test the Serial_Input_Float command
+        Serial_Print_Line(eeprom->userdef[1], 4);
+        eeprom->userdef[1] = (float) Serial_Input_Long("+", 20000);
+        Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
+        // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
+        break;
+
       case 1027:
         _reboot_Teensyduino_();                                                    // restart teensy
         break;
@@ -1528,21 +1525,25 @@ void stopTimers() {
 }
 
 void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
-  if (_save_eeprom.getLength() > 0) {                                                         // if the user is saving eeprom values, then...
-    for (int i = 0; i < _save_eeprom.getLength(); i++) {
-      int index = _save_eeprom.getArray(i).getLong(0);
-      if (index >= 0 && index < NUM_USERDEFS)
-        eeprom->userdef[index] = _save_eeprom.getArray(i).getDouble(1);     //  save new value in the defined eeprom location
-      delay(1);                                                                                     // delay to make sure it has time to save (min 1ms)
+  int number_saves = _save_eeprom.getLength();                                 // define these explicitly to make it easier to understand the logic
+  int number_recalls = _recall_eeprom.getLength();                             // define these explicitly to make it easier to understand the logic
+  if (number_saves > 0) {                                                          // if the user is saving eeprom values, then...
+    for (int i = 0; i < number_saves; i++) {
+      int location = _save_eeprom.getArray(i).getLong(0);
+      float current_value = (float) eeprom->userdef[location];
+      float value_to_save = _save_eeprom.getArray(i).getLong(1);
+      Serial_Printf("location = %d, current value = %f, value to save = %f", location, current_value, value_to_save);
+      current_value = value_to_save;                                                //  save new value in the defined eeprom location
+      delay(1);                                                                     // delay to make sure it has time to save (min 1ms)
+      Serial_Printf(", saved value = %f\n", current_value);
     }
   }
-  if (_recall_eeprom.getLength() > 0  /* || _save_eeprom.getLength() > 0 */) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
+  if (number_recalls > 0 || number_saves > 0) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
     Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there
-    for (int i = 0; i < _recall_eeprom.getLength(); i++) {
-      int index = _recall_eeprom.getLong(i);
-      if (index >= 0 && index < NUM_USERDEFS)
-        Serial_Printf("\"%d\":%f", index, eeprom->userdef[index]);
-      if (i != _recall_eeprom.getLength() - 1) {
+    for (int i = 0; i < number_recalls; i++) {
+      int location = _recall_eeprom.getLong(i);
+      Serial_Printf("%d:%f", (int) location, eeprom->userdef[location]);
+      if (i != number_recalls - 1) {
         Serial_Print(",");
       }
       else {
@@ -1551,6 +1552,4 @@ void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
     } // for
   } // recall_save()
 }
-
-
 

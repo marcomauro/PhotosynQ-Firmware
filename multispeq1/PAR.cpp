@@ -3,13 +3,12 @@
 // code related to the PAR/color sensor
 
 #include <Arduino.h>
-#include "Adafruit_TCS34725.h"    // color sensor
-#include "TCS3471.h"              // color sensor
+#include "utility/Adafruit_TCS34725.h"    // color sensor
+#include "utility/TCS3471.h"              // color sensor
 #include "serial.h"
 #include "crc32.h"
-#include "JsonParser.h"
-#include "mcp4728.h"              // DAC
-#include "EEPROMAnything.h"
+#include "json/JsonParser.h"
+#include "utility/mcp4728.h"              // DAC
 #include "eeprom.h"
 
 // external function declarations

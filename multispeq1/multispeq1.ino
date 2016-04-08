@@ -182,20 +182,16 @@
 // includes
 #include <i2c_t3.h>
 #include <Time.h>                                                             // enable real time clock library
-#include "Adafruit_Sensor.h"
-#include "JsonParser.h"
-#include "mcp4728.h"              // delete this once PAR is fixed
+#include "utility/Adafruit_Sensor.h"
+#include "json/JsonParser.h"
+#include "utility/mcp4728.h"              // delete this once PAR is fixed
 #include "DAC.h"
 #include "AD7689.h"               // external ADC
-#include "Adafruit_BME280.h"      // temp/humidity/pressure sensor
-//#include <EEPROM.h>    // remove this
-//#include "EEPROMAnything.h"   // remove this
+#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
 #define EXTERN
 #include "eeprom.h"
 #include <typeinfo>
 #include <ADC.h>                  // internal ADC
-//#include <avr/sleep.h>
-//#include <LowPower_Teensy3.h>
 #include "serial.h"
 #include "flasher.h"
 #include "crc32.h"
@@ -542,13 +538,13 @@ void setup() {
 
 #undef DEBUGSIMPLE
 
-    // test expressions - works! pass it a string and it is evaluated
-    double expr(const char s[]);
-    Serial_Printf("expr = %f\n",expr("userdef1/2"));  // userdef1 is from eeprom
+  // test expressions - works! pass it a string and it is evaluated
+  //double expr(const char s[]);
+  //Serial_Printf("expr = %f\n",expr("userdef1/2"));  // userdef1 is from eeprom
 
-    assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
+  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
-    Serial_Print_Line("MultispeQ Ready");
+  Serial_Print_Line("MultispeQ Ready");
 
 }  // setup()
 

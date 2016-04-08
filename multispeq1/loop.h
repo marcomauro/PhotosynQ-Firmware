@@ -1524,13 +1524,15 @@ void stopTimers() {
   timer1.end();
 }
 
+// read/write values to eeprom
+// example json: [{"save":[[1,3.43],[2,5545]]}]
+
 void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
   int number_saves = _save_eeprom.getLength();                                 // define these explicitly to make it easier to understand the logic
   int number_recalls = _recall_eeprom.getLength();                             // define these explicitly to make it easier to understand the logic
   if (number_saves > 0) {                                                          // if the user is saving eeprom values, then...
     for (int i = 0; i < number_saves; i++) {
       int location = _save_eeprom.getArray(i).getLong(0);
-
       float value_to_save = _save_eeprom.getArray(i).getDouble(1);
       if (location >= 0 && location < NUM_USERDEFS)
         eeprom->userdef[location] = value_to_save;                                                //  save new value in the defined eeprom location

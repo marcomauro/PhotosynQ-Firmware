@@ -6,7 +6,7 @@
 //  *** Important: assume that the DAC ICs have i2C addresses of 1,2,3 (can be set with a routine below)
 //  Jon Zeeff, March, 2016
 
-#include "mcp4728.h"              // DAC
+#include "utility/mcp4728.h"              // DAC
 #include "DAC.h"
 #include "serial.h"
 

@@ -84,7 +84,7 @@ void loop() {
     }
 
     crc32_init();                   // clear CRC value since below may print
-    
+
     switch (atoi(choose)) {
       case 440:
         // set real-time clock (needed if battery is removed)
@@ -302,10 +302,10 @@ void loop() {
         */
         break;
       case 1028:
-        Serial_Printf("%d\n",eeprom->manufacture_date);
+        Serial_Printf("%d\n", eeprom->manufacture_date);
         Serial_Print_Line(mag_bias[1]);
         Serial_Print_Line(mag_cal[1][1]);
-        Serial_Printf("%ld\n",eeprom->device_id);
+        Serial_Printf("%ld\n", eeprom->device_id);
         break;
       case 4044:
         {
@@ -323,7 +323,7 @@ void loop() {
           noInterrupts();
           digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
           delayMicroseconds(30);                          // allow slow actopulser to stabilize
-          digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)  
+          digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)
           delayMicroseconds(40);                          // measuring width
           digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
           uint32_t delta_time = micros();
@@ -347,7 +347,7 @@ void loop() {
           Serial_Printf("time = %d usec for %d samples\n", delta_time, SAMPLES);
         }
         break;
-        
+
       case 4045:
         set_device_info(1);  //  works now
         break;
@@ -437,8 +437,8 @@ void loop() {
 
   crc32_init();          // reset CRC
 
-  Serial_Printf("{\"device_id\":%ld",eeprom->device_id);
-  Serial_Printf(",\"firmware_version\":%s",FIRMWARE_VERSION);
+  Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
+  Serial_Printf(",\"firmware_version\":%s", FIRMWARE_VERSION);
   Serial_Print(",\"sample\":[");
 
   // loop through the all measurements to create a measurement group
@@ -676,10 +676,10 @@ void loop() {
           int background_on = 0;
           long data_count = 0;
           int message_flag = 0;                                                              // flags to indicate if an alert, prompt, or confirm have been called at least once (to print the object name to data JSON)
-          uint16_t _pulsedistance=0;                                                    // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
-          uint16_t _pulsesize=0;
-          uint16_t _pulsedistance_prev=0;
-          uint16_t _pulsesize_prev=0;
+          uint16_t _pulsedistance = 0;                                                  // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
+          uint16_t _pulsesize = 0;
+          uint16_t _pulsedistance_prev = 0;
+          uint16_t _pulsesize_prev = 0;
           uint16_t _reference_flag = 0;                                                           // used to note if this is the first measurement
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
@@ -1351,9 +1351,9 @@ void loop() {
         /*
            Recall and save values to the eeprom
         */
-        
+
         if (recall_eeprom.getLength() > 0) {                                                         // if the user is recalling any saved eeprom values, then...
-          Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there 
+          Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there
           for (int i; i < recall_eeprom.getLength(); i++) {
             Serial_Print((int) recall_eeprom.getLong(i));
             Serial_Print(":");
@@ -1363,187 +1363,188 @@ void loop() {
             }
             else {
               Serial_Print("},");
+            }
           }
-        }
 
 #ifdef CORAL_SPEQ
-        if (spec_on == 1) {                                                                    // if the spec is being used, then read it and print data_raw as spec values.  Otherwise, print data_raw as multispeq detector values as per normal
-          Serial_Print("\"data_raw\":[");
-          for (int i = 0; i < SPEC_CHANNELS; i++)
-          {
-            Serial_Print((unsigned)(spec_data_average[i] / averages));
-            if (i != SPEC_CHANNELS - 1) {                                                     // if it's the last one in printed array, don't print comma
-              Serial_Print(",");
+          if (spec_on == 1) {                                                                    // if the spec is being used, then read it and print data_raw as spec values.  Otherwise, print data_raw as multispeq detector values as per normal
+            Serial_Print("\"data_raw\":[");
+            for (int i = 0; i < SPEC_CHANNELS; i++)
+            {
+              Serial_Print((unsigned)(spec_data_average[i] / averages));
+              if (i != SPEC_CHANNELS - 1) {                                                     // if it's the last one in printed array, don't print comma
+                Serial_Print(",");
+              }
             }
+            Serial_Print("]}");
           }
-          Serial_Print("]}");
-        }
 #endif
-        if (spec_on == 0) {
-          Serial_Print("\"data_raw\":[");
-          if (adc_show == 0) {                                                             // normal condition - show data_raw as per usual
-            for (int i = 0; i < size_of_data_raw; i++) {                                     // print data_raw, divided by the number of averages (median would be nice)
-              Serial_Print((unsigned)(data_raw_average[i] / averages));
-              // if average = 1, then it would be better to print data as it is collected
-              if (i != size_of_data_raw - 1) {
-                Serial_Print(",");
+          if (spec_on == 0) {
+            Serial_Print("\"data_raw\":[");
+            if (adc_show == 0) {                                                             // normal condition - show data_raw as per usual
+              for (int i = 0; i < size_of_data_raw; i++) {                                     // print data_raw, divided by the number of averages (median would be nice)
+                Serial_Print((unsigned)(data_raw_average[i] / averages));
+                // if average = 1, then it would be better to print data as it is collected
+                if (i != size_of_data_raw - 1) {
+                  Serial_Print(",");
+                }
               }
             }
-          }
-          else {                                                                         // if adc_show == 1, show first individual adc's only - do not show normal data_raw (used for signal debugging only)
-            for (int i = 0; i < number_samples.getLong(0); i++) {
-              Serial_Print(adc_only[i]);
-              if (i != number_samples.getLong(0) - 1) {
-                Serial_Print(",");
+            else {                                                                         // if adc_show == 1, show first individual adc's only - do not show normal data_raw (used for signal debugging only)
+              for (int i = 0; i < number_samples.getLong(0); i++) {
+                Serial_Print(adc_only[i]);
+                if (i != number_samples.getLong(0) - 1) {
+                  Serial_Print(",");
+                }
               }
             }
+            Serial_Print("]}");
           }
-          Serial_Print("]}");
-        }
 
 #ifdef DEBUGSIMPLE
-        Serial_Print("# of protocols repeats, current protocol repeat, number of total protocols, current protocol      ");
-        Serial_Print(protocols);
-        Serial_Print(",");
-        Serial_Print(u);
-        Serial_Print(",");
-        Serial_Print(number_of_protocols);
-        Serial_Print(",");
-        Serial_Print_Line(q);
-#endif
-
-        if (q < number_of_protocols - 1 || u < protocols - 1) {                           // if it's not the last protocol in the measurement and it's not the last repeat of the current protocol, add a comma
+          Serial_Print("# of protocols repeats, current protocol repeat, number of total protocols, current protocol      ");
+          Serial_Print(protocols);
           Serial_Print(",");
-          if (protocols_delay > 0) {
-            Serial_Input_Long("+", protocols_delay * 1000);
-          }
-          if (protocols_delay_ms > 0) {
-            Serial_Input_Long("+", protocols_delay_ms);
-          }
-        }
-        else if (q == number_of_protocols - 1 && u == protocols - 1) {                  // if it is the last protocol, then close out the data json
-          Serial_Print("]");
-        }
+          Serial_Print(u);
+          Serial_Print(",");
+          Serial_Print(number_of_protocols);
+          Serial_Print(",");
+          Serial_Print_Line(q);
+#endif
 
-        averages = 1;                                                 // number of times to repeat the entire run
-        averages_delay = 0;                                                           // seconds wait time between averages
-        averages_delay_ms = 0;                                                    // seconds wait time between averages
-        analog_averages = 1;                                                             // # of measurements per pulse to be averaged (min 1 measurement per 6us pulselengthon)
-        for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {
-          _a_lights[i] = 0;
-        }
-        relative_humidity_average = 0;                                                // reset all environmental variables to zero
-        temperature_average = 0;
-        objt_average = 0;
-        lux_average = 0;
-        r_average = 0;
-        g_average = 0;
-        b_average = 0;
-        lux_average_forpar = 0;
-        r_average_forpar = 0;
-        g_average_forpar = 0;
-        b_average_forpar = 0;
+          if (q < number_of_protocols - 1 || u < protocols - 1) {                           // if it's not the last protocol in the measurement and it's not the last repeat of the current protocol, add a comma
+            Serial_Print(",");
+            if (protocols_delay > 0) {
+              Serial_Input_Long("+", protocols_delay * 1000);
+            }
+            if (protocols_delay_ms > 0) {
+              Serial_Input_Long("+", protocols_delay_ms);
+            }
+          }
+          else if (q == number_of_protocols - 1 && u == protocols - 1) {                  // if it is the last protocol, then close out the data json
+            Serial_Print("]");
+          }
+
+          averages = 1;                                                 // number of times to repeat the entire run
+          averages_delay = 0;                                                           // seconds wait time between averages
+          averages_delay_ms = 0;                                                    // seconds wait time between averages
+          analog_averages = 1;                                                             // # of measurements per pulse to be averaged (min 1 measurement per 6us pulselengthon)
+          for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {
+            _a_lights[i] = 0;
+          }
+          relative_humidity_average = 0;                                                // reset all environmental variables to zero
+          temperature_average = 0;
+          objt_average = 0;
+          lux_average = 0;
+          r_average = 0;
+          g_average = 0;
+          b_average = 0;
+          lux_average_forpar = 0;
+          r_average_forpar = 0;
+          g_average_forpar = 0;
+          b_average_forpar = 0;
 #ifdef CORAL_SPEQ
-        for (int i = 0; i < SPEC_CHANNELS; i++) {
-          spec_data_average [i] = 0;
-        }
+          for (int i = 0; i < SPEC_CHANNELS; i++) {
+            spec_data_average [i] = 0;
+          }
 #endif
-        act_background_light_prev = act_background_light;                               // set current background as previous background for next protocol
-        spec_on = 0;                                                                    // reset flag that spec is turned on for this measurement
+          act_background_light_prev = act_background_light;                               // set current background as previous background for next protocol
+          spec_on = 0;                                                                    // reset flag that spec is turned on for this measurement
 #ifdef DEBUGSIMPLE
-        Serial_Print_Line("previous light set to:   ");
-        Serial_Print_Line(act_background_light_prev);
+          Serial_Print_Line("previous light set to:   ");
+          Serial_Print_Line(act_background_light_prev);
 #endif
+        }
+      }
+      Serial_Flush_Input();
+      if (y < measurements - 1) {                                                    // add commas between measurements
+        Serial_Print(",");
+        if (measurements_delay > 0) {
+          Serial_Input_Long("+", measurements_delay * 1000);
+        }
+        else if (measurements_delay_ms > 0) {
+          Serial_Input_Long("+", measurements_delay_ms);
+        }
       }
     }
-    Serial_Flush_Input();
-    if (y < measurements - 1) {                                                    // add commas between measurements
-      Serial_Print(",");
-      if (measurements_delay > 0) {
-        Serial_Input_Long("+", measurements_delay * 1000);
+    /*
+      // make sure one last time that all of the lights are turned off, including background light!
+      for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
+        digitalWriteFast(LED_to_pin[i], LOW);
+        Serial_Print_Line(LED_to_pin[i]);
       }
-      else if (measurements_delay_ms > 0) {
-        Serial_Input_Long("+", measurements_delay_ms);
-      }
+    */
+
+    Serial_Print("]}");
+    act_background_light = 0;                                                      // reset background light to teensy pin 13
+    free(data_raw_average);                                                         // free the calloc() of data_raw_average
+    free(json);                                                                     // free second json malloc
+    Serial_Print_CRC();
+    
+  } // loop()
+
+  // check a protocol for validity (matching [] and {})
+  // return 1 if OK, otherwise 0
+  // should also check CRC value if present
+
+  int check_protocol(char *str)
+  {
+    int bracket = 0, curly = 0;
+    char *start = str;
+
+    while (*str != 0) {
+      switch (*str) {
+        case '[':
+          ++bracket;
+          break;
+        case ']':
+          --bracket;
+          break;
+        case '{':
+          ++curly;
+          break;
+        case '}':
+          --curly;
+          break;
+      } // switch
+      ++str;
+    } // while
+
+    if (bracket != 0 || curly != 0)  // unbalanced - can't be correct
+      return 0;
+
+    // check CRC - 8 hex digits immediately after the closing }
+    char *ptr = strrchr(start, '}'); // find last }
+    if (!ptr)                        // no } found - how can that be?
+      return 0;
+
+    if (!isxdigit(*(ptr + 1)))      // hex digit follows last }
+      return 1;                    // no CRC so report OK
+
+    // CRC is there - check it
+
+    crc32_init();     // find crc of json (from first { to last })
+    crc32_buf (start, 1 + ptr - start);
+
+    // note: must be exactly 8 upper case hex digits
+    if (strncmp(int32_to_hex (crc32_value()), ptr + 1, 8) != 0) {
+      return 0;                 // bad CRC
     }
+
+    return 1;
+  } // check_protocol()
+
+  // schedule the turn on and off of the LED(s) via an ISR
+  void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
+    timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
+    noInterrupts();
+    delayMicroseconds(_pulsesize);                                             // I don't this accounts for the actopulser stabilization delay - JZ
+    interrupts();
+    timer1.begin(pulse2, _pulsedistance);                                      // schedule off
   }
-  /*
-    // make sure one last time that all of the lights are turned off, including background light!
-    for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
-      digitalWriteFast(LED_to_pin[i], LOW);
-      Serial_Print_Line(LED_to_pin[i]);
-    }
-  */
-
-  Serial_Print("]}");
-  act_background_light = 0;                                                      // reset background light to teensy pin 13
-  free(data_raw_average);                                                         // free the calloc() of data_raw_average
-  free(json);                                                                     // free second json malloc
-  Serial_Print_CRC();
-} // loop()
-
-// check a protocol for validity (matching [] and {})
-// return 1 if OK, otherwise 0
-// should also check CRC value if present
-
-int check_protocol(char *str)
-{
-  int bracket = 0, curly = 0;
-  char *start = str;
-
-  while (*str != 0) {
-    switch (*str) {
-      case '[':
-        ++bracket;
-        break;
-      case ']':
-        --bracket;
-        break;
-      case '{':
-        ++curly;
-        break;
-      case '}':
-        --curly;
-        break;
-    } // switch
-    ++str;
-  } // while
-
-  if (bracket != 0 || curly != 0)  // unbalanced - can't be correct
-    return 0;
-
-  // check CRC - 8 hex digits immediately after the closing }
-  char *ptr = strrchr(start, '}'); // find last }
-  if (!ptr)                        // no } found - how can that be?
-    return 0;
-
-  if (!isxdigit(*(ptr + 1)))      // hex digit follows last }
-    return 1;                    // no CRC so report OK
-
-  // CRC is there - check it
-
-  crc32_init();     // find crc of json (from first { to last })
-  crc32_buf (start, 1 + ptr - start);
-
-  // note: must be exactly 8 upper case hex digits
-  if (strncmp(int32_to_hex (crc32_value()), ptr + 1, 8) != 0) {
-    return 0;                 // bad CRC
+  void stopTimers() {
+    timer0.end();                                                                  // if it's the last cycle and last pulse, then... stop the timers
+    timer1.end();
   }
-
-  return 1;
-} // check_protocol()
-
-// schedule the turn on and off of the LED(s) via an ISR
-void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
-  timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
-  noInterrupts();
-  delayMicroseconds(_pulsesize);                                             // I don't this accounts for the actopulser stabilization delay - JZ
-  interrupts();
-  timer1.begin(pulse2, _pulsedistance);                                      // schedule off
-}
-void stopTimers() {
-  timer0.end();                                                                  // if it's the last cycle and last pulse, then... stop the timers
-  timer1.end();
-}
 
 

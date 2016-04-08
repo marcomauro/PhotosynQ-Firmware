@@ -6,7 +6,7 @@
 
 // DANGER:  do not do too many writes to eeprom variables - cycles are limited
 // WARNING: max size is 2K
-// WARNING: do a delay(100) after every write.  If not, program may freeze.
+// WARNING: do a delay(1) after every write.  If not, program may freeze.
 
 // Jon Zeeff 2016
 
@@ -18,8 +18,7 @@ class eeprom_class
 {
   public:
     // each of these needs a comment
-//    char device_id[12];                  // this is the bluetooth's unique MAC address
-    long device_id;
+    long device_id;                   // lower 4 bytes of BLE mac address
     uint16_t manufacture_date;
     float mag_bias[3];       // magnetometer/compass calibration
     float mag_cal[3][3];

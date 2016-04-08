@@ -15,49 +15,49 @@
 
 /*
 
-+ test do we need to calibrate offsets (like we did with the betas?)
+  + test do we need to calibrate offsets (like we did with the betas?)
 
-Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
-Using bluetooth ID as ID - 
-Firmware needs api call to write code to eeprom (unique ID).
-Get rid of user_enter… and replace with new user enter, then delete main function
-Pull out the alert/confirm/prompt into a subroutine.
-If averages == 1, then print data in real time
-Reimplement Actinic background light… make sure to update (currently set to 13)
-reimplement print_offset and get_offset
+  Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
+  Using bluetooth ID as ID -
+  Firmware needs api call to write code to eeprom (unique ID).
+  Get rid of user_enter… and replace with new user enter, then delete main function
+  Pull out the alert/confirm/prompt into a subroutine.
+  If averages == 1, then print data in real time
+  Reimplement Actinic background light… make sure to update (currently set to 13)
+  reimplement print_offset and get_offset
 
-Make the “environmental” a separate subroutine and pass the before or after 0,1 to it.
+  Make the “environmental” a separate subroutine and pass the before or after 0,1 to it.
 
-I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.  
+  I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.
 
 
-Convert all possible into an array to make designing protocols more user friendly
-x turn pulse_distance and pulse_size → into an array
+  Convert all possible into an array to make designing protocols more user friendly
+  x turn pulse_distance and pulse_size → into an array
 
-x Greg - find suitable small magnet to embed, talk with Geoff
+  x Greg - find suitable small magnet to embed, talk with Geoff
 
-Android to check for empty ID (if all 0s, or all 1s, then set api call to make unique ID == BLE mac address.
-Check protocol routines (produce error codes if fail):
+  Android to check for empty ID (if all 0s, or all 1s, then set api call to make unique ID == BLE mac address.
+  Check protocol routines (produce error codes if fail):
    Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  This should run just before any new protocol - if it’s too low, report to the user
-   (greg) Overheat LED check: adds up time + intensity + pulsesize and length of pulses, and calculates any overages.  Report overages - do not proceed if over.  Also needs a shutoff which is available through a 1000 call.  
+   (greg) Overheat LED check: adds up time + intensity + pulsesize and length of pulses, and calculates any overages.  Report overages - do not proceed if over.  Also needs a shutoff which is available through a 1000 call.
    Syntax check: make sure that the structure of the JSON is correct, report corrupted
    CRC check: so we expect CRC on end of protocol JSON, and check to make sure it’s valid.  Report corrupted
-   LED intensity range check?  Ie, certain LEDs can only go up to a certain intensity 
+   LED intensity range check?  Ie, certain LEDs can only go up to a certain intensity
 
-Define and then code 1000+ calls for all of the sensors (for chrome app to call)
-Sebastian - can we change the sensor read commands 1000 over to normal protocols - then you output as per normal?)
-Check with sebastian about adding comments to protocols (even the inventor of json thinks there is a place for them)
-Clean up the protocols - light intensity (make into a single 1000+ call, see old code to bring it in)
-Check to make sure “averages” works in the protocols
-Clean up the pulsesize = 0 and all that stuff… meas_intensity…
-Attach par sensor to USB-C breakout, make calibration routine.
-Look up and see why iOS doesn’t connect.
-Test the power down feature from the bluetooth.  Determine how long it takes when powered down to come back to life (from bluetooth).  Include auto power off in the main while loop - auto-off after 10 seconds.  
-Troubleshoot issues with bluetooth between protocols.
+  Define and then code 1000+ calls for all of the sensors (for chrome app to call)
+  Sebastian - can we change the sensor read commands 1000 over to normal protocols - then you output as per normal?)
+  Check with sebastian about adding comments to protocols (even the inventor of json thinks there is a place for them)
+  Clean up the protocols - light intensity (make into a single 1000+ call, see old code to bring it in)
+  Check to make sure “averages” works in the protocols
+  Clean up the pulsesize = 0 and all that stuff… meas_intensity…
+  Attach par sensor to USB-C breakout, make calibration routine.
+  Look up and see why iOS doesn’t connect.
+  Test the power down feature from the bluetooth.  Determine how long it takes when powered down to come back to life (from bluetooth).  Include auto power off in the main while loop - auto-off after 10 seconds.
+  Troubleshoot issues with bluetooth between protocols.
 
 
-Start documenting the commands + parameters to pass…
-And the eeprom commands
+  Start documenting the commands + parameters to pass…
+  And the eeprom commands
 
    Next to do:
    Add calibration commands back in
@@ -188,8 +188,8 @@ And the eeprom commands
 #include "DAC.h"
 #include "AD7689.h"               // external ADC
 #include "Adafruit_BME280.h"      // temp/humidity/pressure sensor
-#include <EEPROM.h>    // remove this
-#include "EEPROMAnything.h"   // remove this
+//#include <EEPROM.h>    // remove this
+//#include "EEPROMAnything.h"   // remove this
 #define EXTERN
 #include "eeprom.h"
 #include <typeinfo>
@@ -214,9 +214,9 @@ int Light_Intensity(int var1);
 
 // replace legacy routines with new equivalents
 /*
-#define user_enter_str(timeout, pwr_off) Serial_Input_String("+", (unsigned long) timeout)
-#define user_enter_dbl(timeout) Serial_Input_Double("+", (unsigned long) timeout)
-#define user_enter_long(timeout) Serial_Input_Long("+",(unsigned long) timeout)
+  #define user_enter_str(timeout, pwr_off) Serial_Input_String("+", (unsigned long) timeout)
+  #define user_enter_dbl(timeout) Serial_Input_Double("+", (unsigned long) timeout)
+  #define user_enter_long(timeout) Serial_Input_Long("+",(unsigned long) timeout)
 */
 
 // remove these after PCB testing
@@ -412,11 +412,11 @@ extern float g_average_forpar;
 extern float b_average_forpar;
 
 /*
-extern float light_y_intercept;
-extern float lux_to_uE(float _lux_average);
-extern int Light_Intensity(int var1);
-extern int calculate_intensity(int _light, int tcs_on, int _cycle, float _light_intensity);
-extern int calculate_intensity_background(int _light, int tcs_on, int _cycle, float _light_intensity, int _background_intensity);
+  extern float light_y_intercept;
+  extern float lux_to_uE(float _lux_average);
+  extern int Light_Intensity(int var1);
+  extern int calculate_intensity(int _light, int tcs_on, int _cycle, float _light_intensity);
+  extern int calculate_intensity_background(int _light, int tcs_on, int _cycle, float _light_intensity, int _background_intensity);
 */
 
 ////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
@@ -447,14 +447,14 @@ void setup() {
 
   // Set up I2C bus
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_INT, I2C_RATE_400);  // using alternative wire library
-//  Serial_Print_Line("I2C works");
+  //  Serial_Print_Line("I2C works");
 
   // initialize SPI bus
   SPI.begin ();
-//  Serial_Print_Line("SPI works");
+  //  Serial_Print_Line("SPI works");
 
   // initialize DACs
-  DAC_init();   
+  DAC_init();
 
   // set up MCU pins
 
@@ -501,17 +501,17 @@ void setup() {
   analogWriteFrequency(5, 187500);
 
 #ifdef PULSERDEBUG
-    // Set pinmodes for the coralspeq
-    //pinMode(SPEC_EOS, INPUT);
-    pinMode(SPEC_GAIN, OUTPUT);
-    pinMode(SPEC_ST, OUTPUT);
-    pinMode(SPEC_CLK, OUTPUT);
+  // Set pinmodes for the coralspeq
+  //pinMode(SPEC_EOS, INPUT);
+  pinMode(SPEC_GAIN, OUTPUT);
+  pinMode(SPEC_ST, OUTPUT);
+  pinMode(SPEC_CLK, OUTPUT);
 
-    digitalWrite(SPEC_GAIN, LOW);
-    digitalWrite(SPEC_ST, HIGH);
-    digitalWrite(SPEC_CLK, HIGH);
-    digitalWrite(SPEC_GAIN, HIGH); //High Gain
-    //digitalWrite(SPEC_GAIN, LOW); //LOW Gain
+  digitalWrite(SPEC_GAIN, LOW);
+  digitalWrite(SPEC_ST, HIGH);
+  digitalWrite(SPEC_CLK, HIGH);
+  digitalWrite(SPEC_GAIN, HIGH); //High Gain
+  //digitalWrite(SPEC_GAIN, LOW); //LOW Gain
 #endif
 
   /*NOTES*/  // REINITIATE ONCE MAG AND ACCEL ARE CONNECTED
@@ -541,18 +541,18 @@ void setup() {
 
 #undef DEBUGSIMPLE
 
-/* had an error compiling here so commented it out
- *  
-// test expressions - works! pass it a string and it is evaluated
-//  double expr(const char s[]);
-//  Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
+  /* had an error compiling here so commented it out
 
-  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
+    // test expressions - works! pass it a string and it is evaluated
+    //  double expr(const char s[]);
+    //  Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
 
-  Serial_Print_Line("MultispeQ Ready");
+    assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
-  Serial_Print("Ready");
-*/
+    Serial_Print_Line("MultispeQ Ready");
+
+    Serial_Print("Ready");
+  */
 }  // setup()
 
 
@@ -584,14 +584,14 @@ void reset_freq() {
 
 // interrupt service routine which turns the measuring light on
 
-void pulse1() {                                                           
+void pulse1() {
 #ifdef PULSERDEBUG
   startTimer = micros();
 #endif
   digitalWriteFast(LED_to_pin[_meas_light], HIGH);            // turn on measuring light
-  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn 
-                                     // the light on completely + stabilize.  
-                                     // Very low intensity measuring pulses may require an even longer delay here.
+  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
+  // the light on completely + stabilize.
+  // Very low intensity measuring pulses may require an even longer delay here.
   digitalWriteFast(HOLDM, LOW);          // turn off sample and hold, and turn on lights for next pulse set
   digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold, and turn on lights for next pulse set
   on = 1;                               // flag for foreground to read
@@ -600,7 +600,7 @@ void pulse1() {
 // interrupt service routine which turns the measuring light off
 // consider merging this into pulse1()
 
-void pulse2() {                            
+void pulse2() {
 #ifdef PULSERDEBUG
   endTimer = micros();
 #endif
@@ -608,11 +608,8 @@ void pulse2() {
   off = 1;
 }
 
-// this routine gets called repeatibly after setup()
-#include "loop.h"
-
 /*
-void call_print_calibration (int _print) {
+  void call_print_calibration (int _print) {
 
   // delete all of these
   //  EEPROM_readAnything(0,tmp006_cal_S);
@@ -637,29 +634,29 @@ void call_print_calibration (int _print) {
   EEPROM_readAnything(1120, calibration_other1);
   EEPROM_readAnything(1240, calibration_other2);
   EEPROM_readAnything(1440, pwr_off_ms);
-}
+  }
 */
 
 
-void set_device_info(int _set) {
-  Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}",DEVICE_NAME, eeprom->device_id,FIRMWARE_VERSION, eeprom->manufacture_date);
+void set_device_info(const int _set) {
+  Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
   Serial_Print_CRC();
-  
+
   if (_set == 1) {
-    // please enter new device ID (12 digit BLE MAC address) followed by '+'
-    eeprom->device_id = Serial_Input_Long("+",0);
+    // please enter new device ID (lower 4 bytes of BLE MAC address) followed by '+'
+    eeprom->device_id = Serial_Input_Long("+", 0);              // save to eeprom
     delay(1);
 
     // please enter new date of manufacture (yyyymm) followed by '+'
-    eeprom->manufacture_date = Serial_Input_Long("+",0);
+    eeprom->manufacture_date = Serial_Input_Long("+", 0);
     delay(1);
 
     // print again for verification
-    
-    Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}",DEVICE_NAME, eeprom->device_id,FIRMWARE_VERSION, eeprom->manufacture_date);
+
+    Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
     Serial_Print_CRC();
   } // if
-  
+
   return;
 
 } // set_device_info()
@@ -810,7 +807,7 @@ uint16_t atod (int channel) {
 };
 
 
-// qsort uint16_t comparison function (tri-state) - needed for median16() 
+// qsort uint16_t comparison function (tri-state) - needed for median16()
 
 int uint16_cmp(const void *a, const void *b)
 {
@@ -835,3 +832,8 @@ uint16_t median16(uint16_t array[], const int n, const float percentile)
   qsort(array, (size_t) n, sizeof(uint16_t), uint16_cmp);
   return (array[(int) roundf(n * percentile)]);
 }
+
+
+// this routine gets called repeatibly after setup()
+#include "loop.h"
+

@@ -323,8 +323,8 @@ void loop() {
           noInterrupts();
           digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
           delayMicroseconds(30);                          // allow slow actopulser to stabilize
-          digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)
-          delayMicroseconds(20);                          // measuring width
+          digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)  
+          delayMicroseconds(40);                          // measuring width
           digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
           uint32_t delta_time = micros();
           AD7689_read_array(val, SAMPLES);                // read values
@@ -333,7 +333,7 @@ void loop() {
           // calc stats
           double mean = 0, delta = 0, m2 = 0, variance = 0, stdev = 0, n = 0;
           for (int i = 0; i < SAMPLES; i++) {
-            val[i] += i;                     // EXPERIMENTAL - adjust for droop
+            //val[i] += i;                     // EXPERIMENTAL - adjust for droop
             Serial_Printf("%d\n", val[i]);
             ++n;
             delta = val[i] - mean;
@@ -355,21 +355,23 @@ void loop() {
       case 4047:
         {
           // JZ test - do not remove
-          // read multiple pulses with increasing intensity for linearity test
-          const int LED = 3;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR
-          Serial_Print_Line("DAC,intensity");
-          AD7689_set(0);
-          const int MAX = 4095;                            // try a variety of intensities 0 up to 4095
+          // read multiple pulses with increasing intensity or pulse width for linearity test
+          const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR
+          Serial_Print_Line("step,intensity");
+          AD7689_set(0);                                  // 0 is main detector
+          DAC_set(LED, 20);                               // set initial LED intensity
+          DAC_change();
+          const int MAX = 200;                            // try a variety of intensities 0 up to 4095
           for (int i = 1; i < MAX; i += MAX / 100) {
-            DAC_set(LED, i);                               // set LED intensity
-            DAC_change();
+            //DAC_set(LED, i);                               // set LED intensity
+            //DAC_change();
             digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-            delay(100);
+            delay(100);                                     // also allows LED to cool and DC filter to adjust
             noInterrupts();
             digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
-            delayMicroseconds(30);                          // allow slow actopulser to stabilize
+            delayMicroseconds(10);                          // allow slow actopulser to stabilize
             digitalWriteFast(HOLDM, LOW);                   // start integrating
-            delayMicroseconds(100);                          // pulse width (depends on sensitivity needed)
+            delayMicroseconds(i);                           // pulse width (depends on sensitivity needed)
             digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
             const int SAMPLES = 11;                         // reduce noise
             uint16_t val[SAMPLES];

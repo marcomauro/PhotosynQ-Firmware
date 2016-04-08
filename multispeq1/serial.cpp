@@ -22,8 +22,7 @@ static int last_read = 0;     // where last incoming byte was from, 0 = Serial, 
 
 void Serial_Begin(int rate)
 {
-  if (rate < 9600 || rate > 115200)
-    return;
+  assert(rate >= 9600 && rate <= 115200);
 
   Serial.begin(115200);   // USB serial port, baud rate is irrelevant
   Serial1.begin(rate);    // for BLE, 57600 is standard
@@ -40,8 +39,7 @@ void Serial_Flush_Input(void)
 // specify which ports to send output to
 void Serial_Set(int s)
 {
-  if (s < 0 || s > 4)
-    return;
+  assert(s > 0 && s <= 4);
 
   if (s == 4) {                 // automatic means that writes will only go to the serial port that last had a byte available
     automatic = 1;
@@ -61,6 +59,9 @@ void Serial_Printf(const char * format, ... )
   va_list v_List;
   va_start( v_List, format );
   vsnprintf( string, SIZE, format, v_List );
+
+  assert(strlen(string) < SIZE);
+  
   string[SIZE] = 0;
   Serial_Print(string);
   va_end( v_List );
@@ -182,8 +183,9 @@ void Serial_Flush_Output()
 void
 Serial_Print(const float x, int places)
 {
-  char str[20];
+  char str[20+1];
   sprintf(str, "%.*f", places, x);
+  assert(strlen(str) < 20);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -191,8 +193,9 @@ Serial_Print(const float x, int places)
 void
 Serial_Print(const double xx, int places)
 {
-  char str[20];
+  char str[20+1];
   sprintf(str, "%.*f", places, xx);
+    assert(strlen(str) < 20);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -253,8 +256,9 @@ Serial_Print_Line (const int i)
 void
 Serial_Print_Line (const float x, const int places)
 {
-  char str[20];
+  char str[20+1];
   sprintf(str, "%.*f", places, x);
+  assert(strlen(str) < 20);
   // output to both ports
   Serial_Print_Line ((char *)str);
 }
@@ -333,12 +337,14 @@ long Serial_Input_Long(const char *terminators, long unsigned int timeout) {
 String Serial_Input_String(const char *terminators, long unsigned int timeout)
 {
   static String serial_string;
-  char str[100];  // caution - fixed size buffer
+  char str[100+1];  // caution - fixed size buffer
 
   Serial_Input_Chars(str, terminators,timeout, sizeof(str) - 1);
   
   serial_string = str;
 
+  assert(strlen(str) < 100);
+  
   return serial_string;
 
 }  // user_enter_str()

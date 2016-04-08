@@ -8,6 +8,7 @@
 
 #include "mcp4728.h"              // DAC
 #include "DAC.h"
+#include "serial.h"
 
 static mcp4728 *dac[NUM_DACS];    // pointer only - initialize under more controlled circumstances so debugging is possible
 
@@ -51,8 +52,7 @@ int DAC_init(void)
 
 void DAC_set(unsigned int pin, unsigned int value)
 {
-  if (pin > NUM_LED_PINS || pin == 0)
-    return;
+  assert(pin > 0 &&  pin <= NUM_LED_PINS);
 
   pin -= 1;   // convert to 0-x numbering
 

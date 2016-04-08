@@ -1,5 +1,4 @@
 
-
 // need anything more?   use Serial_Printf() or a cast
 
 // declare serial functions
@@ -38,5 +37,9 @@ void Serial_Print_Line (const float x, int places = 0);
 
 void Serial_Print_CRC (void);
 
-
-
+// useful for error checking
+#define assert(condition) \
+ if (!(condition)) { \
+    Serial_Printf("error: in %s, line %d\n", __FILE__, __LINE__); \
+    for (;;) {} \
+ }

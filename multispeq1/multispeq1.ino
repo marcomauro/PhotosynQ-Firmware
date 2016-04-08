@@ -514,15 +514,6 @@ void setup() {
     //digitalWrite(SPEC_GAIN, LOW); //LOW Gain
 #endif
 
-/*
-  // convert to new eeprom method
-  {
-    float tmp = 0;
-    EEPROM_readAnything(16, tmp);
-    if (tmp != (float) FIRMWARE_VERSION)                                                 // if the current firmware version isn't what's saved in EEPROM memory, then...
-      EEPROM_writeAnything(16, (float) FIRMWARE_VERSION);                         // save the current firmware version
-  }
-*/
   /*NOTES*/  // REINITIATE ONCE MAG AND ACCEL ARE CONNECTED
   //  MAG3110_init();           // initialize compass
   //  MMA8653FC_init();         // initialize accelerometer
@@ -530,10 +521,8 @@ void setup() {
 #ifdef BME280
   // pressure/humidity/temp sensors
   // note: will need 0x76 or 0x77 to support two chips
-  if (!bme.begin(0x76) || !bme2.begin(0x77)) {
-    Serial_Print_Line("Could not find two valid BME280 sensors, check wiring!");
-    while (1);
-  }
+  assert (bme.begin(0x76) && bme2.begin(0x77));
+
 #ifdef DEBUGSIMPLE
   Serial_Print("BME280 Temperature = ");
   Serial_Print(bme.readTemperature());
@@ -556,8 +545,7 @@ void setup() {
 //  double expr(const char s[]);
 //  Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
 
-  if (sizeof(eeprom_class) > 2048)                    // check that we haven't exceeded eeprom space
-     Serial_Printf("not enough eeprom\n");
+  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
   Serial_Print_Line("MultispeQ Ready");
 
@@ -656,11 +644,11 @@ void set_device_info(int _set) {
   if (_set == 1) {
     // please enter new device ID (12 digit BLE MAC address) followed by '+'
     eeprom->device_id = Serial_Input_Long("+",0);
-    delay(100);
+    delay(1);
 
     // please enter new date of manufacture (yyyymm) followed by '+'
     eeprom->manufacture_date = Serial_Input_Long("+",0);
-    delay(100);
+    delay(1);
 
     // print again for verification
     

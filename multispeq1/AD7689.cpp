@@ -7,6 +7,7 @@
 
 #include <SPI.h>		// include the new SPI library:
 #include "AD7689.h"
+#include "serial.h"
 
 // test code
 #if 0
@@ -68,6 +69,8 @@ static uint16_t ad7689_config;
 uint16_t
 AD7689_read(int chan)
 {
+  assert(chan > 0 && chan < 9);
+  
   // set up
   AD7689_set (chan);
 
@@ -88,6 +91,8 @@ AD7689_read(int chan)
 void
 AD7689_set (int chan, uint16_t config)
 {
+    assert(chan > 0 && chan < 9);
+    
   // bit shifts needed for config register values
 #define CFG 13
 #define INCC 10
@@ -102,7 +107,7 @@ AD7689_set (int chan, uint16_t config)
 
   ad7689_config |= 1 << CFG;		// update config on chip
 
-  if (chan >= 8)
+  if (chan == 8)
     ad7689_config |= 0B011 << INCC;	// temperature
   else {
     ad7689_config |= 0B111 << INCC;	// unipolar referenced to ground
@@ -175,7 +180,7 @@ AD7689_read_sample()
 uint16_t
 AD7689_read_temp()
 {
-  AD7689_set (99);   // set to read temp
+  AD7689_set (8);   // set to read temp
   AD7689_sample();
   // note: automatically switches back to reading inputs after this
   // need to divide this value by 250 to get close to an accurate temp (in degrees C)
@@ -191,6 +196,8 @@ AD7689_read_temp()
 
 void AD7689_read_array(uint16_t array[], int num_samples)
 {
+  assert(num_samples > 0 && num_samples < 4096);
+  
   SPI.beginTransaction (AD7689_settings);    // set up SPI bus speed, etc
 
   // use Read/Write during conversion mode

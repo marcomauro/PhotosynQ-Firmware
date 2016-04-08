@@ -14,6 +14,8 @@
 
 // todo:  use placement new to initialize (until then, methods/contructor are not possible)
 
+#define NUM_USERDEFS 50
+
 class eeprom_class
 {
   public:
@@ -65,7 +67,7 @@ class eeprom_class
     float colorcal_intensity3_yint[11];
 
     // user set values
-    float userdef[50];  
+    float userdef[NUM_USERDEFS];  
 
     /*
         float calibration_slope;

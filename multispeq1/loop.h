@@ -78,8 +78,8 @@ void loop() {
       continue;
     }
 
-    if (!isdigit(choose[0])) {
-      //      Serial_Print("commands must be numbers\n");
+    if (isprint(choose[0]) && !isdigit(choose[0])) {
+      Serial_Print("commands must be numbers or json\n");
       continue;                     // go read another command
     }
 
@@ -397,7 +397,7 @@ void loop() {
 
   // done reading commands
 
-  // read in a protocol (starts with '[', ends with '!')
+  // read in a protocol (starts with '[', ends with '!' or timeout)
 
   // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]!
 
@@ -1530,22 +1530,26 @@ void stopTimers() {
 void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
   if (_save_eeprom.getLength() > 0) {                                                         // if the user is saving eeprom values, then...
     for (int i = 0; i < _save_eeprom.getLength(); i++) {
-      eeprom->userdef[_save_eeprom.getArray(i).getLong(0)] = _save_eeprom.getArray(i).getLong(1);     //  save new value in the defined eeprom location
+      int index = _save_eeprom.getArray(i).getLong(0);
+      if (index >= 0 && index < NUM_USERDEFS)
+        eeprom->userdef[index] = _save_eeprom.getArray(i).getDouble(1);     //  save new value in the defined eeprom location
       delay(1);                                                                                     // delay to make sure it has time to save (min 1ms)
     }
   }
-  if (_recall_eeprom.getLength() > 0 || _save_eeprom.getLength() > 0) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
+  if (_recall_eeprom.getLength() > 0  /* || _save_eeprom.getLength() > 0 */) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
     Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there
     for (int i = 0; i < _recall_eeprom.getLength(); i++) {
-      Serial_Printf("%d:%f", (int) _recall_eeprom.getLong(i), eeprom->userdef[_recall_eeprom.getLong(i)]);
+      int index = _recall_eeprom.getLong(i);
+      if (index >= 0 && index < NUM_USERDEFS)
+        Serial_Printf("\"%d\":%f", index, eeprom->userdef[index]);
       if (i != _recall_eeprom.getLength() - 1) {
         Serial_Print(",");
       }
       else {
         Serial_Print("},");
       }
-    }
-  }
+    } // for
+  } // recall_save()
 }
 
 

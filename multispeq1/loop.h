@@ -237,7 +237,7 @@ void loop() {
 
       case 1020:                                                                          // test the Serial_Input_Float command
         Serial_Print_Line(eeprom->userdef[1], 4);
-        eeprom->userdef[1] = (float) Serial_Input_Long("+", 20000);
+        eeprom->userdef[1] = Serial_Input_Double("+", 20000);
         Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
         // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
         break;
@@ -1530,19 +1530,19 @@ void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
   if (number_saves > 0) {                                                          // if the user is saving eeprom values, then...
     for (int i = 0; i < number_saves; i++) {
       int location = _save_eeprom.getArray(i).getLong(0);
-      float current_value = (float) eeprom->userdef[location];
-      float value_to_save = _save_eeprom.getArray(i).getLong(1);
-      Serial_Printf("location = %d, current value = %f, value to save = %f", location, current_value, value_to_save);
+      float current_value = eeprom->userdef[location];
+      float value_to_save = _save_eeprom.getArray(i).getDouble(1);
+//      Serial_Printf("location = %d, current value = %f, value to save = %f", location, current_value, value_to_save);
       current_value = value_to_save;                                                //  save new value in the defined eeprom location
       delay(1);                                                                     // delay to make sure it has time to save (min 1ms)
-      Serial_Printf(", saved value = %f\n", current_value);
+//      Serial_Printf(", saved value = %f\n", current_value);
     }
   }
   if (number_recalls > 0 || number_saves > 0) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
     Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there
     for (int i = 0; i < number_recalls; i++) {
       int location = _recall_eeprom.getLong(i);
-      Serial_Printf("%d:%f", (int) location, eeprom->userdef[location]);
+      Serial_Printf("\"%d\":%f", (int) location, eeprom->userdef[location]);
       if (i != number_recalls - 1) {
         Serial_Print(",");
       }

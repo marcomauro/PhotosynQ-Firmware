@@ -14,6 +14,8 @@
 
 // todo:  use placement new to initialize (until then, methods/contructor are not possible)
 
+#include <stdint.h>
+
 #define NUM_USERDEFS 50
 
 class eeprom_class
@@ -143,9 +145,9 @@ class eeprom_class
 #define FlexRAM ((eeprom_class *)0x14000000)
 
 #ifndef EXTERN
-extern class eeprom_class * const eeprom;
+extern class eeprom_class * eeprom;
 #else
-class eeprom_class * const eeprom = FlexRAM;
+class eeprom_class * eeprom = FlexRAM;
 #endif
 
 #undef EXTERN

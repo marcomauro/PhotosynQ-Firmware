@@ -154,6 +154,7 @@ class eeprom_class * const eeprom = FlexRAM;
 
 // since eeprom requires a delay(100) after write, it's better to not use these.  This makes the delay() requirement clearer.
 
+/*
 #define mag_bias eeprom->mag_bias
 #define mag_cal eeprom->mag_cal
 #define accel_bias eeprom->accel_bias
@@ -178,7 +179,7 @@ class eeprom_class * const eeprom = FlexRAM;
 #define colorcal_intensity3_slope eeprom->colorcal_intensity3_slope
 #define colorcal_intensity3_yint eeprom->colorcal_intensity3_yint
 #define userdef eeprom->userdef
-
+*/
 
 /*
   #define userdef0 eeprom->userdef0

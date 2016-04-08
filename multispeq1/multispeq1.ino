@@ -208,6 +208,7 @@
 void upgrade_firmware(void);
 void boot_check(void);
 int Light_Intensity(int var1);
+void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
 
 //void call_print_calibration (int _print);
 

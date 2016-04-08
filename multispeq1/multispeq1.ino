@@ -5,7 +5,7 @@
 
 
 // FIRMWARE VERSION OF THIS FILE (SAVED TO EEPROM ON FIRMWARE FLASH)
-#define FIRMWARE_VERSION ".50"
+#define FIRMWARE_VERSION "0.50"
 #define DEVICE_NAME "MultispeQ"
 
 // update DAC and get lights working in [{}]
@@ -541,6 +541,8 @@ void setup() {
 
 #undef DEBUGSIMPLE
 
+/* had an error compiling here so commented it out
+ *  
 // test expressions - works! pass it a string and it is evaluated
 //  double expr(const char s[]);
 //  Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
@@ -549,6 +551,8 @@ void setup() {
 
   Serial_Print_Line("MultispeQ Ready");
 
+  Serial_Print("Ready");
+*/
 }  // setup()
 
 

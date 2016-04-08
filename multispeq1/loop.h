@@ -465,7 +465,9 @@ void loop() {
       int protocols = 1;
       int quit = 0;
       for (int u = 0; u < protocols; u++) {                                                    // the number of times to repeat the current protocol
-        JsonArray number_samples =   hashTable.getArray("number_samples");                       // number of samples on the cap during sample + hold phase (default is 40);
+        JsonArray save_eeprom    = hashTable.getArray("save");
+        JsonArray recall_eeprom  = hashTable.getArray("recall");
+        JsonArray number_samples = hashTable.getArray("number_samples");                       // number of samples on the cap during sample + hold phase (default is 40);
         JsonArray reference =     hashTable.getArray("reference");                              // subtract reference value if set to 1 (also causes 1/2 the sample rate per detector) due to time constraints.  Default is no reference (== 0)
         uint16_t adc_show =       hashTable.getLong("adc_show");                                // this tells the MultispeQ to print the ADC values only instead of the normal data_raw (for signal quality debugging)
         uint16_t adc_only[150];                                                   // this and first_adc_ref are used to save the first set of ADC averages produced, so it can be optionally displayed instead of data_raw (for signal quality debugging).  USE ONLY WITH REFERENCE == 0 (ie reference is OFF!)
@@ -1343,6 +1345,24 @@ void loop() {
             if (averages_delay_ms > 0) {
               Serial_Input_Long("+", averages_delay_ms);
             }
+          }
+        }
+
+        /*
+           Recall and save values to the eeprom
+        */
+        
+        if (recall_eeprom.getLength() > 0) {                                                         // if the user is recalling any saved eeprom values, then...
+          Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there 
+          for (int i; i < recall_eeprom.getLength(); i++) {
+            Serial_Print((int) recall_eeprom.getLong(i));
+            Serial_Print(":");
+            Serial_Print((float) userdef[recall_eeprom.getLong(i)], 6);
+            if (i != recall_eeprom.getLength() - 1) {
+              Serial_Print(",");
+            }
+            else {
+              Serial_Print("},");
           }
         }
 

@@ -542,18 +542,14 @@ void setup() {
 
 #undef DEBUGSIMPLE
 
-  /* had an error compiling here so commented it out
-
     // test expressions - works! pass it a string and it is evaluated
-    //  double expr(const char s[]);
-    //  Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
+    double expr(const char s[]);
+    Serial_Printf("expr = %f\n",expr((const char *) "userdef22/2"));  // userdef22 is set to 100 for testing
 
     assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
     Serial_Print_Line("MultispeQ Ready");
 
-    Serial_Print("Ready");
-  */
 }  // setup()
 
 

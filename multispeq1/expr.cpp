@@ -14,7 +14,7 @@ int variable_callback( void *user_data, const char *name, double *value ){
         // look up the variables by name
         if( strcmp( name, "userdef22" ) == 0 ){
                 // set return value, return true
-                *value = 100.0;            // replace this with *value = userdef[22] 
+                *value = 100.0;            // replace this with *value = eeprom->userdef[22] 
                 return PARSER_TRUE;
         } else if( strcmp( name, "var1" ) == 0 ){
                 // set return value, return true

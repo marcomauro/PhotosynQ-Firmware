@@ -6,7 +6,7 @@
 #include "utility/Adafruit_TCS34725.h"    // color sensor
 #include "utility/TCS3471.h"              // color sensor
 #include "serial.h"
-#include "crc32.h"
+#include "utility/crc32.h"
 #include "json/JsonParser.h"
 #include "utility/mcp4728.h"              // DAC
 #include "eeprom.h"

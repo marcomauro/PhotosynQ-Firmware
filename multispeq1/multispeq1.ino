@@ -1,15 +1,10 @@
 
 // Firmware for MultispeQ 1.0 hardware.   Part of the PhotosynQ project.
 
-// setup() and support routines - also see loop.h
-
-
-// FIRMWARE VERSION OF THIS FILE (SAVED TO EEPROM ON FIRMWARE FLASH)
-#define FIRMWARE_VERSION "0.50"
-#define DEVICE_NAME "MultispeQ"
+// setup() and support routines 
+// main loop is in loop.cpp
 
 // update DAC and get lights working in [{}]
-// update printf everywhere, make sure everything is Print_...
 // once lights work, comparison test old and new adc routines, with timing
 //
 
@@ -17,6 +12,7 @@
 
   + test do we need to calibrate offsets (like we did with the betas?)
 
+  Discuss meringing other eeprom floats into userdef[] with #define
   Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
   Using bluetooth ID as ID -
   Firmware needs api call to write code to eeprom (unique ID).
@@ -51,7 +47,7 @@
   Check to make sure “averages” works in the protocols
   Clean up the pulsesize = 0 and all that stuff… meas_intensity…
   Attach par sensor to USB-C breakout, make calibration routine.
-  Look up and see why iOS doesn’t connect.
+  Look up and see why iOS doesn’t connect to BLE.
   Test the power down feature from the bluetooth.  Determine how long it takes when powered down to come back to life (from bluetooth).  Include auto power off in the main while loop - auto-off after 10 seconds.
   Troubleshoot issues with bluetooth between protocols.
 
@@ -63,6 +59,7 @@
    Add calibration commands back in
    consolidate commands to end up with:
    get rid of droop in dac values at <10.
+   fix detector mv offset (prevents reading low light levels)
 
    First thing - go through eeprom.h and set all of the variables in top and bottom of file...
    expose only a portion to users via 1000+ commands
@@ -173,13 +170,9 @@
 
 */
 
-//#define DEBUG 1         // uncomment to add full debug features
-//#define DEBUGSIMPLE 1   // uncomment to add partial debug features
-//#define DAC 1           // uncomment for boards which do not use DAC for light intensity control
-//#define PULSERDEBUG 1   // uncomment to debug the pulser and detector
-//#define NO_ADDON        // uncomment if add-on board isn't present (one missing DAC, etc)
 
 // includes
+#include "defines.h"
 #include <i2c_t3.h>
 #include <Time.h>                                                             // enable real time clock library
 #include "utility/Adafruit_Sensor.h"
@@ -190,21 +183,11 @@
 #include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
 #define EXTERN
 #include "eeprom.h"
-#include <typeinfo>
 #include <ADC.h>                  // internal ADC
 #include "serial.h"
-#include "flasher.h"
-#include "crc32.h"
+#include "utility/crc32.h"
 #include <SPI.h>    // include the new SPI library:
 
-
-// forward declarations (better to use .h files)
-
-// routines for over-the-air firmware updates
-void upgrade_firmware(void);
-void boot_check(void);
-int Light_Intensity(int var1);
-void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
 
 //void call_print_calibration (int _print);
 
@@ -216,81 +199,7 @@ void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
   #define user_enter_long(timeout) Serial_Input_Long("+",(unsigned long) timeout)
 */
 
-// remove these after PCB testing
-#define GAIN_BITS 0        // extra effective bits due to gain being higher than beta detector - example, 4x more gain = 2.0 bits
-#define DIV_BITS  0        // extra bits due to missing voltage divider
-// Gain reduces headroom and anything more than 4x will clip with Greg's examples
-// Note: low signal levels cause an effective reduction in bits (worse SNR)
 
-
-//////////////////////DEVICE ID FIRMWARE VERSION////////////////////////
-//float device_id = 0;
-//float manufacture_date = 0;
-
-//////////////////////PIN DEFINITIONS AND TEENSY SETTINGS////////////////////////
-//Serial, I2C, SPI...
-#define RX       0        // serial port pins
-#define TX       1
-
-#define MOSI1    11       // SPI pins
-#define MISO1    12
-
-#define MOSI2    7
-#define MISO2    8
-
-#define SDA1     18       // I2C
-#define SCL1     19
-
-#define SCL2     29
-#define SDA2     30
-
-#define SS1      22
-#define SCK1     13
-#define SS2      9
-
-// hall effect sensor (analog)
-#define HALL_OUT 35
-
-// Lights - map LED pin # to MCU pin #
-// document colors and which board
-#define PULSE1   5
-#define PULSE2   20
-#define PULSE3   3
-#define PULSE4   10
-#define PULSE5   4
-#define PULSE6   24
-#define PULSE7   27
-#define PULSE8   26
-#define PULSE9   25
-#define PULSE10  23
-// better method
-unsigned short LED_to_pin[11] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
-
-// bluetooth
-#define BLERESET 14  // deprecated in favor of power down
-#define DEBUG_DC 2   // could allow reflashing of BLE module
-#define DEBUG_DD 36
-
-// sample and hold (hold + release detector cap)
-#define HOLDM    6
-#define HOLDADD 21
-
-// peripheral USB 3.0 connector pins
-#define DACT     40
-#define ADCT     37
-#define IOEXT1   31
-#define IOEXT2   32
-
-// battery management
-// batt_me normally should be pulled high
-// to check battery level, pull batt_me low and then measure batt_test
-// check data sheet for ISET... pull high or low?
-#define ISET     28          // controls charge rate (deprecated)
-#define BATT_ME  33
-#define BATT_TEST 34
-
-/*NOTES*/// blank pin (used when no other pin is selected - probably should change this later
-#define BLANK    32   // error - same as IOEXT2
 
 // set internal analog reference
 // any unused pins? ... organize by function on teensy please!  Make sure thisis updated to teensy 3.2 (right now file == teens 31.sch
@@ -331,12 +240,11 @@ uint16_t spec_data[SPEC_CHANNELS];
 unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
 int idx = 0;
 #endif
-int spec_on = 0;                                           // flag to indicate that spec is being used during this measurement
 
-int _meas_light;           // measuring light to be used during the interrupt
-static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
-static const int max_jsons = 15;                                                   // max number of protocols per measurement
 
+
+// don't make these global
+#if 0
 #define NUM_PINS 26
 
 // MCU pins that are controllable by the user
@@ -375,54 +283,8 @@ float calibration_other1 [NUM_PINS] = {
 float calibration_other2 [NUM_PINS] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
+#endif
 
-// ???
-int averages = 1;
-
-//////////////////////Shared Variables///////////////////////////
-volatile int off = 0, on = 0;
-int analogresolutionvalue;
-IntervalTimer timer0, timer1, timer2;
-float data = 0;
-float data_ref = 0;
-int act_background_light = 0;
-//extern float light_y_intercept;
-//char* bt_response = "OKOKlinvorV1.8OKsetPINOKsetnameOK115200"; // Expected response from bt module after programming is done.
-float freqtimer0;
-float freqtimer1;
-float freqtimer2;
-
-// shared with PAR.cpp
-// these should be eliminated
-extern float light_slope;
-extern float lux_local;
-extern float r_local;
-extern float g_local;
-extern float b_local;
-extern float lux_average;
-extern float r_average;
-extern float g_average;
-extern float b_average;
-extern float lux_average_forpar;
-extern float r_average_forpar;
-extern float g_average_forpar;
-extern float b_average_forpar;
-
-/*
-  extern float light_y_intercept;
-  extern float lux_to_uE(float _lux_average);
-  extern int Light_Intensity(int var1);
-  extern int calculate_intensity(int _light, int tcs_on, int _cycle, float _light_intensity);
-  extern int calculate_intensity_background(int _light, int tcs_on, int _cycle, float _light_intensity, int _background_intensity);
-*/
-
-////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
-float analog_read_average = 0;
-float digital_read_average = 0;
-float relative_humidity_average = 0;
-float temperature_average = 0;
-float objt_average = 0;
-float co2_value_average = 0;
 
 // pressure/temp/humidity sensors
 Adafruit_BME280 bme1;        // I2C sensor
@@ -494,10 +356,10 @@ void setup() {
 #endif
 
   // ??
-  analogWriteFrequency(3, 187500);                                              // Pins 3 and 5 are each on timer 0 and 1, respectively.  This will automatically convert all other pwm pins to the same frequency.
-  analogWriteFrequency(5, 187500);
+  //analogWriteFrequency(3, 187500);                                              // Pins 3 and 5 are each on timer 0 and 1, respectively.  This will automatically convert all other pwm pins to the same frequency.
+  //analogWriteFrequency(5, 187500);
 
-#ifdef PULSERDEBUG
+#ifdef CORALSPEQ
   // Set pinmodes for the coralspeq
   //pinMode(SPEC_EOS, INPUT);
   pinMode(SPEC_GAIN, OUTPUT);
@@ -575,61 +437,8 @@ void reset_freq() {
   */
 }
 
-// interrupt service routine which turns the measuring light on
 
-void pulse1() {
-#ifdef PULSERDEBUG
-  startTimer = micros();
-#endif
-  digitalWriteFast(LED_to_pin[_meas_light], HIGH);            // turn on measuring light
-  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
-  // the light on completely + stabilize.
-  // Very low intensity measuring pulses may require an even longer delay here.
-  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold, and turn on lights for next pulse set
-  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold, and turn on lights for next pulse set
-  on = 1;                               // flag for foreground to read
-}
-
-// interrupt service routine which turns the measuring light off
-// consider merging this into pulse1()
-
-void pulse2() {
-#ifdef PULSERDEBUG
-  endTimer = micros();
-#endif
-  digitalWriteFast(LED_to_pin[_meas_light], LOW);
-  off = 1;
-}
-
-/*
-  void call_print_calibration (int _print) {
-
-  // delete all of these
-  //  EEPROM_readAnything(0,tmp006_cal_S);
-  EEPROM_readAnything(4, light_slope);
-  EEPROM_readAnything(8, light_y_intercept);
-  EEPROM_readAnything(12, device_id);
-  // location 16 - 20 is open!
-  EEPROM_readAnything(20, manufacture_date);
-  EEPROM_readAnything(24, slope_34);
-  EEPROM_readAnything(28, yintercept_34);
-  EEPROM_readAnything(32, slope_35);
-  EEPROM_readAnything(36, yintercept_35);
-  EEPROM_readAnything(40, userdef0);
-  EEPROM_readAnything(60, calibration_slope);
-  EEPROM_readAnything(180, calibration_yint);
-  EEPROM_readAnything(300, calibration_slope_factory);
-  EEPROM_readAnything(420, calibration_yint_factory);
-  EEPROM_readAnything(540, calibration_baseline_slope);
-  EEPROM_readAnything(660, calibration_baseline_yint);
-  EEPROM_readAnything(880, calibration_blank1);
-  EEPROM_readAnything(1000, calibration_blank2);
-  EEPROM_readAnything(1120, calibration_other1);
-  EEPROM_readAnything(1240, calibration_other2);
-  EEPROM_readAnything(1440, pwr_off_ms);
-  }
-*/
-
+// read/write device_id and manufacture_date to eeprom
 
 void set_device_info(const int _set) {
   Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
@@ -768,9 +577,6 @@ void readSpectrometer(int intTime, int delay_time, int read_time, int accumulate
   }
 }
 
-#endif
-
-#ifdef CORAL_SPEQ
 void print_data()
 {
   Serial_Print("\"data_raw\":[");
@@ -802,7 +608,7 @@ uint16_t atod (int channel) {
 
 // qsort uint16_t comparison function (tri-state) - needed for median16()
 
-int uint16_cmp(const void *a, const void *b)
+static int uint16_cmp(const void *a, const void *b)
 {
   const uint16_t *ia = (const uint16_t *)a; // casting pointer types
   const uint16_t *ib = (const uint16_t *)b;
@@ -826,7 +632,55 @@ uint16_t median16(uint16_t array[], const int n, const float percentile)
   return (array[(int) roundf(n * percentile)]);
 }
 
+// check a json protocol for validity (matching [] and {})
+// return 1 if OK, otherwise 0
+// also check CRC value if present
 
-// this routine gets called repeatibly after setup()
-#include "loop.h"
+int check_protocol(char *str)
+{
+  int bracket = 0, curly = 0;
+  char *start = str;
+
+  while (*str != 0) {
+    switch (*str) {
+      case '[':
+        ++bracket;
+        break;
+      case ']':
+        --bracket;
+        break;
+      case '{':
+        ++curly;
+        break;
+      case '}':
+        --curly;
+        break;
+    } // switch
+    ++str;
+  } // while
+
+  if (bracket != 0 || curly != 0)  // unbalanced - can't be correct
+    return 0;
+
+  // check CRC - 8 hex digits immediately after the closing }
+  char *ptr = strrchr(start, '}'); // find last }
+  if (!ptr)                        // no } found - how can that be?
+    return 0;
+
+  if (!isxdigit(*(ptr + 1)))      // hex digit follows last }
+    return 1;                    // no CRC so report OK
+
+  // CRC is there - check it
+
+  crc32_init();     // find crc of json (from first { to last })
+  crc32_buf (start, 1 + ptr - start);
+
+  // note: must be exactly 8 upper case hex digits
+  if (strncmp(int32_to_hex (crc32_value()), ptr + 1, 8) != 0) {
+    return 0;                 // bad CRC
+  }
+
+  return 1;
+} // check_protocol()
+
 

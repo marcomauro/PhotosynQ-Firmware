@@ -1,25 +1,121 @@
 
+// main loop and some support routines
+
+#include "defines.h"
+#include <Time.h>                                                             // enable real time clock library
+#include "utility/Adafruit_Sensor.h"
+#include "json/JsonParser.h"
+#include "utility/mcp4728.h"              // delete this once PAR is fixed
+#include "DAC.h"
+#include "AD7689.h"               // external ADC
+#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
+#include "eeprom.h"
+#include <ADC.h>                  // internal ADC
+#include "serial.h"
+#include "flasher.h"
+#include "utility/crc32.h"
+
+// local defines
+
+// Lights - map LED pin # to MCU pin #
+// document colors and which board
+#define PULSE1   5
+#define PULSE2   20
+#define PULSE3   3
+#define PULSE4   10
+#define PULSE5   4
+#define PULSE6   24
+#define PULSE7   27
+#define PULSE8   26
+#define PULSE9   25
+#define PULSE10  23
+
+
+// function declarations
+
+uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
+int check_protocol(char *str);
+void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize);
+void stopTimers(void);
+void reset_freq(void);
+void upgrade_firmware(void); // for over-the-air firmware updates
+void boot_check(void);  // for over-the-air firmware updates
+int Light_Intensity(int var1);
+void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
+void set_device_info(const int _set);
+
+
+// Globals (try to avoid)
+
+// map LED to MCU pin
+unsigned short LED_to_pin[11] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
+
+// ???
+int averages = 1;
+int _meas_light;           // measuring light to be used during the interrupt
+int spec_on = 0;                                           // flag to indicate that spec is being used during this measurement
+
+static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
+static const int max_jsons = 15;                                                   // max number of protocols per measurement
+
+volatile int off = 0, on = 0;
+//int analogresolutionvalue;
+IntervalTimer timer0, timer1, timer2;
+float data = 0;
+float data_ref = 0;
+int act_background_light = 0;
+//extern float light_y_intercept;
+//char* bt_response = "OKOKlinvorV1.8OKsetPINOKsetnameOK115200"; // Expected response from bt module after programming is done.
+//float freqtimer0;
+//float freqtimer1;
+//float freqtimer2;
+
+// shared with PAR.cpp
+// these should be eliminated
+extern float light_slope;
+extern float lux_local;
+extern float r_local;
+extern float g_local;
+extern float b_local;
+extern float lux_average;
+extern float r_average;
+extern float g_average;
+extern float b_average;
+extern float lux_average_forpar;
+extern float r_average_forpar;
+extern float g_average_forpar;
+extern float b_average_forpar;
+
+/*
+  extern float light_y_intercept;
+  extern float lux_to_uE(float _lux_average);
+  extern int Light_Intensity(int var1);
+  extern int calculate_intensity(int _light, int tcs_on, int _cycle, float _light_intensity);
+  extern int calculate_intensity_background(int _light, int tcs_on, int _cycle, float _light_intensity, int _background_intensity);
+*/
+
+////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
+float analog_read_average = 0;
+float digital_read_average = 0;
+float relative_humidity_average = 0;
+float temperature_average = 0;
+float objt_average = 0;
+
+
 //////////////////////// MAIN LOOP /////////////////////////
 
 // process ascii serial input commands of two forms:
 // 1010+<parameter1>+<parameter2>+...  (a command)
 // [...] (a json protocol to be executed)
 
-
-// function declarations
-uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
-int check_protocol(char *str);
-void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize);
-void stopTimers();
-
-
 void loop() {
 
-  delay(50);
-  int measurements = 1;                                                   // the number of times to repeat the entire measurement (all protocols)
-  unsigned long measurements_delay = 0; //  dac1.vdd(2.0475); // set VDD(mV) of MCP4728 for correct conversion between LSB and Vout                              // number of seconds to wait between measurements
-  unsigned long measurements_delay_ms = 0;                                    // number of milliseconds to wait between measurements
-  volatile unsigned long meas_number = 0;                                       // counter to cycle through measurement lights 1 - 4 during the run
+  delay(50);  // ??
+  
+  int measurements = 1;                                      // the number of times to repeat the entire measurement (all protocols)
+  unsigned long measurements_delay = 0;                      // number of seconds to wait between measurements
+  unsigned long measurements_delay_ms = 0;                   // number of milliseconds to wait between measurements
+  volatile unsigned long meas_number = 0;                    // counter to cycle through measurement lights 1 - 4 during the run
   //unsigned long end1;
   //unsigned long start1 = millis();
 
@@ -32,16 +128,16 @@ void loop() {
   int pulse = 0;                                                                // current pulse number
   //int total_cycles;                                                           // Total number of cycles - note first cycle is cycle 0
   int meas_array_size = 0;                                                      // measures the number of measurement lights in the current cycle (example: for meas_lights = [[15,15,16],[15],[16,16,20]], the meas_array_size's are [3,1,3].
+
   char* json = (char*)malloc(1);
-  //char w;
-  //char* name;
   JsonHashTable hashTable;
   JsonParser<600> root;
-
-  //int end_flag = 0;
-  unsigned long* data_raw_average = (unsigned long*)malloc(4);
-  char serial_buffer [serial_buffer_size];
   String json2 [max_jsons];
+  
+  //int end_flag = 0;
+  unsigned long* data_raw_average = 0;                                          // buffer for ADC output data
+  char serial_buffer [serial_buffer_size];                                      // large buffer for reading in a json protocol from serial port
+
   memset(serial_buffer, 0, serial_buffer_size);                                  // reset buffer to zero
   for (int i = 0; i < max_jsons; i++) {
     json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
@@ -50,15 +146,8 @@ void loop() {
   /*NOTES*/  // REINSTATE THIS ONCE WE HAVE NEW CALIBRATIONS
   //  call_print_calibration(0);                                                                  // recall all data saved in eeprom
 
-  // discharge sample and hold in case the cap is currently charged (on add on and main board)
-  digitalWriteFast(HOLDM, LOW);
-  delay(10);
-  digitalWriteFast(HOLDM, HIGH);
-  digitalWriteFast(HOLDADD, LOW);
-  delay(10);
-  digitalWriteFast(HOLDADD, HIGH);
 
-  // read and process n+ commands until we see the start of a json
+  // read and process n+ commands from the serial port until we see the start of a json
 
   for (;;) {
     int c = Serial_Peek();
@@ -83,7 +172,7 @@ void loop() {
       continue;                     // go read another command
     }
 
-    crc32_init();                   // clear CRC value since below may print
+    crc32_init();                   // clear CRC value since below may print a json
 
     switch (atoi(choose)) {
       case 440:
@@ -202,6 +291,7 @@ void loop() {
         DAC_set(9, 0);
         DAC_change();
         break;
+        
       case 1010:
         Serial_Print_Line("PULSE10");
         DAC_set(10, 50);
@@ -212,6 +302,7 @@ void loop() {
         DAC_set(10, 0);
         DAC_change();
         break;
+        
       case 1011: {                                                                         // continuously output until user enter -1+
           Serial_Print("{\"light_intensity\":[");
           int leave = 0;
@@ -227,6 +318,7 @@ void loop() {
           Serial_Print_CRC();
         }
         break;
+        
       case 1019:                                                                          // test the Serial_Input_Chars() command
         char S[10];
         Serial_Print_Line(eeprom->userdef[0], 4);
@@ -245,6 +337,7 @@ void loop() {
       case 1027:
         _reboot_Teensyduino_();                                                    // restart teensy
         break;
+        
       case 1021:                                                                          // Compare the new AD read method from AD7689
         AD7689_set(0);
         //        AD7689_sample();                                                                               // start conversion
@@ -260,11 +353,13 @@ void loop() {
         //        middle_data2 = AD7689_read_sample();                                    // read value (could subtract off baseline)
         //        Serial_Print_Line(middle_data2);
         break;
+        
       case 1022:                                                                          // Set DAC addresses to 1,2,3 assuming addresses are unset and all are factory (0,0,0)
         DAC_set_address(LDAC1, 0, 1);
         DAC_set_address(LDAC2, 0, 2);
         DAC_set_address(LDAC3, 0, 3);
         break;
+        
       case 1024:   {
           Serial_Print("Enter 1/2/3/4+\n");
           long setserial = Serial_Input_Long();
@@ -347,7 +442,7 @@ void loop() {
         break;
 
       case 4045:
-        set_device_info(1);  //  works now
+        set_device_info(1);  //  input device info and write to eeprom
         break;
 
       case 4047:
@@ -400,15 +495,11 @@ void loop() {
 
   Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);
 
-  /*
-    Serial_Print("got protocol of ");
-    Serial_Print_Line(serial_buffer);
-  */
-
   if (!check_protocol(serial_buffer)) {         // sanity check
-    Serial_Print("bad protocol\n");
+    Serial_Print("bad json protocol\n");
     return;
   }
+  
   // break up the protocol into individual jsons
 
   int number_of_protocols = 0;                                   // number of protocols
@@ -432,6 +523,11 @@ void loop() {
     Serial_Printf("Incoming JSON %d as received by Teensy: %s", i, json2[i]);
   } // for
 #endif
+
+  // discharge sample and hold in case the cap is currently charged (on add on and main board)
+  digitalWriteFast(HOLDM, HIGH);
+  digitalWriteFast(HOLDADD, HIGH);
+  delay(10);
 
   crc32_init();          // reset CRC
 
@@ -568,10 +664,11 @@ void loop() {
           else {
             size_of_data_raw += pulses.getLong(i) * non_zero_lights;
           }
-        }
-        free(data_raw_average);                                                            // free malloc of data_raw_average
-        //        data_raw_average = (long*)calloc(size_of_data_raw,sizeof(long));                   // get some memory space for data_raw_average, initialize all at zero.
-        data_raw_average = (unsigned long*)calloc(size_of_data_raw, sizeof(unsigned long));                  // get some memory space for data_raw_average, initialize all at zero.
+        } // for
+        
+        if (data_raw_average) 
+           free(data_raw_average);                                                            // free calloc of data_raw_average
+        data_raw_average = (unsigned long*)calloc(size_of_data_raw, sizeof(unsigned long));   // get some memory space for data_raw_average, initialize all at zero.
 
 #ifdef DEBUGSIMPLE
         Serial_Print_Line("");
@@ -1451,67 +1548,47 @@ void loop() {
     }
   */
 
-  Serial_Print("]}");
-  act_background_light = 0;                                                      // reset background light to teensy pin 13
-  free(data_raw_average);                                                         // free the calloc() of data_raw_average
-  free(json);                                                                     // free second json malloc
+  Serial_Print("]}");                // terminate json
   Serial_Print_CRC();
+  
+  act_background_light = 0;          // ??
+  
+  if (data_raw_average)
+     free(data_raw_average);            // free the calloc() of data_raw_average
+  free(json);                        // free second json malloc
 
 } // loop()
 
-// check a protocol for validity (matching [] and {})
-// return 1 if OK, otherwise 0
-// should also check CRC value if present
+// interrupt service routine which turns the measuring light on
 
-int check_protocol(char *str)
-{
-  int bracket = 0, curly = 0;
-  char *start = str;
+RAMFUNC void pulse1() {
+#ifdef PULSERDEBUG
+  startTimer = micros();
+#endif
+  digitalWriteFast(LED_to_pin[_meas_light], HIGH);            // turn on measuring light
+  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
+  // the light on completely + stabilize.
+  // Very low intensity measuring pulses may require an even longer delay here.
+  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
+  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
+  on = 1;                               // flag for foreground to read
+}
 
-  while (*str != 0) {
-    switch (*str) {
-      case '[':
-        ++bracket;
-        break;
-      case ']':
-        --bracket;
-        break;
-      case '{':
-        ++curly;
-        break;
-      case '}':
-        --curly;
-        break;
-    } // switch
-    ++str;
-  } // while
+// interrupt service routine which turns the measuring light off
+// consider merging this into pulse1()
 
-  if (bracket != 0 || curly != 0)  // unbalanced - can't be correct
-    return 0;
+RAMFUNC void pulse2() {
+#ifdef PULSERDEBUG
+  endTimer = micros();
+#endif
+  digitalWriteFast(LED_to_pin[_meas_light], LOW);
+  off = 1;
+}
 
-  // check CRC - 8 hex digits immediately after the closing }
-  char *ptr = strrchr(start, '}'); // find last }
-  if (!ptr)                        // no } found - how can that be?
-    return 0;
-
-  if (!isxdigit(*(ptr + 1)))      // hex digit follows last }
-    return 1;                    // no CRC so report OK
-
-  // CRC is there - check it
-
-  crc32_init();     // find crc of json (from first { to last })
-  crc32_buf (start, 1 + ptr - start);
-
-  // note: must be exactly 8 upper case hex digits
-  if (strncmp(int32_to_hex (crc32_value()), ptr + 1, 8) != 0) {
-    return 0;                 // bad CRC
-  }
-
-  return 1;
-} // check_protocol()
 
 // schedule the turn on and off of the LED(s) via an ISR
-void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
+// put in ram for less jitter
+RAMFUNC void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
   timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
   noInterrupts();
   delayMicroseconds(_pulsesize);                                             // I don't this accounts for the actopulser stabilization delay - JZ
@@ -1524,8 +1601,8 @@ void stopTimers() {
   timer1.end();
 }
 
-// read/write values to eeprom
-// example json: [{"save":[[1,3.43],[2,5545]]}]
+// read/write userdef[] values from/to eeprom
+// example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
 
 void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
   int number_saves = _save_eeprom.getLength();                                 // define these explicitly to make it easier to understand the logic

@@ -8,7 +8,7 @@
 
 #include <Arduino.h>
 #include "serial.h"
-#include "crc32.h"
+#include "utility/crc32.h"
 
 static void Serial_Print_BLE(const char *str);
 

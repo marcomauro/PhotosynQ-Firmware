@@ -152,11 +152,15 @@ void loop() {
   for (;;) {
     int c = Serial_Peek();
 
+    powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
+    
     if (c == -1)
-      continue;              // nothing available, try again
+      continue;             // nothing available, try again
 
+    activity();             // record fact that we have seen activity (used with powerdown())
+    
     if (c == '[')
-      break;              // start of json, exit this for loop to process it
+      break;                // start of json, exit this for loop to process it
 
     // received a non '[' char - processs n+ command
 

@@ -1,4 +1,6 @@
 
+// Global defines and some misc functions
+
 
 //#define DEBUG 1         // uncomment to add full debug features
 //#define DEBUGSIMPLE 1   // uncomment to add partial debug features
@@ -66,5 +68,10 @@ extern unsigned short LED_to_pin[11];
 
 /*NOTES*/// blank pin (used when no other pin is selected - probably should change this later
 #define BLANK    32   // error - same as IOEXT2
+
+// Functions
+
+void activity(void);
+void powerdown(void);
 
 

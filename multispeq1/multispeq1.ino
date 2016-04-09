@@ -1,7 +1,7 @@
 
 // Firmware for MultispeQ 1.0 hardware.   Part of the PhotosynQ project.
 
-// setup() and support routines 
+// setup() and support routines
 // main loop is in loop.cpp
 
 // update DAC and get lights working in [{}]
@@ -35,12 +35,14 @@
   Android to check for empty ID (if all 0s, or all 1s, then set api call to make unique ID == BLE mac address.
   Check protocol routines (produce error codes if fail):
    Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  This should run just before any new protocol - if it’s too low, report to the user
+   What's a reasonable value for minimum voltage while pulsing?
    (greg) Overheat LED check: adds up time + intensity + pulsesize and length of pulses, and calculates any overages.  Report overages - do not proceed if over.  Also needs a shutoff which is available through a 1000 call.
    Syntax check: make sure that the structure of the JSON is correct, report corrupted
-   CRC check: so we expect CRC on end of protocol JSON, and check to make sure it’s valid.  Report corrupted
+   x Jon - CRC check: so we expect CRC on end of protocol JSON, and check to make sure it’s valid.  Report corrupted
    LED intensity range check?  Ie, certain LEDs can only go up to a certain intensity
 
   Define and then code 1000+ calls for all of the sensors (for chrome app to call)
+  Implement application of magnetometer/compass calibrations
   Sebastian - can we change the sensor read commands 1000 over to normal protocols - then you output as per normal?)
   Check with sebastian about adding comments to protocols (even the inventor of json thinks there is a place for them)
   Clean up the protocols - light intensity (make into a single 1000+ call, see old code to bring it in)
@@ -145,7 +147,7 @@
 /*
   ////////////////////// HARDWARE NOTES //////////////////////////
 
-  The detector operates with an AC filter, so only pulsing light (<100us pulses) passes through the filter.  Permanent light sources (like the sun or any other constant light) is completely
+  The detector operates with an high pass filter, so only pulsing light (<100us pulses) passes through the filter.  Permanent light sources (like the sun or any other constant light) is completely
   filtered out.  So in order to measure absorbance or fluorescence a pulsing light must be used to be detectedb by the detector.  Below are notes on the speed of the measuring lights
   and actinic lights used in the MultispeQ, and the noise level of the detector:
 
@@ -190,16 +192,6 @@
 
 
 //void call_print_calibration (int _print);
-
-
-// replace legacy routines with new equivalents
-/*
-  #define user_enter_str(timeout, pwr_off) Serial_Input_String("+", (unsigned long) timeout)
-  #define user_enter_dbl(timeout) Serial_Input_Double("+", (unsigned long) timeout)
-  #define user_enter_long(timeout) Serial_Input_Long("+",(unsigned long) timeout)
-*/
-
-
 
 // set internal analog reference
 // any unused pins? ... organize by function on teensy please!  Make sure thisis updated to teensy 3.2 (right now file == teens 31.sch
@@ -294,7 +286,7 @@ Adafruit_BME280 bme2;       // I2C sensor
 
 void setup() {
 
-  delay(600);
+  delay(500);
 
   // set up serial ports (Serial and Serial1)
   Serial_Set(4);
@@ -316,9 +308,6 @@ void setup() {
   DAC_init();
 
   // set up MCU pins
-
-  //  pinMode(29,OUTPUT);
-  //  pinMode(3,INPUT);
 
   // set up LED on/off pins
   for (int i = 1; i < 11; ++i)
@@ -406,7 +395,8 @@ void setup() {
 
   assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
-  Serial_Print_Line("MultispeQ Ready");
+  Serial_Print(DEVICE_NAME);
+  Serial_Print_Line(" Ready");
 
 }  // setup()
 
@@ -682,5 +672,19 @@ int check_protocol(char *str)
 
   return 1;
 } // check_protocol()
+
+
+#define SHUTDOWN 10000     // power down after X ms of inactivity
+static unsigned long last_activity=millis();
+// if there hasn't been any activity for x seconds, then power down
+void powerdown() {
+// send command to BLE module by setting XX low
+// only the BLE module can power up/down the MCU
+
+}
+// record that we have seen activity (used with powerdown())
+void activity() {
+    last_activity = millis();
+ }
 
 

@@ -104,6 +104,7 @@ class eeprom_class * eeprom = FlexRAM;
 
 
 // since eeprom requires a delay(1) after write, it's better to not use these.  This makes the delay() requirement clearer.
+// consider mapping many of these to userdef values
 
 /*
 #define mag_bias eeprom->mag_bias

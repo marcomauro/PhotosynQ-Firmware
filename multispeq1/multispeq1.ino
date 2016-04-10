@@ -622,6 +622,28 @@ uint16_t median16(uint16_t array[], const int n, const float percentile)
   return (array[(int) roundf(n * percentile)]);
 }
 
+
+// return the stdev value of an array of 16 bit unsigned values
+
+float stdev16(uint16_t val[], const int count)
+{
+  // calc stats
+  double mean = 0, delta = 0, m2 = 0, variance = 0, stdev = 0, n = 0;
+  
+  for (int i = 0; i < count; i++) {
+    ++n;
+    delta = val[i] - mean;
+    mean += delta / n;
+    m2 += (delta * (val[i] - mean));
+  } // for
+  variance = m2 / (count - 1);  // (n-1):Sample Variance  (n): Population Variance
+  stdev =  sqrt(variance);        // Calculate standard deviation
+  //Serial_Printf("single pulse stdev = %.2f, mean = %.2f AD counts\n", stdev, mean);
+  //Serial_Printf("bits (95%%) = %.2f\n", (15 - log(stdev * 2) / log(2.0))); // 2 std dev from mean = 95%
+  return stdev;
+} // stdev16()
+
+
 // check a json protocol for validity (matching [] and {})
 // return 1 if OK, otherwise 0
 // also check CRC value if present
@@ -675,16 +697,16 @@ int check_protocol(char *str)
 
 
 #define SHUTDOWN 10000     // power down after X ms of inactivity
-static unsigned long last_activity=millis();
+static unsigned long last_activity = millis();
 // if there hasn't been any activity for x seconds, then power down
 void powerdown() {
-// send command to BLE module by setting XX low
-// only the BLE module can power up/down the MCU
+  // send command to BLE module by setting XX low
+  // only the BLE module can power up/down the MCU
 
 }
 // record that we have seen activity (used with powerdown())
 void activity() {
-    last_activity = millis();
- }
+  last_activity = millis();
+}
 
 

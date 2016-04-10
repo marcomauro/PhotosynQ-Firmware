@@ -71,7 +71,11 @@ extern unsigned short LED_to_pin[11];
 
 // Functions
 
+#include <stdint.h>
+
 void activity(void);
 void powerdown(void);
-
+uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
+float stdev16(uint16_t array[], const int n);
+int check_protocol(char *str);
 

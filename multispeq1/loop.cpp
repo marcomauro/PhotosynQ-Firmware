@@ -33,8 +33,7 @@
 
 // function declarations
 
-uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
-int check_protocol(char *str);
+
 void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize);
 void stopTimers(void);
 void reset_freq(void);
@@ -111,7 +110,7 @@ float objt_average = 0;
 void loop() {
 
   delay(50);  // ??
-  
+
   int measurements = 1;                                      // the number of times to repeat the entire measurement (all protocols)
   unsigned long measurements_delay = 0;                      // number of seconds to wait between measurements
   unsigned long measurements_delay_ms = 0;                   // number of milliseconds to wait between measurements
@@ -133,7 +132,7 @@ void loop() {
   JsonHashTable hashTable;
   JsonParser<600> root;
   String json2 [max_jsons];
-  
+
   //int end_flag = 0;
   unsigned long* data_raw_average = 0;                                          // buffer for ADC output data
   char serial_buffer [serial_buffer_size];                                      // large buffer for reading in a json protocol from serial port
@@ -153,12 +152,12 @@ void loop() {
     int c = Serial_Peek();
 
     powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
-    
+
     if (c == -1)
       continue;             // nothing available, try again
 
     activity();             // record fact that we have seen activity (used with powerdown())
-    
+
     if (c == '[')
       break;                // start of json, exit this for loop to process it
 
@@ -295,7 +294,7 @@ void loop() {
         DAC_set(9, 0);
         DAC_change();
         break;
-        
+
       case 1010:
         Serial_Print_Line("PULSE10");
         DAC_set(10, 50);
@@ -306,7 +305,7 @@ void loop() {
         DAC_set(10, 0);
         DAC_change();
         break;
-        
+
       case 1011: {                                                                         // continuously output until user enter -1+
           Serial_Print("{\"light_intensity\":[");
           int leave = 0;
@@ -322,7 +321,7 @@ void loop() {
           Serial_Print_CRC();
         }
         break;
-        
+
       case 1019:                                                                          // test the Serial_Input_Chars() command
         char S[10];
         Serial_Print_Line(eeprom->userdef[0], 4);
@@ -341,7 +340,7 @@ void loop() {
       case 1027:
         _reboot_Teensyduino_();                                                    // restart teensy
         break;
-        
+
       case 1021:                                                                          // Compare the new AD read method from AD7689
         AD7689_set(0);
         //        AD7689_sample();                                                                               // start conversion
@@ -357,13 +356,13 @@ void loop() {
         //        middle_data2 = AD7689_read_sample();                                    // read value (could subtract off baseline)
         //        Serial_Print_Line(middle_data2);
         break;
-        
+
       case 1022:                                                                          // Set DAC addresses to 1,2,3 assuming addresses are unset and all are factory (0,0,0)
         DAC_set_address(LDAC1, 0, 1);
         DAC_set_address(LDAC2, 0, 2);
         DAC_set_address(LDAC3, 0, 3);
         break;
-        
+
       case 1024:   {
           Serial_Print("Enter 1/2/3/4+\n");
           long setserial = Serial_Input_Long();
@@ -412,35 +411,24 @@ void loop() {
           const int SAMPLES = 100;
           uint16_t val[SAMPLES];
           Serial_Print_Line("JZ test");
-          DAC_set(LED, 40);                               // set LED intensity
+          DAC_set(LED, 20);                               // set LED intensity
           DAC_change();
           AD7689_set(0);                                  // select ADC channel
           digitalWriteFast(HOLDM, HIGH);                  // discharge cap
           delay(1000);
           noInterrupts();
           digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
-          delayMicroseconds(30);                          // allow slow actopulser to stabilize
+          delayMicroseconds(30);                          // allow slow actopulser to stabilize (longer is better)
           digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)
-          delayMicroseconds(40);                          // measuring width
+          delayMicroseconds(10);                          // measuring width
           digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
           uint32_t delta_time = micros();
           AD7689_read_array(val, SAMPLES);                // read values
           delta_time = micros() - delta_time;
           interrupts();
-          // calc stats
-          double mean = 0, delta = 0, m2 = 0, variance = 0, stdev = 0, n = 0;
-          for (int i = 0; i < SAMPLES; i++) {
-            //val[i] += i;                     // EXPERIMENTAL - adjust for droop
-            Serial_Printf("%d\n", val[i]);
-            ++n;
-            delta = val[i] - mean;
-            mean += delta / n;
-            m2 += (delta * (val[i] - mean));
-          } // for
-          variance = m2 / (SAMPLES - 1);  // (n-1):Sample Variance  (n): Population Variance
-          stdev = sqrt(variance);         // Calculate standard deviation
-          Serial_Printf("single pulse stdev = %.2f, mean = %.2f AD counts\n", stdev, mean);
-          Serial_Printf("bits (95%%) = %.2f\n", (15 - log(stdev * 2) / log(2.0))); // 2 std dev from mean = 95%
+          for (int i = 0; i < 100; ++i) 
+              Serial_Printf("%u\n",val[i]);
+          Serial_Printf("single pulse stdev = %.2f AD counts\n", stdev16(val, SAMPLES));
           Serial_Printf("time = %d usec for %d samples\n", delta_time, SAMPLES);
         }
         break;
@@ -453,35 +441,144 @@ void loop() {
         {
           // JZ test - do not remove
           // read multiple pulses with increasing intensity or pulse width for linearity test
-          const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR
-          Serial_Print_Line("step,intensity");
+          // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
+          const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
+          Serial_Print_Line("using delay - wait...");
           AD7689_set(0);                                  // 0 is main detector
           DAC_set(LED, 20);                               // set initial LED intensity
           DAC_change();
           const int MAX = 200;                            // try a variety of intensities 0 up to 4095
+          int count = 0;
+          uint16_t data[100];
+
           for (int i = 1; i < MAX; i += MAX / 100) {
-            //DAC_set(LED, i);                               // set LED intensity
+            //DAC_set(LED, i);                              // change LED intensity
             //DAC_change();
             digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-            delay(100);                                     // also allows LED to cool and DC filter to adjust
+            delay(30);                                     // also allows LED to cool and DC filter to adjust
             noInterrupts();
             digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
             delayMicroseconds(10);                          // allow slow actopulser to stabilize
             digitalWriteFast(HOLDM, LOW);                   // start integrating
-            delayMicroseconds(i);                           // pulse width (depends on sensitivity needed)
+            delayMicroseconds(30);                          // pulse width (depends on sensitivity needed)
             digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
-            const int SAMPLES = 11;                         // reduce noise
+            const int SAMPLES = 21;                         // reduce noise with multiple reads
             uint16_t val[SAMPLES];
             AD7689_read_array(val, SAMPLES);                // read values
             interrupts();
-            int data = median16(val, SAMPLES);
-            if (data > 65400) break;                         // saturated the ADC, no point in continuing
-            Serial_Printf("%d,%d\n", i, data);               // AD offset was 698 for LED 5
-          }
-          Serial_Print_Line("done");
+            data[count] = median16(val, SAMPLES);
+            if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
+            //Serial_Printf("%d,%d\n", i, data[count]);               
+            ++count;
+          } // for
+          // results from each pulse are in data[]
+          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count),data[0]);
         }
         break;
 
+ case 4048:
+        {
+          // JZ test - do not remove
+          // read multiple pulses with increasing intensity or pulse width for linearity test
+          // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
+          const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
+          Serial_Print_Line("using timer - wait...");
+          AD7689_set(0);                                  // 0 is main detector
+          DAC_set(LED, 20);                               // set initial LED intensity
+          DAC_change();
+          const int MAX = 200;                            // try a variety of intensities 0 up to 4095
+          int count = 0;
+          uint16_t data[100];
+
+          _meas_light = LED;
+          uint16_t _pulsesize = 30 + 10;                  // account for actopulser delay
+          uint16_t _pulsedistance = 16667;
+
+          startTimers(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
+                     
+          for (int i = 1; i < MAX; i += MAX / 100) {
+            //DAC_set(LED, i);                              // change LED intensity
+            //DAC_change();
+            digitalWriteFast(HOLDM, HIGH);                  // discharge cap
+            
+            on = off = 0;
+
+            while (on != 1 || off != 1) {}                  // wait till pulse is done
+
+            // a pulse completed
+            noInterrupts();
+
+            const int SAMPLES = 21;                         // reduce noise with multiple reads
+            uint16_t val[SAMPLES];
+            AD7689_read_array(val, SAMPLES);                // read values
+            interrupts(); 
+                        
+            data[count] = median16(val, SAMPLES);
+            if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
+            //Serial_Printf("%d,%d\n", i, data[count]);               
+            ++count;
+          } // for
+
+          stopTimers();
+          
+          // results from each pulse are in data[]
+          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count),data[0]);
+        }
+        break;
+
+        case 4049:
+        {
+          // JZ test - do not remove
+          // read multiple pulses with increasing intensity or pulse width for linearity test
+          // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
+          const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
+          Serial_Print_Line("using combined timer - wait...");
+          AD7689_set(0);                                  // 0 is main detector
+          DAC_set(LED, 20);                               // set initial LED intensity
+          DAC_change();
+          const int MAX = 200;                            // try a variety of intensities 0 up to 4095
+          int count = 0;
+          uint16_t data[100];
+
+          _meas_light = LED;
+          uint16_t _pulsesize = 30;                  
+          uint16_t _pulsedistance = 16667;
+
+          void pulse3(void);
+          extern int isr_pulsesize;
+          isr_pulsesize = _pulsesize;
+
+          timer0.begin(pulse3, _pulsedistance);                                      // schedule pulses
+                     
+          for (int i = 1; i < MAX; i += MAX / 100) {
+            //DAC_set(LED, i);                              // change LED intensity
+            //DAC_change();
+            digitalWriteFast(HOLDM, HIGH);                  // discharge cap
+            
+            off = 0;
+
+            while (off != 1) {}                  // wait till pulse is done
+
+            // a pulse completed
+            //noInterrupts();
+
+            const int SAMPLES = 21;                         // reduce noise with multiple reads
+            uint16_t val[SAMPLES];
+            AD7689_read_array(val, SAMPLES);                // read values
+            interrupts(); 
+                        
+            data[count] = median16(val, SAMPLES);
+            if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
+            //Serial_Printf("%d,%d\n", i, data[count]);               
+            ++count;
+          } // for
+
+          timer0.end();
+          
+          // results from each pulse are in data[]
+          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count),data[0]);
+        }
+        break;
       default:
         Serial_Printf("bad command # %s\n", choose);
         break;
@@ -503,7 +600,7 @@ void loop() {
     Serial_Print("bad json protocol\n");
     return;
   }
-  
+
   // break up the protocol into individual jsons
 
   int number_of_protocols = 0;                                   // number of protocols
@@ -669,9 +766,9 @@ void loop() {
             size_of_data_raw += pulses.getLong(i) * non_zero_lights;
           }
         } // for
-        
-        if (data_raw_average) 
-           free(data_raw_average);                                                            // free calloc of data_raw_average
+
+        if (data_raw_average)
+          free(data_raw_average);                                                            // free calloc of data_raw_average
         data_raw_average = (unsigned long*)calloc(size_of_data_raw, sizeof(unsigned long));   // get some memory space for data_raw_average, initialize all at zero.
 
 #ifdef DEBUGSIMPLE
@@ -1243,8 +1340,7 @@ void loop() {
             }
 #endif
             noInterrupts();                                                              // turn off interrupts because we're checking volatile variables set in the interrupts
-            on = 0;                                                                      // reset pulse counters
-            off = 0;
+            on = off = 0;                                                                // reset pulse status flags
             pulse++;                                                                     // progress the pulse counter and measurement number counter
 
 #ifdef DEBUGSIMPLE
@@ -1283,8 +1379,7 @@ void loop() {
           stopTimers();
           cycle = 0;                                                                     // ...and reset counters
           pulse = 0;
-          on = 0;
-          off = 0;
+          on = off= 0;
           meas_number = 0;
 
           /*
@@ -1554,18 +1649,18 @@ void loop() {
 
   Serial_Print("]}");                // terminate json
   Serial_Print_CRC();
-  
+
   act_background_light = 0;          // ??
-  
+
   if (data_raw_average)
-     free(data_raw_average);            // free the calloc() of data_raw_average
+    free(data_raw_average);            // free the calloc() of data_raw_average
   free(json);                        // free second json malloc
 
 } // loop()
 
 // interrupt service routine which turns the measuring light on
 
-RAMFUNC void pulse1() {
+void pulse1() {
 #ifdef PULSERDEBUG
   startTimer = micros();
 #endif
@@ -1581,7 +1676,7 @@ RAMFUNC void pulse1() {
 // interrupt service routine which turns the measuring light off
 // consider merging this into pulse1()
 
-RAMFUNC void pulse2() {
+void pulse2() {
 #ifdef PULSERDEBUG
   endTimer = micros();
 #endif
@@ -1590,12 +1685,30 @@ RAMFUNC void pulse2() {
 }
 
 
+// combined method - do the short LED pulse within the ISR
+int isr_pulsesize;
+
+RAMFUNC void pulse3() {
+  int pin = LED_to_pin[_meas_light];
+  noInterrupts();
+  digitalWriteFast(pin, HIGH);            // turn on measuring light
+  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
+  // the light on completely + stabilize.
+  // Very low intensity measuring pulses may require an even longer delay here.
+  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
+  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
+  delayMicroseconds(isr_pulsesize);
+  digitalWriteFast(pin, LOW);            // turn off measuring light
+  on = off = 1;
+}
+
+
 // schedule the turn on and off of the LED(s) via an ISR
 // put in ram for less jitter
-RAMFUNC void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
+void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
   timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
   noInterrupts();
-  delayMicroseconds(_pulsesize);                                             // I don't this accounts for the actopulser stabilization delay - JZ
+  delayMicroseconds(_pulsesize);                                             // I don't think this accounts for the actopulser stabilization delay - JZ
   interrupts();
   timer1.begin(pulse2, _pulsedistance);                                      // schedule off
 }
@@ -1625,7 +1738,7 @@ void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
     for (int i = 0; i < number_recalls; i++) {
       int location = _recall_eeprom.getLong(i);
       if (location >= 0 && location < NUM_USERDEFS)
-         Serial_Printf("\"%d\":%f", (int) location, eeprom->userdef[location]);
+        Serial_Printf("\"%d\":%f", (int) location, eeprom->userdef[location]);
       if (i != number_recalls - 1) {
         Serial_Print(",");
       }

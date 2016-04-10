@@ -12,7 +12,7 @@
 // FIRMWARE VERSION OF THIS FILE (SAVED TO EEPROM ON FIRMWARE FLASH)
 #define FIRMWARE_VERSION "0.50"
 #define DEVICE_NAME "MultispeQ"
-
+      
 //////////////////////PIN DEFINITIONS AND TEENSY SETTINGS////////////////////////
 //Serial, I2C, SPI...
 #define RX       0        // serial port pins

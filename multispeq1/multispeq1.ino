@@ -26,6 +26,14 @@
 
   I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.
 
+  Hardware
+  Noise in detector - use big electrolytic caps?
+  Why is LED 5 pulse-to-pulse stdev so terrible (10x worse than others)? Actopulser?
+  Detector DC filter is significantly effecting pulses < 100 usec - weaken it
+  Detector has a DC offset (which causes ADC to read zero)
+  With a small DAC value (say 30), the actopulser is still stabilizing after 50 usec.
+  
+  Switch to combined ISR for LED pulses (no glitches)
 
   Convert all possible into an array to make designing protocols more user friendly
   x turn pulse_distance and pulse_size → into an array

@@ -1050,7 +1050,7 @@ void loop() {
             if (pulse == 0) {                                                                                     // if it's the first pulse of a cycle, we need to set up the new set of lights and intensities...
               meas_array_size = meas_lights.getArray(cycle).getLength();                                          // get the number of measurement/detector subsets in the new cycle
 #ifdef PULSERDEBUG
-              Serial_Printf("\n _number_samples and _reference: %d %d \n", _number_samples, _reference);
+              Serial_Printf("\n _number_samples: %d \n", _number_samples);
 #endif
 
               for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {                                  // save the list of act lights in the previous pulse set to turn off later
@@ -1123,9 +1123,8 @@ void loop() {
             if (_reference == 0) {                                                                      // If the reference detector isn't turned on, then we need to set the ADC first
               AD7689_set (detector - 1);        // set ADC channel to main board, main detector
             }
-
 #ifdef PULSERDEBUG
-            Serial_Printf("measurement light, intensity, detector, reference:  %d, %d, %d, %d\n", _meas_light, _m_intensity, detector, reference);
+            Serial_Printf("measurement light, intensity, detector, reference:  %d, %d, %d, %d\n", _meas_light, _m_intensity, detector, _reference);
 #endif
 
             if (pulse < meas_array_size) {                                                                // if it's the first pulse of a cycle, then change act 1,2,3,4 values as per array's set at beginning of the file
@@ -1199,7 +1198,6 @@ void loop() {
               DAC_change();
 
               for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {                         // set the DAC lights for actinic lights in the current pulse set
-
                 DAC_set(_a_lights[i], _a_intensities[i]);
 #ifdef PULSERDEBUG
                 Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
@@ -1217,18 +1215,15 @@ void loop() {
               z = total_pulses;
             }
 
+
             uint16_t sample_adc[_number_samples];                                                             // initialize the variables to hold the main and reference detector data
             uint16_t sample_adc_ref[_number_samples];
             //            uint16_t startTimer;                                                                            // to measure the actual time it takes to perform the ADC reads on the sample (for debugging)
             //            uint16_t endTimer;
 
-
-
-
-
-
             while (on == 0 || off == 0) {                                                                     // if the measuring light turned on and off (pulse1 and pulse2 are background interrupt routines for on and off) happened, then...
             }
+
             //            startTimer = micros();
             noInterrupts();                                                                            // turn off interrupts because we're checking volatile variables set in the interrupts
 

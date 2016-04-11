@@ -52,14 +52,15 @@ int DAC_init(void)
 
 void DAC_set(unsigned int pin, unsigned int value)
 {
-  assert(pin > 0 &&  pin <= NUM_LED_PINS);
-
+  if (pin ==  0) {                                              // if you get a zero or other illegal value, skip it
+    return;
+  }
   pin -= 1;   // convert to 0-x numbering
 
   // for readability, break these out
   int dac_number = pin_to_dac[pin];
   int dac_channel = pin_to_channel[pin];
-
+  
 //    Serial.print(dac_number);
 //    Serial.print(",");
 //    Serial.println(dac_channel);

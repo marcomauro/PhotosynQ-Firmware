@@ -38,8 +38,9 @@
 #define HALL_OUT 35
 
 
-// better method
-extern unsigned short LED_to_pin[11];
+// map LED (1-10) to MCU pin number
+#define NUM_LEDS 10
+extern unsigned short LED_to_pin[NUM_LEDS+1];
 
 // bluetooth
 #define BLERESET 14  // deprecated in favor of power down

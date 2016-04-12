@@ -1,6 +1,7 @@
 
 // Serial routines that can read/write to either or both Serial devices (Serial (USB) and Serial1 (BLE)) based on a setting
 // It also maintains and prints a CRC value
+// Jon Zeeff 2016
 
 // WARNING: Serial_Printf() is limited to 200 characters per call
 

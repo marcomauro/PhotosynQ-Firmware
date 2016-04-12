@@ -3,7 +3,6 @@
 // test3
 
 #define NUM_DACS 3
-#define NUM_LED_PINS 10         // number of LEDs
 
 // which MCU pin is attached to each dac
 #define LDAC1    15

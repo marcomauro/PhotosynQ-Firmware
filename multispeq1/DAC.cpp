@@ -9,14 +9,15 @@
 #include "utility/mcp4728.h"              // DAC
 #include "DAC.h"
 #include "serial.h"
+#include "defines.h"
 
 static mcp4728 *dac[NUM_DACS];    // pointer only - initialize under more controlled circumstances so debugging is possible
 
 // map LED number (here numbered 0-9) to which DAC IC that pin is on
-static short pin_to_dac[NUM_LED_PINS] = {0, 0, 0, 2, 0, 1, 2, 1, 1, 1};  // must be 0,1,2
+static short LED_to_dac[NUM_LEDS] = {0, 0, 0, 2, 0, 1, 2, 1, 1, 1};  // must be 0,1,2
 
 // map pin number (eg, 0-9) to which DAC channel that pin is on
-static short pin_to_channel[NUM_LED_PINS] = {2, 3, 0, 0, 1, 1, 1, 3, 2, 0};   // must be 0,1,2,3
+static short LED_to_channel[NUM_LEDS] = {2, 3, 0, 0, 1, 1, 1, 3, 2, 0};   // must be 0,1,2,3
 
 // initialize the DACs
 
@@ -46,27 +47,29 @@ int DAC_init(void)
 }  // DAC_init()
 
 
-// set the DAC value for a particular LED pin (eg, 1-10)
+// set the DAC value for a particular LED (eg, 1-10)
 // doesn't take effect until DAC_change()
 // value is 0-4095 (12 bits)
 
-void DAC_set(unsigned int pin, unsigned int value)
+void DAC_set(unsigned int led, unsigned int value)
 {
-  if (pin ==  0) {                                              // if you get a zero or other illegal value, skip it
+  if (led ==  0)                                            // if you get a zero, skip it
     return;
-  }
-  pin -= 1;   // convert to 0-x numbering
+
+  assert(led > 0 && led <= NUM_LEDS);                       // any other wrong value is a fatal error
+  
+  led -= 1;   // convert to 0-x numbering
 
   // for readability, break these out
-  int dac_number = pin_to_dac[pin];
-  int dac_channel = pin_to_channel[pin];
+  int dac_number = LED_to_dac[led];
+  int dac_channel = LED_to_channel[led];
   
 //    Serial.print(dac_number);
 //    Serial.print(",");
 //    Serial.println(dac_channel);
 
   // set value on DAC
-  dac[dac_number]->analogWrite(dac_channel, value);    // This didn't work -probably because the dacs weren't addressed
+  dac[dac_number]->analogWrite(dac_channel, value);
 
 }  // DAC_set()
 

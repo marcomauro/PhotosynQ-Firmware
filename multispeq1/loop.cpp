@@ -18,7 +18,8 @@
 // local defines
 
 // Lights - map LED pin # to MCU pin #
-// document colors and which board
+// 1-5 on main board, 6-10 on add-on board
+// document colors
 #define PULSE1   5
 #define PULSE2   20
 #define PULSE3   3
@@ -35,6 +36,7 @@
 
 
 void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize);
+void startTimers2(uint16_t _pulsedistance, uint16_t _pulsesize);  // lower jitter version
 void stopTimers(void);
 void reset_freq(void);
 void upgrade_firmware(void); // for over-the-air firmware updates
@@ -47,7 +49,7 @@ void set_device_info(const int _set);
 // Globals (try to avoid)
 
 // map LED to MCU pin
-unsigned short LED_to_pin[11] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
+unsigned short LED_to_pin[NUM_LEDS+1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
 
 // ???
 int averages = 1;
@@ -427,10 +429,10 @@ void loop() {
           AD7689_read_array(val, SAMPLES);                // read values
           delta_time = micros() - delta_time;
           interrupts();
-          for (int i = 0; i < 100; ++i) {
-              val[i] += i;                                // adjust for droop (about 1 count per sample)
-              Serial_Printf("%u\n",val[i]);
-          }
+          //for (int i = 0; i < 100; ++i) {
+              //val[i] += i;                                // adjust for droop (about 1 count per sample)
+              //Serial_Printf("%d\n",(int)val[i]);
+          //}
           Serial_Printf("single pulse stdev = %.2f AD counts\n", stdev16(val, SAMPLES));
           Serial_Printf("time = %d usec for %d samples\n", delta_time, SAMPLES);
         }
@@ -547,11 +549,7 @@ void loop() {
           uint16_t _pulsesize = 30;                  
           uint16_t _pulsedistance = 16667;
 
-          void pulse3(void);
-          extern int isr_pulsesize;
-          isr_pulsesize = _pulsesize;
-
-          timer0.begin(pulse3, _pulsedistance);             // schedule pulses
+          startTimers2(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
                      
           for (int i = 1; i < MAX; i += MAX / 100) {
             //DAC_set(LED, i);                              // change LED intensity
@@ -575,7 +573,7 @@ void loop() {
             ++count;
           } // for
 
-          timer0.end();
+          stopTimers();
           
           // results from each pulse are in data[]
           Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count),data[0]);
@@ -1097,11 +1095,11 @@ void loop() {
               first_flag = 1;                                                                                   // flip flag indicating that it's the 0th pulse and a new cycle
               if (cycle == 0) {                                                                                 // if it's the beginning of a measurement (cycle == 0 and pulse == 0), then...
                 digitalWriteFast(act_background_light_prev, LOW);                                               // turn off actinic background light and...
-                startTimers(_pulsedistance, _pulsesize);                                                        // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
+                startTimers2(_pulsedistance, _pulsesize);                                                        // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
               }
               else if (cycle != 0 && (_pulsedistance != _pulsedistance_prev || _pulsesize != _pulsesize_prev)) {    // if it's not the 0th cycle and the last pulsesize or pulsedistance was different than the current one, then stop the old timers and set new ones.   If they were the same, avoid resetting the timers by skipping this part.
                 //              stopTimers();                                                                                   // stop the old timers
-                startTimers(_pulsedistance, _pulsesize);                                    // restart the measurement light timer
+                startTimers2(_pulsedistance, _pulsesize);                                    // restart the measurement light timer
               }
             }
 
@@ -1153,7 +1151,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers2(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "confirm") {                                                  // wait for user's confirmation message.  If enters '1' then skip to end.
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1173,7 +1171,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers2(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "prompt") {                                                    // wait for user to input information, followed by +
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1182,7 +1180,7 @@ void loop() {
                     Serial_Print("\"");
                     Serial_Print(response);
                     Serial_Print("\"]");
-                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers2(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   if (cycle != pulses.getLength() - 1) {                                                  // if it's not the last cycle, then add comma
                     Serial_Print(",");
@@ -1683,7 +1681,8 @@ void pulse2() {
 
 
 // combined method - do the short LED pulse within the ISR
-int isr_pulsesize;
+// tests out to have less jitter
+int isr_pulsesize;       // global version
 
 RAMFUNC void pulse3() {
   register int pin = LED_to_pin[_meas_light];
@@ -1699,9 +1698,17 @@ RAMFUNC void pulse3() {
   on = off = 1;
 }
 
+// schedule the turn on and off of the LED(s) via a single ISR
+// put in ram for less jitter
+void startTimers2(uint16_t _pulsedistance, uint16_t _pulsesize) {
+  isr_pulsesize = _pulsesize;                       // save where we can access it (since it isn't global)
+  timer0.begin(pulse3, _pulsedistance);             // schedule pulses
+}
+
+
 
 // schedule the turn on and off of the LED(s) via an ISR
-// put in ram for less jitter
+
 void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
   timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
   noInterrupts();

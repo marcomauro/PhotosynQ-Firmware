@@ -27,11 +27,12 @@
   I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.
 
   Hardware
-  Noise in detector - use big electrolytic caps?
-  Why is LED 5 pulse-to-pulse stdev so terrible (10x worse than others)? Actopulser?
+  Noise in detector - use big  caps?
+  Low DAC values (eg, LED5 read from main) cause much higher stdev
   Detector DC filter is significantly effecting pulses < 100 usec - weaken it
   Detector has a DC offset (which causes ADC to read zero)
   With a small DAC value (say 30), the actopulser is still stabilizing after 50 usec.
+  Pulse width vs detector output is very non-linear
   
   Switch to combined ISR for LED pulses (no glitches)
 
@@ -590,6 +591,7 @@ void print_data()
 }
 #endif
 
+#if 0
 // give it a channel, outputs outputs x,y,z 3 axis data comes out (16 bit)
 // perhaps add an option to return raw values or values with calibration applied
 void compass (uint16_t array[]) {};
@@ -603,7 +605,7 @@ void accel (uint16_t array[]) {};
 uint16_t atod (int channel) {
   return 0;
 };
-
+#endif
 
 // qsort uint16_t comparison function (tri-state) - needed for median16()
 

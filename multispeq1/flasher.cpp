@@ -59,7 +59,7 @@ loop ()
 // code to allow firmware update over a Serial port
 // for teensy 3.x.  It is intended that this code always be included in your application.
 
-// Jon Zeeff
+// Jon Zeeff 2016
 // This code is in the public domain.  Please retain my name and
 // in distributed copies, and let me know about any bugs
 

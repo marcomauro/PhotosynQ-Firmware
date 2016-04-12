@@ -1682,18 +1682,19 @@ void pulse2() {
 
 // combined method - do the short LED pulse within the ISR
 // tests out to have less jitter
-int isr_pulsesize;       // global version
+volatile int isr_pulsesize;       // global version
 
-RAMFUNC void pulse3() {
+ void pulse3() {
   register int pin = LED_to_pin[_meas_light];
+  register int pulse_size = isr_pulsesize;
   noInterrupts();
   digitalWriteFast(pin, HIGH);            // turn on measuring light
   delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
   // the light on completely + stabilize.
   // Very low intensity measuring pulses may require an even longer delay here.
-  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
   digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
-  delayMicroseconds(isr_pulsesize);
+  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
+  delayMicroseconds(pulse_size);
   digitalWriteFast(pin, LOW);            // turn off measuring light
   on = off = 1;
 }

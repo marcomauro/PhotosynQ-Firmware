@@ -36,7 +36,6 @@
 
 
 void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize);
-void startTimers2(uint16_t _pulsedistance, uint16_t _pulsesize);  // lower jitter version
 void stopTimers(void);
 void reset_freq(void);
 void upgrade_firmware(void); // for over-the-air firmware updates
@@ -59,9 +58,10 @@ int spec_on = 0;                                           // flag to indicate t
 static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
 static const int max_jsons = 15;                                                   // max number of protocols per measurement
 
-volatile int off = 0, on = 0;
+static volatile int led_off = 0;
+static uint16_t _pulsesize = 0;
 //int analogresolutionvalue;
-IntervalTimer timer0, timer1, timer2;
+IntervalTimer timer0;
 float data = 0;
 float data_ref = 0;
 int act_background_light = 0;
@@ -497,7 +497,7 @@ void loop() {
 
           _meas_light = LED;
           uint16_t _pulsesize = 30 + 10;                  // account for actopulser delay
-          uint16_t _pulsedistance = 16667;
+          uint16_t _pulsedistance = 2000;                 // lower has less jitter
 
           startTimers(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
 
@@ -506,9 +506,9 @@ void loop() {
             //DAC_change();
             digitalWriteFast(HOLDM, HIGH);                  // discharge cap
 
-            on = off = 0;
+            led_off = 0;
 
-            while (on != 1 || off != 1) {}                  // wait till pulse is done
+            while (led_off != 1) {}                  // wait till pulse is done
 
             // a pulse completed
             noInterrupts();
@@ -547,18 +547,18 @@ void loop() {
 
           _meas_light = LED;
           uint16_t _pulsesize = 30;
-          uint16_t _pulsedistance = 16667;
+          uint16_t _pulsedistance = 2000;                 // lower has less jitter
 
-          startTimers2(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
+          startTimers(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
 
           for (int i = 1; i < MAX; i += MAX / 100) {
             //DAC_set(LED, i);                              // change LED intensity
             //DAC_change();
             digitalWriteFast(HOLDM, HIGH);                  // discharge cap
+            
+            led_off = 0;
 
-            off = 0;
-
-            while (off != 1) {}                  // wait till pulse is done in ISR
+            while (led_off != 1) {}                  // wait till pulse is done in ISR
 
             // a pulse completed (note: interrupts are left off)
 
@@ -863,7 +863,6 @@ void loop() {
           long data_count = 0;
           int message_flag = 0;                                                              // flags to indicate if an alert, prompt, or confirm have been called at least once (to print the object name to data JSON)
           uint16_t _pulsedistance = 0;                                                  // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
-          uint16_t _pulsesize = 0;
           uint16_t _pulsedistance_prev = 0;
           uint16_t _pulsesize_prev = 0;
           uint16_t _reference_flag = 0;                                                           // used to note if this is the first measurement
@@ -1095,11 +1094,11 @@ void loop() {
               first_flag = 1;                                                                                   // flip flag indicating that it's the 0th pulse and a new cycle
               if (cycle == 0) {                                                                                 // if it's the beginning of a measurement (cycle == 0 and pulse == 0), then...
                 digitalWriteFast(act_background_light_prev, LOW);                                               // turn off actinic background light and...
-                startTimers2(_pulsedistance, _pulsesize);                                                        // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
+                startTimers(_pulsedistance, _pulsesize);                                                        // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
               }
               else if (cycle != 0 && (_pulsedistance != _pulsedistance_prev || _pulsesize != _pulsesize_prev)) {    // if it's not the 0th cycle and the last pulsesize or pulsedistance was different than the current one, then stop the old timers and set new ones.   If they were the same, avoid resetting the timers by skipping this part.
                 //              stopTimers();                                                                                   // stop the old timers
-                startTimers2(_pulsedistance, _pulsesize);                                    // restart the measurement light timer
+                startTimers(_pulsedistance, _pulsesize);                                    // restart the measurement light timer
               }
             }
 
@@ -1151,7 +1150,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers2(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "confirm") {                                                  // wait for user's confirmation message.  If enters '1' then skip to end.
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1171,7 +1170,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers2(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "prompt") {                                                    // wait for user to input information, followed by +
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1180,7 +1179,7 @@ void loop() {
                     Serial_Print("\"");
                     Serial_Print(response);
                     Serial_Print("\"]");
-                    startTimers2(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
                   }
                   if (cycle != pulses.getLength() - 1) {                                                  // if it's not the last cycle, then add comma
                     Serial_Print(",");
@@ -1219,7 +1218,7 @@ void loop() {
             //            uint16_t startTimer;                                                                            // to measure the actual time it takes to perform the ADC reads on the sample (for debugging)
             //            uint16_t endTimer;
 
-            while (on == 0 || off == 0) {                                                                     // if the measuring light turned on and off (pulse1 and pulse2 are background interrupt routines for on and off) happened, then...
+            while (led_off == 0) {                                                                     // if the measuring light turned on and off (pulse1 and pulse2 are background interrupt routines for on and off) happened, then...
             }
 
             //            startTimer = micros();
@@ -1335,7 +1334,7 @@ void loop() {
             }
 #endif
             noInterrupts();                                                              // turn off interrupts because we're checking volatile variables set in the interrupts
-            on = off = 0;                                                                // reset pulse status flags
+            led_off = 0;                                                                // reset pulse status flags
             pulse++;                                                                     // progress the pulse counter and measurement number counter
 
 #ifdef DEBUGSIMPLE
@@ -1374,7 +1373,7 @@ void loop() {
           stopTimers();
           cycle = 0;                                                                     // ...and reset counters
           pulse = 0;
-          on = off = 0;
+          led_off = 0;
           meas_number = 0;
 
           /*
@@ -1653,6 +1652,38 @@ void loop() {
 
 } // loop()
 
+
+//  routines for LED pulsing
+#define STABILIZE 10                      // this delay gives the LED current controller op amp the time needed to stabilize
+
+void pulse3() {                           // ISR to turn on/off LED pulse
+  register int pin = LED_to_pin[_meas_light];
+  register int pulse_size = _pulsesize;
+  noInterrupts();
+  digitalWriteFast(pin, HIGH);            // turn on measuring light
+  delayMicroseconds(STABILIZE);           // this delay gives the LED current controller op amp the time needed to turn
+  // the light on completely + stabilize.
+  // Very low intensity measuring pulses may require an even longer delay here.
+  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
+  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
+  delayMicroseconds(pulse_size);         // pulse width
+  digitalWriteFast(pin, LOW);            // turn off measuring light
+  led_off = 1;                           // indicate that we are done
+  // NOTE:  interrupts are left off and must be re-enabled
+}
+
+// schedule the turn on and off of the LED(s) via a single ISR
+
+void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
+  timer0.begin(pulse3, _pulsedistance);             // schedule pulses
+}
+
+void stopTimers() {
+  timer0.end();                         // if it's the last cycle and last pulse, then... stop the timers
+  //timer1.end();                       // old version used two timers      
+}
+
+#if 0
 // interrupt service routine which turns the measuring light on
 
 void pulse1() {
@@ -1678,38 +1709,6 @@ void pulse2() {
   digitalWriteFast(LED_to_pin[_meas_light], LOW);
   off = 1;
 }
-
-
-// combined method - do the short LED pulse within the ISR
-// tests out to have less jitter
-volatile int isr_pulsesize;       // global version
-#define STABILIZE 10              // this delay gives the LED current controller op amp the time needed to stabilize
-
-void pulse3() {                   // ISR to turn on/off LED pulse
-  register int pin = LED_to_pin[_meas_light];
-  register int pulse_size = isr_pulsesize;
-  noInterrupts();
-  digitalWriteFast(pin, HIGH);            // turn on measuring light
-  delayMicroseconds(STABILIZE);           // this delay gives the LED current controller op amp the time needed to turn
-  // the light on completely + stabilize.
-  // Very low intensity measuring pulses may require an even longer delay here.
-  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
-  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
-  delayMicroseconds(pulse_size);
-  digitalWriteFast(pin, LOW);            // turn off measuring light
-  on = off = 1;
-  // NOTE:  interrupts are left off and must be re-enabled
-}
-
-// schedule the turn on and off of the LED(s) via a single ISR
-
-void startTimers2(uint16_t _pulsedistance, uint16_t _pulsesize) {
-  isr_pulsesize = _pulsesize;                       // save where we can access it (since it isn't global)
-  timer0.begin(pulse3, _pulsedistance);             // schedule pulses
-}
-
-
-
 // schedule the turn on and off of the LED(s) via an ISR
 
 void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
@@ -1720,10 +1719,9 @@ void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
   timer1.begin(pulse2, _pulsedistance);                                      // schedule off
 }
 
-void stopTimers() {
-  timer0.end();                                                                  // if it's the last cycle and last pulse, then... stop the timers
-  timer1.end();
-}
+#endif
+
+
 
 // read/write userdef[] values from/to eeprom
 // example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545

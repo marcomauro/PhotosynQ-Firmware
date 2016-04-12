@@ -10,6 +10,8 @@
 
 /*
 
+characterize all of the LEDs intensities (as measuring light and actinic)... may need to include the max DAC value before LED stops getting brighter (see slack graph).
+
   + test do we need to calibrate offsets (like we did with the betas?)
 
   Discuss meringing other eeprom floats into userdef[] with #define
@@ -27,8 +29,8 @@
   I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.
 
   Hardware
-  Noise in detector - use big  caps?
-  Low DAC values (eg, LED5 read from main) cause much higher stdev
+x   Noise in detector - use big electrolytic caps? resolved put caps on the +5 and the -10 circuits.
+x  Why is LED 5 pulse-to-pulse stdev so terrible (10x worse than others)? Actopulser?
   Detector DC filter is significantly effecting pulses < 100 usec - weaken it
   Detector has a DC offset (which causes ADC to read zero)
   With a small DAC value (say 30), the actopulser is still stabilizing after 50 usec.

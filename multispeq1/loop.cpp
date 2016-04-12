@@ -49,7 +49,7 @@ void set_device_info(const int _set);
 // Globals (try to avoid)
 
 // map LED to MCU pin
-unsigned short LED_to_pin[NUM_LEDS+1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
+unsigned short LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
 
 // ???
 int averages = 1;
@@ -409,11 +409,11 @@ void loop() {
         {
           // JZ test - do not remove
           // read and analyze noise on ADC from a single LED pulse
-          const int LED = 2;                              // 1 = green, 2 = red, 5 = IR
-          const int SAMPLES = 21;
+          const int LED = 5;                              // 1 = green, 2 = red, 5 = IR
+          const int SAMPLES = 100;
           uint16_t val[SAMPLES];
           Serial_Print_Line("JZ test");
-          DAC_set(LED, 2000);                             // set LED intensity
+          DAC_set(LED, 300);                             // set LED intensity
           DAC_change();
           AD7689_set(0);                                  // select ADC channel
           digitalWriteFast(HOLDM, HIGH);                  // discharge cap
@@ -429,10 +429,10 @@ void loop() {
           AD7689_read_array(val, SAMPLES);                // read values
           delta_time = micros() - delta_time;
           interrupts();
-          //for (int i = 0; i < 100; ++i) {
-              //val[i] += i;                                // adjust for droop (about 1 count per sample)
-              //Serial_Printf("%d\n",(int)val[i]);
-          //}
+          for (int i = 0; i < SAMPLES; ++i) {
+            val[i] += i * 1.4;                                // adjust for droop (about 1 count per sample)
+            Serial_Printf("%d\n", (int)val[i]);
+          }
           Serial_Printf("single pulse stdev = %.2f AD counts\n", stdev16(val, SAMPLES));
           Serial_Printf("time = %d usec for %d samples\n", delta_time, SAMPLES);
         }
@@ -473,15 +473,15 @@ void loop() {
             interrupts();
             data[count] = median16(val, SAMPLES);
             if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-            //Serial_Printf("%d,%d\n", i, data[count]);               
+            //Serial_Printf("%d,%d\n", i, data[count]);
             ++count;
           } // for
           // results from each pulse are in data[]
-          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count),data[0]);
+          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count), data[0]);
         }
         break;
 
- case 4048:
+      case 4048:
         {
           // JZ test - do not remove
           // read multiple pulses with increasing intensity or pulse width for linearity test
@@ -489,7 +489,7 @@ void loop() {
           const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
           Serial_Print_Line("using 2 timers - wait...");
           AD7689_set(0);                                  // 0 is main detector
-          DAC_set(LED, 30);                               // set initial LED intensity
+          DAC_set(LED, 200);                               // set initial LED intensity
           DAC_change();
           const int MAX = 200;                            // try a variety of intensities 0 up to 4095
           int count = 0;
@@ -500,12 +500,12 @@ void loop() {
           uint16_t _pulsedistance = 16667;
 
           startTimers(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
-                     
+
           for (int i = 1; i < MAX; i += MAX / 100) {
             //DAC_set(LED, i);                              // change LED intensity
             //DAC_change();
             digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-            
+
             on = off = 0;
 
             while (on != 1 || off != 1) {}                  // wait till pulse is done
@@ -513,25 +513,25 @@ void loop() {
             // a pulse completed
             noInterrupts();
 
-            const int SAMPLES = 21;                         // reduce noise with multiple reads
+            const int SAMPLES = 19;                         // reduce noise with multiple reads
             uint16_t val[SAMPLES];
             AD7689_read_array(val, SAMPLES);                // read values
-            interrupts(); 
-                        
+            interrupts();
+
             data[count] = median16(val, SAMPLES);
             if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-            //Serial_Printf("%d,%d\n", i, data[count]);               
+            //Serial_Printf("%d,%d\n", i, data[count]);
             ++count;
           } // for
 
           stopTimers();
-          
+
           // results from each pulse are in data[]
-          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count),data[0]);
+          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count), data[0]);
         }
         break;
 
-        case 4049:
+      case 4049:
         {
           // JZ test - do not remove
           // read multiple pulses with increasing intensity or pulse width for linearity test
@@ -539,44 +539,44 @@ void loop() {
           const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
           Serial_Print_Line("using combined timer - wait...");
           AD7689_set(0);                                  // 0 is main detector
-          DAC_set(LED, 30);                               // set initial LED intensity
+          DAC_set(LED, 200);                               // set initial LED intensity
           DAC_change();
           const int MAX = 200;                            // try a variety of intensities 0 up to 4095
           int count = 0;
           uint16_t data[100];
 
           _meas_light = LED;
-          uint16_t _pulsesize = 30;                  
+          uint16_t _pulsesize = 30;
           uint16_t _pulsedistance = 16667;
 
           startTimers2(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
-                     
+
           for (int i = 1; i < MAX; i += MAX / 100) {
             //DAC_set(LED, i);                              // change LED intensity
             //DAC_change();
             digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-            
+
             off = 0;
 
             while (off != 1) {}                  // wait till pulse is done in ISR
 
             // a pulse completed (note: interrupts are left off)
 
-            const int SAMPLES = 21;                         // reduce noise with multiple reads
+            const int SAMPLES = 19;                         // reduce noise with multiple reads
             uint16_t val[SAMPLES];
             AD7689_read_array(val, SAMPLES);                // read values
-            interrupts(); 
-                        
+            interrupts();
+            
             data[count] = median16(val, SAMPLES);
             if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-            //Serial_Printf("%d,%d\n", i, data[count]);               
+            //Serial_Printf("%d,%d\n", i, data[count]);
             ++count;
           } // for
 
           stopTimers();
-          
+
           // results from each pulse are in data[]
-          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count),data[0]);
+          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count), data[0]);
         }
         break;
       default:
@@ -1374,7 +1374,7 @@ void loop() {
           stopTimers();
           cycle = 0;                                                                     // ...and reset counters
           pulse = 0;
-          on = off= 0;
+          on = off = 0;
           meas_number = 0;
 
           /*

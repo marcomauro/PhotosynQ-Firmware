@@ -486,16 +486,10 @@ void loop() {
           // JZ test - do not remove
           // read multiple pulses with increasing intensity or pulse width for linearity test
           // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
-          Serial_Print_Line("enter LED ID and + followed by intensity 0 - 4095 and +");
-          int LED = Serial_Input_Long("+", 0);         // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
-          int intensity = Serial_Input_Long("+", 0);
+          const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
           Serial_Print_Line("using 2 timers - wait...");
           AD7689_set(0);                                  // 0 is main detector
-<<<<<<< Updated upstream
           DAC_set(LED, 200);                               // set initial LED intensity
-=======
-          DAC_set(LED, intensity);                               // set initial LED intensity
->>>>>>> Stashed changes
           DAC_change();
           const int MAX = 200;                            // try a variety of intensities 0 up to 4095
           int count = 0;
@@ -557,11 +551,6 @@ void loop() {
 
           startTimers2(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
 
-<<<<<<< Updated upstream
-=======
-          timer0.begin(pulse3, _pulsedistance);             // schedule pulses
-
->>>>>>> Stashed changes
           for (int i = 1; i < MAX; i += MAX / 100) {
             //DAC_set(LED, i);                              // change LED intensity
             //DAC_change();
@@ -577,22 +566,14 @@ void loop() {
             uint16_t val[SAMPLES];
             AD7689_read_array(val, SAMPLES);                // read values
             interrupts();
-<<<<<<< Updated upstream
             
-=======
-
->>>>>>> Stashed changes
             data[count] = median16(val, SAMPLES);
             if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
             //Serial_Printf("%d,%d\n", i, data[count]);
             ++count;
           } // for
 
-<<<<<<< Updated upstream
           stopTimers();
-=======
-          timer0.end();
->>>>>>> Stashed changes
 
           // results from each pulse are in data[]
           Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count), data[0]);
@@ -1132,7 +1113,7 @@ void loop() {
             uint16_t detector = detectors.getArray(cycle).getLong(meas_number % meas_array_size);          // move to next detector
             uint16_t _reference = reference.getArray(cycle).getLong(meas_number % meas_array_size);
             if (_number_samples == 0) {                                                                    // if _number_samples wasn't set or == 0, set it automatically to 40 (default)
-              _number_samples = 21;
+              _number_samples = 11;
             }
             if (_reference != 0) {                                                                      // if using the reference detector, make sure to half the sample rate (1/2 sample from main, 1/2 sample from detector)
               _number_samples = _number_samples / 2;
@@ -1702,13 +1683,14 @@ void pulse2() {
 // combined method - do the short LED pulse within the ISR
 // tests out to have less jitter
 volatile int isr_pulsesize;       // global version
+#define STABILIZE 10              // this delay gives the LED current controller op amp the time needed to stabilize
 
- void pulse3() {
+void pulse3() {                   // ISR to turn on/off LED pulse
   register int pin = LED_to_pin[_meas_light];
   register int pulse_size = isr_pulsesize;
   noInterrupts();
   digitalWriteFast(pin, HIGH);            // turn on measuring light
-  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
+  delayMicroseconds(STABILIZE);           // this delay gives the LED current controller op amp the time needed to turn
   // the light on completely + stabilize.
   // Very low intensity measuring pulses may require an even longer delay here.
   digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
@@ -1716,10 +1698,11 @@ volatile int isr_pulsesize;       // global version
   delayMicroseconds(pulse_size);
   digitalWriteFast(pin, LOW);            // turn off measuring light
   on = off = 1;
+  // NOTE:  interrupts are left off and must be re-enabled
 }
 
 // schedule the turn on and off of the LED(s) via a single ISR
-// put in ram for less jitter
+
 void startTimers2(uint16_t _pulsedistance, uint16_t _pulsesize) {
   isr_pulsesize = _pulsesize;                       // save where we can access it (since it isn't global)
   timer0.begin(pulse3, _pulsedistance);             // schedule pulses

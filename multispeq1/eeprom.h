@@ -16,7 +16,7 @@
 
 #include <stdint.h>
 
-#define NUM_USERDEFS 50
+const unsigned NUM_USERDEFS=50;
 
 class eeprom_class
 {

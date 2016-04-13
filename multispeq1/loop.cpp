@@ -2,77 +2,54 @@
 // main loop and some support routines
 
 #include "defines.h"
-#include <Time.h>                                                             // enable real time clock library
-#include "utility/Adafruit_Sensor.h"
+//#include <Time.h>                                                             // enable real time clock library
+//#include "utility/Adafruit_Sensor.h"
 #include "json/JsonParser.h"
-#include "utility/mcp4728.h"              // delete this once PAR is fixed
+//#include "utility/mcp4728.h"              // delete this once PAR is fixed
 #include "DAC.h"
 #include "AD7689.h"               // external ADC
-#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
+//#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
 #include "eeprom.h"
-#include <ADC.h>                  // internal ADC
+//#include <ADC.h>                  // internal ADC
 #include "serial.h"
 #include "flasher.h"
 #include "utility/crc32.h"
 
-// local defines
-
-// Lights - map LED pin # to MCU pin #
-// 1-5 on main board, 6-10 on add-on board
-// document colors
-#define PULSE1   5
-#define PULSE2   20
-#define PULSE3   3
-#define PULSE4   10
-#define PULSE5   4
-#define PULSE6   24
-#define PULSE7   27
-#define PULSE8   26
-#define PULSE9   25
-#define PULSE10  23
-
-
 // function declarations
 
-
-void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize);
-void stopTimers(void);
+inline static void startTimers(unsigned _pulsedistance);
+inline static void stopTimers(void);
 void reset_freq(void);
-void upgrade_firmware(void); // for over-the-air firmware updates
-void boot_check(void);  // for over-the-air firmware updates
+void upgrade_firmware(void);            // for over-the-air firmware updates
+void boot_check(void);                  // for over-the-air firmware updates
 int Light_Intensity(int var1);
-void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
+static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
 void set_device_info(const int _set);
 
 
 // Globals (try to avoid)
 
-// map LED to MCU pin
-unsigned short LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
-
-// ???
-int averages = 1;
-int _meas_light;           // measuring light to be used during the interrupt
-int spec_on = 0;                                           // flag to indicate that spec is being used during this measurement
+int averages = 1;   // ??
+uint8_t _meas_light;                    // measuring light to be used during the interrupt
+uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
+static volatile uint8_t led_off = 0;    // status of LED set by ISR
+static uint16_t _pulsesize = 0;         // pulse width in usec
 
 static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
 static const int max_jsons = 15;                                                   // max number of protocols per measurement
 
-static volatile int led_off = 0;
-static uint16_t _pulsesize = 0;
 //int analogresolutionvalue;
-IntervalTimer timer0;
-float data = 0;
-float data_ref = 0;
-int act_background_light = 0;
+static IntervalTimer timer0;
+static float data = 0;
+static float data_ref = 0;
+static int act_background_light = 0;
 //extern float light_y_intercept;
-//char* bt_response = "OKOKlinvorV1.8OKsetPINOKsetnameOK115200"; // Expected response from bt module after programming is done.
 //float freqtimer0;
 //float freqtimer1;
 //float freqtimer2;
 
 // shared with PAR.cpp
-// these should be eliminated
+// these should be eliminated - use a structure
 extern float light_slope;
 extern float lux_local;
 extern float r_local;
@@ -96,11 +73,11 @@ extern float b_average_forpar;
 */
 
 ////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
-float analog_read_average = 0;
-float digital_read_average = 0;
-float relative_humidity_average = 0;
-float temperature_average = 0;
-float objt_average = 0;
+static float analog_read_average = 0;
+static float digital_read_average = 0;
+static float relative_humidity_average = 0;
+static float temperature_average = 0;
+static float objt_average = 0;
 
 
 //////////////////////// MAIN LOOP /////////////////////////
@@ -116,14 +93,14 @@ void loop() {
   int measurements = 1;                                      // the number of times to repeat the entire measurement (all protocols)
   unsigned long measurements_delay = 0;                      // number of seconds to wait between measurements
   unsigned long measurements_delay_ms = 0;                   // number of milliseconds to wait between measurements
-  volatile unsigned long meas_number = 0;                    // counter to cycle through measurement lights 1 - 4 during the run
+  unsigned long meas_number = 0;                    // counter to cycle through measurement lights 1 - 4 during the run
   //unsigned long end1;
   //unsigned long start1 = millis();
 
   // these variables could be pulled from the JSON at the time of use... however, because pulling from JSON is slow, it's better to create a int to save them into at the beginning of a protocol run and use the int instead of the raw hashTable.getLong type call
-  int _a_lights [10] = {};
-  int _a_intensities [10] = {};
-  int _a_lights_prev [10] = {};
+  int _a_lights [NUM_LEDS] = {};
+  int _a_intensities [NUM_LEDS] = {};
+  int _a_lights_prev [NUM_LEDS] = {};
   int act_background_light_prev = 0;
   int cycle = 0;                                                                // current cycle number (start counting at 0!)
   int pulse = 0;                                                                // current pulse number
@@ -496,10 +473,10 @@ void loop() {
           uint16_t data[100];
 
           _meas_light = LED;
-          uint16_t _pulsesize = 30 + 10;                  // account for actopulser delay
-          uint16_t _pulsedistance = 2000;                 // lower has less jitter
+          _pulsesize = 30 + 10;                  // account for actopulser delay
+          unsigned _pulsedistance = 2000;                 // lower has less jitter
 
-          startTimers(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
+          startTimers(_pulsedistance);        // schedule continuous LED pulses
 
           for (int i = 1; i < MAX; i += MAX / 100) {
             //DAC_set(LED, i);                              // change LED intensity
@@ -546,16 +523,16 @@ void loop() {
           uint16_t data[100];
 
           _meas_light = LED;
-          uint16_t _pulsesize = 30;
+          _pulsesize = 30;
           uint16_t _pulsedistance = 2000;                 // lower has less jitter
 
-          startTimers(_pulsedistance, _pulsesize);        // schedule continuous LED pulses
+          startTimers(_pulsedistance);        // schedule continuous LED pulses
 
           for (int i = 1; i < MAX; i += MAX / 100) {
             //DAC_set(LED, i);                              // change LED intensity
             //DAC_change();
             digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-            
+
             led_off = 0;
 
             while (led_off != 1) {}                  // wait till pulse is done in ISR
@@ -566,7 +543,7 @@ void loop() {
             uint16_t val[SAMPLES];
             AD7689_read_array(val, SAMPLES);                // read values
             interrupts();
-            
+
             data[count] = median16(val, SAMPLES);
             if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
             //Serial_Printf("%d,%d\n", i, data[count]);
@@ -862,9 +839,9 @@ void loop() {
           int background_on = 0;
           long data_count = 0;
           int message_flag = 0;                                                              // flags to indicate if an alert, prompt, or confirm have been called at least once (to print the object name to data JSON)
-          uint16_t _pulsedistance = 0;                                                  // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
-          uint16_t _pulsedistance_prev = 0;
-          uint16_t _pulsesize_prev = 0;
+          unsigned _pulsedistance = 0;                                                  // initialize variables for pulsesize and pulsedistance (as well as the previous cycle's pulsesize and pulsedistance).  We define these only once per cycle so we're not constantly calling the JSON (which is slow)
+          unsigned _pulsedistance_prev = 0;
+          uint16_t  _pulsesize_prev = 0;
           uint16_t _reference_flag = 0;                                                           // used to note if this is the first measurement
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
@@ -1050,13 +1027,13 @@ void loop() {
               Serial_Printf("\n _number_samples: %d \n", _number_samples);
 #endif
 
-              for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {                                  // save the list of act lights in the previous pulse set to turn off later
+              for (unsigned i = 0; i < NUM_LEDS; i++) {                                  // save the list of act lights in the previous pulse set to turn off later
                 _a_lights_prev[i] = _a_lights[i];
 #ifdef PULSERDEBUG
                 Serial_Printf("\n all a_lights_prev: %d\n", _a_lights_prev[i]);
 #endif
               }
-              for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {                                   // save the current list of act lights, determine if they should be on, and determine their intensity
+              for (unsigned i = 0; i < NUM_LEDS; i++) {                                   // save the current list of act lights, determine if they should be on, and determine their intensity
                 _a_lights[i] = a_lights.getArray(cycle).getLong(i);
                 _a_intensities[i] = a_intensities.getArray(cycle).getLong(i);
 #ifdef PULSERDEBUG
@@ -1094,11 +1071,11 @@ void loop() {
               first_flag = 1;                                                                                   // flip flag indicating that it's the 0th pulse and a new cycle
               if (cycle == 0) {                                                                                 // if it's the beginning of a measurement (cycle == 0 and pulse == 0), then...
                 digitalWriteFast(act_background_light_prev, LOW);                                               // turn off actinic background light and...
-                startTimers(_pulsedistance, _pulsesize);                                                        // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
+                startTimers(_pulsedistance);                                                                    // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
               }
               else if (cycle != 0 && (_pulsedistance != _pulsedistance_prev || _pulsesize != _pulsesize_prev)) {    // if it's not the 0th cycle and the last pulsesize or pulsedistance was different than the current one, then stop the old timers and set new ones.   If they were the same, avoid resetting the timers by skipping this part.
                 //              stopTimers();                                                                                   // stop the old timers
-                startTimers(_pulsedistance, _pulsesize);                                    // restart the measurement light timer
+                startTimers(_pulsedistance);                                    // restart the measurement light timer
               }
             }
 
@@ -1150,7 +1127,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "confirm") {                                                  // wait for user's confirmation message.  If enters '1' then skip to end.
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1170,7 +1147,7 @@ void loop() {
                         break;
                       }
                     }
-                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance);                                                // restart the measurement light timer
                   }
                   else if (_message_type == "prompt") {                                                    // wait for user to input information, followed by +
                     stopTimers();                                                                         // pause the timers (so the measuring light doesn't stay on
@@ -1179,7 +1156,7 @@ void loop() {
                     Serial_Print("\"");
                     Serial_Print(response);
                     Serial_Print("\"]");
-                    startTimers(_pulsedistance, _pulsesize);                                                // restart the measurement light timer
+                    startTimers(_pulsedistance);                                                // restart the measurement light timer
                   }
                   if (cycle != pulses.getLength() - 1) {                                                  // if it's not the last cycle, then add comma
                     Serial_Print(",");
@@ -1194,7 +1171,7 @@ void loop() {
               DAC_set(_meas_light, _m_intensity);
               DAC_change();
 
-              for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {                         // set the DAC lights for actinic lights in the current pulse set
+              for (unsigned i = 0; i < NUM_LEDS; i++) {                         // set the DAC lights for actinic lights in the current pulse set
                 DAC_set(_a_lights[i], _a_intensities[i]);
 #ifdef PULSERDEBUG
                 Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
@@ -1218,11 +1195,8 @@ void loop() {
             //            uint16_t startTimer;                                                                            // to measure the actual time it takes to perform the ADC reads on the sample (for debugging)
             //            uint16_t endTimer;
 
-            while (led_off == 0) {                                                                     // if the measuring light turned on and off (pulse1 and pulse2 are background interrupt routines for on and off) happened, then...
+            while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
             }
-
-            //            startTimer = micros();
-            noInterrupts();                                                                            // turn off interrupts because we're checking volatile variables set in the interrupts
 
             if (_reference != 0) {
               AD7689_read_arrays((detector - 1), sample_adc, (_reference - 1), sample_adc_ref, _number_samples); // also reads reference detector - note this function takes detectors 0 - 3, so must subtract detector value by 1
@@ -1231,14 +1205,11 @@ void loop() {
               AD7689_read_array(sample_adc, _number_samples);                                              // just reads the detector defined by the user
             }
 
-            interrupts();                                                                                // turn off interrupts because we're checking volatile variables set in the interrupts
-            //            endTimer = micros();
-            digitalWriteFast(HOLDM, HIGH);                                                            // turn off sample and hold, and turn on lights for next pulse set
-            digitalWriteFast(HOLDADD, HIGH);                                                            // turn off sample and hold, and turn on lights for next pulse set
+            interrupts();                                             // re-enable interrupts (left off after LED ISR)
 
-#ifdef PULSERDEBUG
-            Serial_Print("time:   "); Serial_Print_Line(endTimer - startTimer);
-#endif
+            digitalWriteFast(HOLDM, HIGH);                            // discharge integrators
+            digitalWriteFast(HOLDADD, HIGH);
+
             if (adc_show == 1) {                                                                        // save the individual ADC measurements separately if adc_show is set to 1 (to be printed to the output later instead of data_raw)
               //              Serial_Print(",\"last_adc_ref\":[");
               for (unsigned i = 0; i < sizeof(sample_adc) / sizeof(uint16_t); i++) {                           //
@@ -1277,7 +1248,7 @@ void loop() {
 #endif
 
             if (first_flag == 1) {                                                                    // if this is the 0th pulse and a therefore new cycle
-              for (unsigned i = 0; i < sizeof(_a_lights_prev) / sizeof(int); i++) {                            // Turn off all of the previous actinic lights
+              for (unsigned i = 0; i < NUM_LEDS; i++) {                            // Turn off all of the previous actinic lights
                 if (_a_lights_prev[i] != 0) {                                                                 // just skip it if it's zero
                   digitalWriteFast(LED_to_pin[_a_lights_prev[i]], LOW);
 #ifdef PULSERDEBUG
@@ -1286,7 +1257,7 @@ void loop() {
                 }
               }
               DAC_change();                                                                               // initiate actinic lights which were set above
-              for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {                            // Turn on all the new actinic lights for this pulse set
+              for (unsigned i = 0; i < NUM_LEDS; i++) {                            // Turn on all the new actinic lights for this pulse set
                 if (_a_lights[i] != 0) {                                                                 // just skip it if it's zero
                   digitalWriteFast(LED_to_pin[_a_lights[i]], HIGH);
 #ifdef PULSERDEBUG
@@ -1356,7 +1327,7 @@ void loop() {
                     background_on = calculate_intensity_background(act_background_light, tcs_to_act, cycle, _light_intensity, act_background_light_intensity); // figure out background light intensity and state
           */
 
-          for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {
+          for (unsigned i = 0; i < NUM_LEDS; i++) {
             if (_a_lights[i] != act_background_light) {                                  // turn off all lights unless they are the actinic background light
               digitalWriteFast(LED_to_pin[_a_lights[i]], LOW);
             }
@@ -1595,7 +1566,7 @@ void loop() {
         averages_delay = 0;                                                           // seconds wait time between averages
         averages_delay_ms = 0;                                                    // seconds wait time between averages
         analog_averages = 1;                                                             // # of measurements per pulse to be averaged (min 1 measurement per 6us pulselengthon)
-        for (unsigned i = 0; i < sizeof(_a_lights) / sizeof(int); i++) {
+        for (unsigned i = 0; i < NUM_LEDS; i++) {
           _a_lights[i] = 0;
         }
         relative_humidity_average = 0;                                                // reset all environmental variables to zero
@@ -1654,9 +1625,9 @@ void loop() {
 
 
 //  routines for LED pulsing
-#define STABILIZE 10                      // this delay gives the LED current controller op amp the time needed to stabilize
+const unsigned  STABILIZE=10;                      // this delay gives the LED current controller op amp the time needed to stabilize
 
-void pulse3() {                           // ISR to turn on/off LED pulse
+static void pulse3() {                           // ISR to turn on/off LED pulse - also controls integration switch
   register int pin = LED_to_pin[_meas_light];
   register int pulse_size = _pulsesize;
   noInterrupts();
@@ -1674,13 +1645,13 @@ void pulse3() {                           // ISR to turn on/off LED pulse
 
 // schedule the turn on and off of the LED(s) via a single ISR
 
-void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
+inline static void startTimers(unsigned _pulsedistance) {
   timer0.begin(pulse3, _pulsedistance);             // schedule pulses
 }
 
-void stopTimers() {
+inline static void stopTimers() {
   timer0.end();                         // if it's the last cycle and last pulse, then... stop the timers
-  //timer1.end();                       // old version used two timers      
+  //timer1.end();                       // old version used two timers
 }
 
 #if 0
@@ -1711,7 +1682,7 @@ void pulse2() {
 }
 // schedule the turn on and off of the LED(s) via an ISR
 
-void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
+void startTimers(unsigned _pulsedistance) {
   timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
   noInterrupts();
   delayMicroseconds(_pulsesize);                                             // I don't think this accounts for the actopulser stabilization delay - JZ
@@ -1726,23 +1697,24 @@ void startTimers(uint16_t _pulsedistance, uint16_t _pulsesize) {
 // read/write userdef[] values from/to eeprom
 // example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
 
-void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
-  int number_saves = _save_eeprom.getLength();                                 // define these explicitly to make it easier to understand the logic
-  int number_recalls = _recall_eeprom.getLength();                             // define these explicitly to make it easier to understand the logic
-  if (number_saves > 0) {                                                          // if the user is saving eeprom values, then...
+static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
+  int number_saves = _save_eeprom.getLength();                                // define these explicitly to make it easier to understand the logic
+  int number_recalls = _recall_eeprom.getLength();                            // define these explicitly to make it easier to understand the logic
+  if (number_saves > 0) {                                                     // if the user is saving eeprom values, then...
     for (int i = 0; i < number_saves; i++) {
-      int location = _save_eeprom.getArray(i).getLong(0);
-      float value_to_save = _save_eeprom.getArray(i).getDouble(1);
-      if (location >= 0 && location < NUM_USERDEFS)
-        eeprom->userdef[location] = value_to_save;                                                //  save new value in the defined eeprom location
-      delay(1);                                                                     // delay to make sure it has time to save (min 1ms)
+      long location = _save_eeprom.getArray(i).getLong(0);
+      double value_to_save = _save_eeprom.getArray(i).getDouble(1);
+      if (location >= 0 && location < (long)NUM_USERDEFS)
+        if (eeprom->userdef[location] != value_to_save)                       // prevent re-write if already there (wears out the eeprom)
+          eeprom->userdef[location] = value_to_save;                         // save new value in the defined eeprom location
+      delay(1);                                                               // delay to make sure it has time to save (min 1ms)
     }
   }
   if (number_recalls > 0) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
     Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there
     for (int i = 0; i < number_recalls; i++) {
-      int location = _recall_eeprom.getLong(i);
-      if (location >= 0 && location < NUM_USERDEFS)
+      long location = _recall_eeprom.getLong(i);
+      if (location >= 0 && location < (long)NUM_USERDEFS)
         Serial_Printf("\"%d\":%f", (int) location, eeprom->userdef[location]);
       if (i != number_recalls - 1) {
         Serial_Print(",");

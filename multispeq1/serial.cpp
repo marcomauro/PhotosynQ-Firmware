@@ -255,6 +255,15 @@ Serial_Print_Line (const int i)
 }
 
 void
+Serial_Print_Line (const long i)
+{
+  char str[20];
+  sprintf(str, "%ld", i);
+  // output to both ports
+  Serial_Print_Line ((char *)str);
+}
+
+void
 Serial_Print_Line (const float x, const int places)
 {
   char str[20+1];

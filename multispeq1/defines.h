@@ -2,6 +2,9 @@
 // Global defines and some misc functions
 
 
+#include <Arduino.h>
+#include <stdint.h>
+
 //#define DEBUG 1         // uncomment to add full debug features
 //#define DEBUGSIMPLE 1   // uncomment to add partial debug features
 //#define DAC 1           // uncomment for boards which do not use DAC for light intensity control
@@ -37,16 +40,28 @@
 // hall effect sensor (analog)
 #define HALL_OUT 35
 
+// Lights - map LED pin # to MCU pin #
+// 1-5 on main board, 6-10 on add-on board
+// document colors
+#define PULSE1   5
+#define PULSE2   20
+#define PULSE3   3
+#define PULSE4   10
+#define PULSE5   4
+#define PULSE6   24
+#define PULSE7   27
+#define PULSE8   26
+#define PULSE9   25
+#define PULSE10  23
 
-// map LED (1-10) to MCU pin number
-#define NUM_LEDS 10
-extern unsigned short LED_to_pin[NUM_LEDS+1];
+const unsigned NUM_LEDS=10;
+// map LED (1-10) to MCU pin
+const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
 
 // bluetooth
 #define BLERESET 14  // deprecated in favor of power down
 #define DEBUG_DC 2   // could allow reflashing of BLE module
 #define DEBUG_DD 36
-
 
 
 // sample and hold (hold + release detector cap)

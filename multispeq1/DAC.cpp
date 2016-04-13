@@ -14,10 +14,10 @@
 static mcp4728 *dac[NUM_DACS];    // pointer only - initialize under more controlled circumstances so debugging is possible
 
 // map LED number (here numbered 0-9) to which DAC IC that pin is on
-static short LED_to_dac[NUM_LEDS] = {0, 0, 0, 2, 0, 1, 2, 1, 1, 1};  // must be 0,1,2
+static const short LED_to_dac[NUM_LEDS] = {0, 0, 0, 2, 0, 1, 2, 1, 1, 1};  // must be 0,1,2
 
 // map pin number (eg, 0-9) to which DAC channel that pin is on
-static short LED_to_channel[NUM_LEDS] = {2, 3, 0, 0, 1, 1, 1, 3, 2, 0};   // must be 0,1,2,3
+static const short LED_to_channel[NUM_LEDS] = {2, 3, 0, 0, 1, 1, 1, 3, 2, 0};   // must be 0,1,2,3
 
 // initialize the DACs
 

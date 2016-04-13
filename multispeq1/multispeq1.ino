@@ -10,8 +10,6 @@
 
 /*
 
-characterize all of the LEDs intensities (as measuring light and actinic)... may need to include the max DAC value before LED stops getting brighter (see slack graph).
-
   + test do we need to calibrate offsets (like we did with the betas?)
 
   Discuss meringing other eeprom floats into userdef[] with #define
@@ -29,14 +27,13 @@ characterize all of the LEDs intensities (as measuring light and actinic)... may
   I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.
 
   Hardware
-x   Noise in detector - use big electrolytic caps? resolved put caps on the +5 and the -10 circuits.
-x  Why is LED 5 pulse-to-pulse stdev so terrible (10x worse than others)? Actopulser?
+  Noise in detector - use big  caps?  ANy better ideas?
+  Low DAC values (eg, LED5 read from main) cause much higher stdev
   Detector DC filter is significantly effecting pulses < 100 usec - weaken it
   Detector has a DC offset (which causes ADC to read zero)
-  With a small DAC value (say 30), the actopulser is still stabilizing after 50 usec.
-  Pulse width vs detector output is very non-linear
+  Pulse width vs detector output is very non-linear - caused by the DC filter?
   
-  Switch to combined ISR for LED pulses (no glitches)
+  x Switch to combined ISR for LED pulses (no glitches)
 
   Convert all possible into an array to make designing protocols more user friendly
   x turn pulse_distance and pulse_size → into an array
@@ -321,7 +318,7 @@ void setup() {
   // set up MCU pins
 
   // set up LED on/off pins
-  for (int i = 1; i < 11; ++i)
+  for (unsigned i = 1; i < NUM_LEDS+1; ++i)
     pinMode(LED_to_pin[i], OUTPUT);
 
   pinMode(HALL_OUT, INPUT);                                                       // set hall effect sensor to input so it can be read
@@ -338,7 +335,10 @@ void setup() {
 
   // pins used to turn on/off detector integration/discharge
   pinMode(HOLDM, OUTPUT);
+  digitalWriteFast(HOLDM, HIGH);                  // discharge cap
   pinMode(HOLDADD, OUTPUT);
+  digitalWriteFast(HOLDADD, HIGH);                // discharge cap
+  
   pinMode(BLANK, OUTPUT);                                                            // used as a blank pin to pull high and low if the meas lights is otherwise blank (set to 0)
 
 #if 0
@@ -447,12 +447,18 @@ void set_device_info(const int _set) {
   Serial_Print_CRC();
 
   if (_set == 1) {
-    // please enter new device ID (lower 4 bytes of BLE MAC address) followed by '+'
-    eeprom->device_id = Serial_Input_Long("+", 0);              // save to eeprom
+    long val;
+    
+   // please enter new device ID (lower 4 bytes of BLE MAC address) followed by '+'    
+    val = eeprom->device_id = Serial_Input_Long("+", 0);              // save to eeprom     
+    if (eeprom->device_id != val)
+       eeprom->device_id = val;              // save to eeprom
     delay(1);
 
     // please enter new date of manufacture (yyyymm) followed by '+'
-    eeprom->manufacture_date = Serial_Input_Long("+", 0);
+    val = Serial_Input_Long("+", 0);
+    if (eeprom->manufacture_date != val)
+       eeprom->manufacture_date = val;
     delay(1);
 
     // print again for verification
@@ -709,7 +715,7 @@ int check_protocol(char *str)
 } // check_protocol()
 
 
-#define SHUTDOWN 10000     // power down after X ms of inactivity
+const int SHUTDOWN=10000;     // power down after X ms of inactivity
 static unsigned long last_activity = millis();
 // if there hasn't been any activity for x seconds, then power down
 void powerdown() {

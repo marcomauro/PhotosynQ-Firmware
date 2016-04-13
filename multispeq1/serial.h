@@ -23,7 +23,7 @@ String Serial_Input_String(const char *terminators = (char *)"\r\n+", long unsig
 void Serial_Printf(const char *format, ... );
 
 void Serial_Print (const char *str);
-void Serial_Print (const String string);
+void Serial_Print (const String str);
 void Serial_Print (const int i);
 void Serial_Print (const unsigned u);
 void Serial_Print (const float x, int places = 0);
@@ -33,6 +33,7 @@ void Serial_Print (const double xx, int places = 0);
 void Serial_Print_Line (const char *str);
 void Serial_Print_Line (const String str);
 void Serial_Print_Line (const int i);
+void Serial_Print_Line (const long i);
 void Serial_Print_Line (const float x, int places = 0);
 
 void Serial_Print_CRC (void);
@@ -44,4 +45,3 @@ void Serial_Print_CRC (void);
     for (;;) {} \
  }
 
- //#define assert(x)

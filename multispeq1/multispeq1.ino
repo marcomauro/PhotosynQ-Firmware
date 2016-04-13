@@ -715,17 +715,31 @@ int check_protocol(char *str)
 } // check_protocol()
 
 
-const int SHUTDOWN=10000;     // power down after X ms of inactivity
+const unsigned long SHUTDOWN=10000;     // power down after X ms of inactivity
 static unsigned long last_activity = millis();
 // if there hasn't been any activity for x seconds, then power down
+// also power down if the battery is too low
 void powerdown() {
   // send command to BLE module by setting XX low
   // only the BLE module can power up/down the MCU
-
+#if 0
+  if (millis() - last_activity > SHUTDOWN) {
+     Serial_Print_Line("powerdown");
+     // send request to BLE module to power down this MCU
+     for (;;) {}
+  } // if
+#endif
 }
-// record that we have seen activity (used with powerdown())
+// record that we have seen serial port activity (used with powerdown())
 void activity() {
   last_activity = millis();
 }
 
+// Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  
+// This should run just before any new protocol - if it’s too low, report to the user
+
+int battery_check()
+{
+   return 0;
+}
 

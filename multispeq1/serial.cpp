@@ -280,6 +280,7 @@ Serial_Print_CRC (void)
   char *p = int32_to_hex (crc32_value ());
 
   Serial_Print_Line (p);
+  Serial_Flush_Output();          // force it to go out
 
   crc32_init ();		// reset for next time
 }

@@ -224,23 +224,6 @@
   #define LDAC1 23
 */
 
-#ifdef CORAL_SPEQ
-//////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
-#define SPEC_GAIN      28
-//#define SPEC_EOS       NA
-#define SPEC_ST        26
-#define SPEC_CLK       25
-#define SPEC_VIDEO     A10
-//#define LED530         15
-//#define LED2200k       16
-//#define LED470         20
-//#define LED2200K       2
-#define SPEC_CHANNELS    256
-uint16_t spec_data[SPEC_CHANNELS];
-unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
-int idx = 0;
-#endif
-
 
 
 // don't make these global
@@ -359,7 +342,7 @@ void setup() {
   //analogWriteFrequency(3, 187500);                                              // Pins 3 and 5 are each on timer 0 and 1, respectively.  This will automatically convert all other pwm pins to the same frequency.
   //analogWriteFrequency(5, 187500);
 
-#ifdef CORALSPEQ
+#if CORALSPEQ == 1
   // Set pinmodes for the coralspeq
   //pinMode(SPEC_EOS, INPUT);
   pinMode(SPEC_GAIN, OUTPUT);
@@ -471,7 +454,8 @@ void set_device_info(const int _set) {
 
 } // set_device_info()
 
-#ifdef CORAL_SPEQ
+#if CORAL_SPEQ == 1
+
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode)
 {
   /*

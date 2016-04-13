@@ -28,6 +28,7 @@ void set_device_info(const int _set);
 int abort_cmd(void);
 void environmentals(JsonArray a, const int x);
 void environmentals2(JsonArray a, const int x);
+void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode);
 
 // Globals (try to avoid)
 
@@ -81,6 +82,21 @@ static float relative_humidity_average = 0;
 static float temperature_average = 0;
 static float objt_average = 0;
 
+
+//////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
+#define SPEC_GAIN      28
+//#define SPEC_EOS       NA
+#define SPEC_ST        26
+#define SPEC_CLK       25
+#define SPEC_VIDEO     A10
+//#define LED530         15
+//#define LED2200k       16
+//#define LED470         20
+//#define LED2200K       2
+#define SPEC_CHANNELS    256
+uint16_t spec_data[SPEC_CHANNELS];
+unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
+int idx = 0;
 
 //////////////////////// MAIN LOOP /////////////////////////
 
@@ -549,12 +565,12 @@ void loop() {
 
   //  Serial_Printf("got %d protocols\n", number_of_protocols);
 
-#ifdef DEBUGSIMPLE
-  // print each json
-  for (int i = 0; i < number_of_protocols; i++) {
-    Serial_Printf("Incoming JSON %d as received by Teensy: %s", i, json2[i]);
-  } // for
-#endif
+  if (DEBUGSIMPLE) {
+    // print each json
+    for (int i = 0; i < number_of_protocols; i++) {
+      //Serial_Printf("Incoming JSON %d as received by Teensy: %s", i, json2[i]);
+    } // for
+  } // DEBUGSIMPLE
 
   // discharge sample and hold in case the cap is currently charged (on add on and main board)
   digitalWriteFast(HOLDM, HIGH);
@@ -672,15 +688,14 @@ void loop() {
 
         // ********************INPUT DATA FOR CORALSPEQ*******************
         JsonArray spec =          hashTable.getArray("spec");                                // defines whether the spec will be called during each array.  note for each single plus, the spec will call and add 256 values to data_raw!
-#ifdef CORAL_SPEQ
         JsonArray delay_time =    hashTable.getArray("delay_time");                                         // delay per half clock (in microseconds).  This ultimately conrols the integration time.
         JsonArray read_time =     hashTable.getArray("read_time");                                        // Amount of time that the analogRead() procedure takes (in microseconds)
         JsonArray intTime =       hashTable.getArray("intTime");                                         // delay per half clock (in microseconds).  This ultimately conrols the integration time.
         JsonArray accumulateMode = hashTable.getArray("accumulateMode");
-#endif
 
         long size_of_data_raw = 0;
         long total_pulses = 0;
+
         for (int i = 0; i < pulses.getLength(); i++) {                                      // count the number of non zero lights and total pulses
           total_pulses += pulses.getLong(i) * meas_lights.getArray(i).getLength();          // count the total number of pulses
           int non_zero_lights = 0;
@@ -689,6 +704,7 @@ void loop() {
               non_zero_lights++;
             }
           }
+
           // redefine the size of data raw to account for the 256 spec measurements per 1 pulse if spec is used (for coralspeq)
           if (spec.getLong(i) == 1) {
             size_of_data_raw += pulses.getLong(i) * non_zero_lights * 256;
@@ -696,44 +712,46 @@ void loop() {
           else {
             size_of_data_raw += pulses.getLong(i) * non_zero_lights;
           }
+
         } // for
 
         if (data_raw_average)
           free(data_raw_average);                                                            // free calloc of data_raw_average
         data_raw_average = (unsigned long*)calloc(size_of_data_raw, sizeof(unsigned long));   // get some memory space for data_raw_average, initialize all at zero.
 
-#ifdef DEBUGSIMPLE
-        Serial_Print_Line("");
-        Serial_Print("size of data raw:  ");
-        Serial_Print_Line(size_of_data_raw);
+        if (DEBUGSIMPLE) {
+          Serial_Print_Line("");
+          Serial_Print("size of data raw:  ");
+          Serial_Print_Line(size_of_data_raw);
 
-        Serial_Print_Line("");
-        Serial_Print("total number of pulses:  ");
-        Serial_Print_Line(total_pulses);
+          Serial_Print_Line("");
+          Serial_Print("total number of pulses:  ");
+          Serial_Print_Line(total_pulses);
 
-        Serial_Print_Line("");
-        Serial_Print("all data in data_raw_average:  ");
-        for (int i = 0; i < size_of_data_raw; i++) {
-          Serial_Print(data_raw_average[i]);
-        }
-        Serial_Print_Line("");
+          Serial_Print_Line("");
+          Serial_Print("all data in data_raw_average:  ");
+          for (int i = 0; i < size_of_data_raw; i++) {
+            Serial_Print((unsigned)data_raw_average[i]);
+          }
+          Serial_Print_Line("");
 
-        Serial_Print_Line("");
-        Serial_Print("number of pulses:  ");
-        Serial_Print_Line(pulses.getLength());
+          Serial_Print_Line("");
+          Serial_Print("number of pulses:  ");
+          Serial_Print_Line(pulses.getLength());
 
-        Serial_Print_Line("");
-        Serial_Print("arrays in meas_lights:  ");
-        Serial_Print_Line(meas_lights.getLength());
+          Serial_Print_Line("");
+          Serial_Print("arrays in meas_lights:  ");
+          Serial_Print_Line(meas_lights.getLength());
 
-        Serial_Print_Line("");
-        Serial_Print("length of meas_lights arrays:  ");
-        for (int i = 0; i < meas_lights.getLength(); i++) {
-          Serial_Print(meas_lights.getArray(i).getLength());
-          Serial_Print(", ");
-        }
-        Serial_Print_Line("");
-#endif
+          Serial_Print_Line("");
+          Serial_Print("length of meas_lights arrays:  ");
+          for (int i = 0; i < meas_lights.getLength(); i++) {
+            Serial_Print(meas_lights.getArray(i).getLength());
+            Serial_Print(", ");
+          }
+          Serial_Print_Line("");
+        } // DEBUGSIMPLE
+
         Serial_Print("{");
 
         Serial_Print("\"protocol_id\":\"");
@@ -754,7 +772,7 @@ void loop() {
 
         //        print_sensor_calibration(1);                                               // print sensor calibration data
 
-        // this should be an array, so I can reset it all......
+        // this should be a structure, so I can reset it all......
         analog_read_average = 0;
         digital_read_average = 0;
         relative_humidity_average = 0;                                                                    // reset all of the environmental variables
@@ -769,16 +787,6 @@ void loop() {
         b_average_forpar = 0;
         //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
         //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
-
-#ifdef DEBUGSIMPLE
-        Serial_Print_Line("");
-        Serial_Print("\"offsets\": ");
-        Serial_Print(offset_34);
-        Serial_Print(",");
-        Serial_Print_Line(offset_35);
-        // null or invalid string returns zero
-
-#endif
 
         // perform the protocol averages times
         for (int x = 0; x < averages; x++) {                                                 // Repeat the protocol this many times
@@ -822,66 +830,69 @@ void loop() {
 
           //          float _light_intensity = lux_to_uE(lux_local);
           //          _tcs_to_act = (uE_to_intensity(act_background_light,_light_intensity)*tcs_to_act)/100;  // set intensity of actinic background light
-#ifdef DEBUGSIMPLE
-          Serial_Print_Line("");
-          Serial_Print("tcs to act: ");
-          Serial_Print_Line(_tcs_to_act);
-          Serial_Print("ambient light in uE: ");
-          Serial_Print_Line(lux_to_uE(lux_local));
-          Serial_Print("ue to intensity result:  ");
-          Serial_Print_Line(uE_to_intensity(act_background_light, lux_to_uE(lux_local))); // NOTE: wait turn flip DAC switch until later.
-#endif
+
+          if (DEBUGSIMPLE) {
+            Serial_Print_Line("");
+            Serial_Print("tcs to act: ");
+            //Serial_Print_Line(_tcs_to_act);
+            Serial_Print("ambient light in uE: ");
+            //Serial_Print_Line(lux_to_uE(lux_local));
+            Serial_Print("ue to intensity result:  ");
+            //Serial_Print_Line(uE_to_intensity(act_background_light, lux_to_uE(lux_local))); // NOTE: wait turn flip DAC switch until later.
+          } // DEBUGSIMPLE
 
           for (int z = 0; z < total_pulses; z++) {                                      // cycle through all of the pulses from all cycles
             int first_flag = 0;                                                           // flag to note the first pulse of a cycle
             int _spec = 0;                                                              // create the spec flag for the coralspeq
-#ifdef CORAL_SPEQ
+
             int _intTime = 0;                                                           // create the _intTime flag for the coralspeq
             int _delay_time = 0;                                                        // create the _delay_time flag for the coralspeq
             int _read_time = 0;                                                         // create the _read_time flag for the coralspeq
             int _accumulateMode = 0;                                                    // create the _accumulateMode flag for the coralspeq
-#endif
+
             if (pulse == 0) {                                                                                     // if it's the first pulse of a cycle, we need to set up the new set of lights and intensities...
               meas_array_size = meas_lights.getArray(cycle).getLength();                                          // get the number of measurement/detector subsets in the new cycle
-#ifdef PULSERDEBUG
-              Serial_Printf("\n _number_samples: %d \n", _number_samples);
-#endif
+
+              if (PULSERDEBUG) {
+                Serial_Printf("\n _number_samples: %d \n", _number_samples);
+              } // PULSERDEBUG
 
               for (unsigned i = 0; i < NUM_LEDS; i++) {                                  // save the list of act lights in the previous pulse set to turn off later
                 _a_lights_prev[i] = _a_lights[i];
-#ifdef PULSERDEBUG
-                Serial_Printf("\n all a_lights_prev: %d\n", _a_lights_prev[i]);
-#endif
+                if (PULSERDEBUG) {
+                  Serial_Printf("\n all a_lights_prev: %d\n", _a_lights_prev[i]);
+                } // PULSERDEBUG
               }
               for (unsigned i = 0; i < NUM_LEDS; i++) {                                   // save the current list of act lights, determine if they should be on, and determine their intensity
                 _a_lights[i] = a_lights.getArray(cycle).getLong(i);
                 _a_intensities[i] = a_intensities.getArray(cycle).getLong(i);
-#ifdef PULSERDEBUG
-                Serial_Printf("\n all a_lights, intensities: %d,%d\n", _a_lights[i], _a_intensities[i]);
-#endif
+                if (PULSERDEBUG) {
+                  Serial_Printf("\n all a_lights, intensities: %d,%d\n", _a_lights[i], _a_intensities[i]);
+                } // PULSERDEBUG
               }
 
-#ifdef CORAL_SPEQ
-              _spec = spec.getLong(cycle);                                                      // pull whether the spec will get called in this cycle or not for coralspeq and set parameters.  If they are empty (not defined by the user) set them to the default value
-              if (_spec == 1) {
-                _intTime = intTime.getLong(cycle);
-                if (_intTime == 0) {
-                  _intTime = 100;
+              if (CORAL_SPEQ) {
+                _spec = spec.getLong(cycle);                                                      // pull whether the spec will get called in this cycle or not for coralspeq and set parameters.  If they are empty (not defined by the user) set them to the default value
+                if (_spec == 1) {
+                  _intTime = intTime.getLong(cycle);
+                  if (_intTime == 0) {
+                    _intTime = 100;
+                  }
+                  _delay_time = delay_time.getLong(cycle);
+                  if (_delay_time == 0) {
+                    _delay_time = 35;
+                  }
+                  _read_time = read_time.getLong(cycle);
+                  if (_read_time == 0) {
+                    _read_time = 35;
+                  }
+                  _accumulateMode = accumulateMode.getLong(cycle);
+                  if (_accumulateMode == 0) {
+                    _accumulateMode = false;
+                  }
                 }
-                _delay_time = delay_time.getLong(cycle);
-                if (_delay_time == 0) {
-                  _delay_time = 35;
-                }
-                _read_time = read_time.getLong(cycle);
-                if (_read_time == 0) {
-                  _read_time = 35;
-                }
-                _accumulateMode = accumulateMode.getLong(cycle);
-                if (_accumulateMode == 0) {
-                  _accumulateMode = false;
-                }
-              }
-#endif
+              } // CORAL_SPEQ
+
               if (cycle != 0) {
                 _pulsedistance_prev = _pulsedistance;
                 _pulsesize_prev = _pulsesize;
@@ -900,9 +911,10 @@ void loop() {
             }
 
 
-#ifdef PULSERDEBUG
-            Serial_Printf("pulsedistance = %d, pulsesize = %d, cycle = %d, measurement number = %d, measurement array size = %d,total pulses = %d\n", (int) _pulsedistance, (int) _pulsesize, (int) cycle, (int) meas_number, (int) meas_array_size, (int) total_pulses);
-#endif
+            if (PULSERDEBUG) {
+              Serial_Printf("pulsedistance = %d, pulsesize = %d, cycle = %d, measurement number = %d, measurement array size = %d,total pulses = %d\n", (int) _pulsedistance, (int) _pulsesize, (int) cycle, (int) meas_number, (int) meas_array_size, (int) total_pulses);
+            } // PULSERDEBUG
+
             _number_samples = number_samples.getLong(cycle);                                               // set the _number_samples for this cycle
             _meas_light = meas_lights.getArray(cycle).getLong(meas_number % meas_array_size);             // move to next measurement light
             uint16_t _m_intensity = m_intensities.getArray(cycle).getLong(meas_number % meas_array_size);  // move to next measurement light intensity
@@ -917,11 +929,13 @@ void loop() {
             if (_reference == 0) {                                                                      // If the reference detector isn't turned on, then we need to set the ADC first
               AD7689_set (detector - 1);        // set ADC channel to main board, main detector
             }
-#ifdef PULSERDEBUG
-            Serial_Printf("measurement light, intensity, detector, reference:  %d, %d, %d, %d\n", _meas_light, _m_intensity, detector, _reference);
-#endif
 
-            if (pulse < meas_array_size) {                                                                // if it's the first pulse of a cycle, then change act 1,2,3,4 values as per array's set at beginning of the file
+            if (PULSERDEBUG) {
+              Serial_Printf("measurement light, intensity, detector, reference:  %d, %d, %d, %d\n", _meas_light, _m_intensity, detector, _reference);
+            } // PULSERDEBUG
+
+            if (pulse < meas_array_size) {   // if it's the first pulse of a cycle, then change act 1,2,3,4 values as per array's set at beginning of the file
+
               if (pulse == 0) {
                 String _message_type = message.getArray(cycle).getString(0);                                // get what type of message it is
                 if ((_message_type != "" || quit == -1) && x == 0) {                                         // if there are some messages or the user has entered -1 to quit AND it's the first repeat of an average (so it doesn't ask these question on every average), then print object name...
@@ -986,18 +1000,19 @@ void loop() {
                   }
                 }
               }
-              //              calculate_intensity(_meas_light, tcs_to_act, cycle, _light_intensity);                   // in addition, calculate the intensity of the current measuring light
+
+              // calculate_intensity(_meas_light, tcs_to_act, cycle, _light_intensity);                   // in addition, calculate the intensity of the current measuring light
 
               DAC_set(_meas_light, _m_intensity);
               DAC_change();
 
               for (unsigned i = 0; i < NUM_LEDS; i++) {                         // set the DAC lights for actinic lights in the current pulse set
                 DAC_set(_a_lights[i], _a_intensities[i]);
-#ifdef PULSERDEBUG
-                Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
-                Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
-                Serial_Printf("\n _number_samples, _reference, adc_show: %d %d %d\n", _number_samples, _reference, adc_show);
-#endif
+                if (PULSERDEBUG) {
+                  Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
+                  Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
+                  Serial_Printf("\n _number_samples, _reference, adc_show: %d %d %d\n", _number_samples, _reference, adc_show);
+                } // PULSERDEBUG
               }
             }
 
@@ -1053,37 +1068,40 @@ void loop() {
               }
             }
             if (_reference != 0) {                                                        // now calculate the outputted data value based on the main and reference values, and the initial main and reference values for normalization
-#ifdef PULSERDEBUG
-              Serial_Printf("reference_start = %d, reference_now = %d,       _main_start = %d, main_now = %d", (int) _reference_start, (int) data_ref, (int) _main_start, (int) data);
-#endif
+              if (PULSERDEBUG) {
+                Serial_Printf("reference_start = %d, reference_now = %d,       _main_start = %d, main_now = %d", (int) _reference_start, (int) data_ref, (int) _main_start, (int) data);
+              } // PULSERDEBUG
+
               data = data - _main_start * (data_ref - _reference_start) / _reference_start; // adjust main value according to the % change in the reference relative to main on the first pulse.  You adjust the main in the opposite direction of the reference (to compensate)
-#ifdef PULSERDEBUG
-              float changed = (data_ref - _reference_start) / _reference_start;
-              Serial_Printf(",      main = %d, ref = %d, data_normalized = %f, percent_change = %f\n", detector, _reference, data, changed);
-#endif
+
+              if (PULSERDEBUG) {
+                float changed = (data_ref - _reference_start) / _reference_start;
+                Serial_Printf(",      main = %d, ref = %d, data_normalized = %f, percent_change = %f\n", detector, _reference, data, changed);
+              } // PULSERDEBUG
             }
 
-#ifdef PULSERDEBUG        // use this to see all of the adc reads which are being averaged
-            Serial_Printf("median + first value :%d,%d", data, sample_adc[5]);
-            Serial_Printf("median + first value reference :%d,%d", data_ref, sample_adc_ref[5]);
-#endif
+            if (PULSERDEBUG) {        // use this to see all of the adc reads which are being averaged
+              Serial_Printf("median + first value :%d,%d", data, sample_adc[5]);
+              Serial_Printf("median + first value reference :%d,%d", data_ref, sample_adc_ref[5]);
+            } // PULSERDEBUG
 
             if (first_flag == 1) {                                                                    // if this is the 0th pulse and a therefore new cycle
               for (unsigned i = 0; i < NUM_LEDS; i++) {                            // Turn off all of the previous actinic lights
                 if (_a_lights_prev[i] != 0) {                                                                 // just skip it if it's zero
                   digitalWriteFast(LED_to_pin[_a_lights_prev[i]], LOW);
-#ifdef PULSERDEBUG
-                  Serial_Printf("turned off actinic light: %d\n", LED_to_pin[_a_lights_prev[i]]);
-#endif
+                  if (PULSERDEBUG) {
+                    Serial_Printf("turned off actinic light: %d\n", LED_to_pin[_a_lights_prev[i]]);
+                  } // PULSERDEBUG
                 }
               }
               DAC_change();                                                                               // initiate actinic lights which were set above
+
               for (unsigned i = 0; i < NUM_LEDS; i++) {                            // Turn on all the new actinic lights for this pulse set
                 if (_a_lights[i] != 0) {                                                                 // just skip it if it's zero
                   digitalWriteFast(LED_to_pin[_a_lights[i]], HIGH);
-#ifdef PULSERDEBUG
-                  Serial_Printf("turned on new actinic light: %d\n", LED_to_pin[_a_lights[i]]);
-#endif
+                  if (PULSERDEBUG) {
+                    Serial_Printf("turned on new actinic light: %d\n", LED_to_pin[_a_lights[i]]);
+                  } // PULSERDEBUG
                 }
               }
               first_flag = 0;                                                              // reset flag
@@ -1103,20 +1121,19 @@ void loop() {
                         }
             */
 
-#ifdef DEBUGSIMPLE
-            Serial_Print("data count, size of raw data                                   ");
-            Serial_Print(data_count);
-            Serial_Print(",");
-            Serial_Print_Line(size_of_data_raw);
+            if (DEBUGSIMPLE) {
+              Serial_Print("data count, size of raw data                                   ");
+              Serial_Print((int)data_count);
+              Serial_Print(",");
+              Serial_Print_Line(size_of_data_raw);
+            } // DEBUGSIMPLE
 
-#endif
             if (_spec != 1) {                                                    // if spec_on is not equal to 1, then coralspeq is off and proceed as per normal MultispeQ measurement.
               if (_meas_light  != 0) {                                                      // save the data, so long as the measurement light is not equal to zero.
                 data_raw_average[data_count] += data - _offset;
                 data_count++;
               }
             }
-#ifdef CORAL_SPEQ
             else if (_spec == 1) {                                              // if spec_on is 1 for this cycle, then collect data from the coralspeq and save it to data_raw_average.
               readSpectrometer(_intTime, _delay_time, _read_time, _accumulateMode);                                                        // collect a reading from the spec
               for (int i = 0 ; i < SPEC_CHANNELS; i++) {
@@ -1124,17 +1141,18 @@ void loop() {
                 data_count++;
               }
             }
-#endif
+
             noInterrupts();                                                              // turn off interrupts because we're checking volatile variables set in the interrupts
             led_off = 0;                                                                // reset pulse status flags
             pulse++;                                                                     // progress the pulse counter and measurement number counter
 
-#ifdef DEBUGSIMPLE
-            Serial_Print("data point average, current data                               ");
-            Serial_Print(data_raw_average[meas_number]);
-            Serial_Print("!");
-            Serial_Print_Line(data);
-#endif
+            if (DEBUGSIMPLE) {
+              Serial_Print("data point average, current data                               ");
+              Serial_Print((int)data_raw_average[meas_number]);
+              Serial_Print("!");
+              Serial_Print_Line(data);
+            } // DEBUGSIMPLE
+
             interrupts();                                                              // done with volatile variables, turn interrupts back on
             meas_number++;                                                              // progress measurement number counters
 
@@ -1191,7 +1209,6 @@ void loop() {
 
         recall_save(recall_eeprom, save_eeprom);                                                    // Recall and save values to the eeprom.  If you save values to eeprom, you get those saved values returned to you to confirm that they have been saved successfully (so save automatically calls recall once complete)
 
-#ifdef CORAL_SPEQ
         if (spec_on == 1) {                                                                    // if the spec is being used, then read it and print data_raw as spec values.  Otherwise, print data_raw as multispeq detector values as per normal
           Serial_Print("\"data_raw\":[");
           for (int i = 0; i < SPEC_CHANNELS; i++)
@@ -1203,11 +1220,11 @@ void loop() {
           }
           Serial_Print("]}");
         }
-#endif
+
         if (spec_on == 0) {
           Serial_Print("\"data_raw\":[");
           if (adc_show == 0) {                                                             // normal condition - show data_raw as per usual
-            for (int i = 0; i < size_of_data_raw; i++) {                                     // print data_raw, divided by the number of averages (median would be nice)
+            for (int i = 0; i < size_of_data_raw; i++) {                                     // print data_raw, divided by the number of averages
               Serial_Print((unsigned)(data_raw_average[i] / averages));
               // if average = 1, then it would be better to print data as it is collected
               if (i != size_of_data_raw - 1) {
@@ -1226,16 +1243,16 @@ void loop() {
           Serial_Print("]}");
         }
 
-#ifdef DEBUGSIMPLE
-        Serial_Print("# of protocols repeats, current protocol repeat, number of total protocols, current protocol      ");
-        Serial_Print(protocols);
-        Serial_Print(",");
-        Serial_Print(u);
-        Serial_Print(",");
-        Serial_Print(number_of_protocols);
-        Serial_Print(",");
-        Serial_Print_Line(q);
-#endif
+        if (DEBUGSIMPLE) {
+          Serial_Print("# of protocols repeats, current protocol repeat, number of total protocols, current protocol      ");
+          Serial_Print(protocols);
+          Serial_Print(",");
+          Serial_Print(u);
+          Serial_Print(",");
+          Serial_Print(number_of_protocols);
+          Serial_Print(",");
+          Serial_Print_Line(q);
+        } // DEBUGSIMPLE
 
         if (q < number_of_protocols - 1 || u < protocols - 1) {                           // if it's not the last protocol in the measurement and it's not the last repeat of the current protocol, add a comma
           Serial_Print(",");
@@ -1268,17 +1285,19 @@ void loop() {
         r_average_forpar = 0;
         g_average_forpar = 0;
         b_average_forpar = 0;
-#ifdef CORAL_SPEQ
-        for (int i = 0; i < SPEC_CHANNELS; i++) {
-          spec_data_average [i] = 0;
-        }
-#endif
+        
+        if (CORAL_SPEQ) {
+          for (int i = 0; i < SPEC_CHANNELS; i++)
+            spec_data_average [i] = 0;
+        } // CORAL_SPEQ
+
         act_background_light_prev = act_background_light;                               // set current background as previous background for next protocol
         spec_on = 0;                                                                    // reset flag that spec is turned on for this measurement
-#ifdef DEBUGSIMPLE
-        Serial_Print_Line("previous light set to:   ");
-        Serial_Print_Line(act_background_light_prev);
-#endif
+
+        if (DEBUGSIMPLE) {
+          Serial_Print_Line("previous light set to:   ");
+          Serial_Print_Line(act_background_light_prev);
+        } // DEBUGSIMPLE
       }
     }
     Serial_Flush_Input();
@@ -1348,9 +1367,9 @@ inline static void stopTimers() {
 // interrupt service routine which turns the measuring light on
 
 void pulse1() {
-#ifdef PULSERDEBUG
-  startTimer = micros();
-#endif
+  if (PULSERDEBUG) {
+    startTimer = micros();
+  } // PULSERDEBUG
   digitalWriteFast(LED_to_pin[_meas_light], HIGH);            // turn on measuring light
   delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
   // the light on completely + stabilize.  But the effect is seen even after 50 usec.
@@ -1364,9 +1383,9 @@ void pulse1() {
 // consider merging this into pulse1()
 
 void pulse2() {
-#ifdef PULSERDEBUG
-  endTimer = micros();
-#endif
+  if (PULSERDEBUG) {
+    endTimer = micros();
+  } // PULSERDEBUG
   digitalWriteFast(LED_to_pin[_meas_light], LOW);
   off = 1;
 }
@@ -1425,12 +1444,12 @@ int abort_cmd()
 void environmentals(JsonArray environmental, const int x)
 {
   for (int i = 0; i < environmental.getLength(); i++) {                                       // call environmental measurements after the spectroscopic measurement
-#ifdef DEBUGSIMPLE
-    Serial_Print_Line("Here's the environmental measurements called:    ");
-    Serial_Print(environmental.getArray(i).getString(0));
-    Serial_Print(", ");
-    Serial_Print_Line(environmental.getArray(i).getLong(1));
-#endif
+    if (DEBUGSIMPLE) {
+      Serial_Print_Line("Here's the environmental measurements called:    ");
+      Serial_Print(environmental.getArray(i).getString(0));
+      Serial_Print(", ");
+      Serial_Print_Line(environmental.getArray(i).getLong(1));
+    } // DEBUGSIMPLE
     /*
                 if (environmental.getArray(i).getLong(1) == 1 \
                 && (String) environmental.getArray(i).getString(0) == "relative_humidity") {
@@ -1543,13 +1562,13 @@ void environmentals(JsonArray environmental, const int x)
       int setting = environmental.getArray(i).getLong(3);
       int freq = environmental.getArray(i).getLong(4);
       int wait = environmental.getArray(i).getLong(5);
-#ifdef DEBUGSIMPLE
-      Serial_Print_Line(pin);
-      Serial_Print_Line(pin);
-      Serial_Print_Line(wait);
-      Serial_Print_Line(setting);
-      Serial_Print_Line(freq);
-#endif
+      if (DEBUGSIMPLE) {
+        Serial_Print_Line(pin);
+        Serial_Print_Line(pin);
+        Serial_Print_Line(wait);
+        Serial_Print_Line(setting);
+        Serial_Print_Line(freq);
+      } // DEBUGSIMPLE
       pinMode(pin, OUTPUT);
       analogWriteFrequency(pin, freq);                                                           // set analog frequency
       analogWrite(pin, setting);
@@ -1569,12 +1588,12 @@ void environmentals2(JsonArray environmental, const int x)
 {
 
   for (int i = 0; i < environmental.getLength(); i++) {                                   // call environmental measurements
-#ifdef DEBUGSIMPLE
-    Serial_Print_Line("Here's the environmental measurements called:    ");
-    Serial_Print(environmental.getArray(i).getString(0));
-    Serial_Print(", ");
-    Serial_Print_Line(environmental.getArray(i).getLong(1));
-#endif
+    if (DEBUGSIMPLE) {
+      Serial_Print_Line("Here's the environmental measurements called:    ");
+      Serial_Print(environmental.getArray(i).getString(0));
+      Serial_Print(", ");
+      Serial_Print_Line(environmental.getArray(i).getLong(1));
+    } // DEBUGSIMPLE
     /*
                 if (environmental.getArray(i).getLong(1) == 0 \
                 && (String) environmental.getArray(i).getString(0) == "relative_humidity") {
@@ -1687,13 +1706,13 @@ void environmentals2(JsonArray environmental, const int x)
       int setting = environmental.getArray(i).getLong(3);
       int freq = environmental.getArray(i).getLong(4);
       int wait = environmental.getArray(i).getLong(5);
-#ifdef DEBUGSIMPLE
-      Serial_Print_Line(pin);
-      Serial_Print_Line(pin);
-      Serial_Print_Line(wait);
-      Serial_Print_Line(setting);
-      Serial_Print_Line(freq);
-#endif
+      if (DEBUGSIMPLE) {
+        Serial_Print_Line(pin);
+        Serial_Print_Line(pin);
+        Serial_Print_Line(wait);
+        Serial_Print_Line(setting);
+        Serial_Print_Line(freq);
+      } // DEBUGSIMPLE
       pinMode(pin, OUTPUT);
       analogWriteFrequency(pin, freq);                                                           // set analog frequency
       analogWrite(pin, setting);
@@ -1704,3 +1723,7 @@ void environmentals2(JsonArray environmental, const int x)
   }
 }
 #endif
+
+
+
+

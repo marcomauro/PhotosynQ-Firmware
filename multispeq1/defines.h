@@ -6,11 +6,11 @@
 #include <stdint.h>
 
 //#define DEBUG 1         // uncomment to add full debug features
-//#define DEBUGSIMPLE 1   // uncomment to add partial debug features
+const int DEBUGSIMPLE= 0;   // uncomment to add partial debug features
 //#define DAC 1           // uncomment for boards which do not use DAC for light intensity control
-//#define PULSERDEBUG 1   // uncomment to debug the pulser and detector
+const int PULSERDEBUG=0;   // uncomment to debug the pulser and detector
 //#define NO_ADDON        // uncomment if add-on board isn't present (one missing DAC, etc)
-
+#define CORAL_SPEQ 0
 
 // FIRMWARE VERSION OF THIS FILE (SAVED TO EEPROM ON FIRMWARE FLASH)
 #define FIRMWARE_VERSION "0.50"

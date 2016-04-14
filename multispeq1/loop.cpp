@@ -398,7 +398,7 @@ void loop() {
             Serial_Print(Yval);
             Serial_Print(",");
             Serial_Print(Zval);
-            Serial_Print(",");
+            Serial_Print_Line(",");
             delay(100);
           }
           Serial_Read();
@@ -417,7 +417,7 @@ void loop() {
             Serial_Print(Ycomp);
             Serial_Print(",");
             Serial_Print(Zcomp);
-            Serial_Print(",");
+            Serial_Print_Line(",");
           }
           Serial_Read();
         }

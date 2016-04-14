@@ -400,6 +400,57 @@ void loop() {
         Serial_Print_Line(eeprom->mag_cal[1][1]);
         Serial_Printf("%ld\n", eeprom->device_id);
         break;
+      case 1029:                                                                   // save user defined value to accelerometer
+          int Xval, Yval, Zval;
+          while (Serial_Peek() != '1') {
+            MMA8653FC_read(&Xval,&Yval,&Zval);
+            Serial_Print_Float(Xval,6);
+            Serial_Print(",");
+            Serial_Print_Float(Yval,6);
+            Serial_Print(",");
+            Serial_Print_Float(Zval,6);
+            Serial_Print(",");
+            delay(100);
+          }
+          Serial_Read();
+          break;
+      case 1030:                                                                   // save user defined value to compass
+          int Xcomp, Ycomp, Zcomp;
+          while (Serial_Peek() != '1') {
+            MAG3110_read(&Xcomp,&Ycomp,&Zcomp);
+            delay(200);
+            Serial_Print_Float(Xcomp,6);
+            Serial_Print(",");
+            Serial_Print_Float(Ycomp,6);
+            Serial_Print(",");
+            Serial_Print_Float(Zcomp,6);
+            Serial_Print(",");
+          }
+          Serial_Read();
+          break;
+      case 1031:                                                                   // save user defined value to EEPROM
+//          Xval, Yval, Zval;
+//          Xcomp, Ycomp, Zcomp;
+          while (Serial_Peek() != '1') {
+            MMA8653FC_read(&Xval,&Yval,&Zval);
+            MAG3110_read(&Xcomp,&Ycomp,&Zcomp);
+            delay(200);
+            Serial_Print_Float(Xval,6);
+            Serial_Print(",");
+            Serial_Print_Float(Yval,6);
+            Serial_Print(",");
+            Serial_Print_Float(Zval,6);
+            Serial_Print(",");
+            Serial_Print_Float(Xcomp,6);
+            Serial_Print(",");
+            Serial_Print_Float(Ycomp,6);
+            Serial_Print(",");
+            Serial_Print_Float(Zcomp,6);
+            Serial_Print(",");
+          }
+          Serial_Read();
+          break;
+        
       case 4044:
         {
           // JZ test - do not remove

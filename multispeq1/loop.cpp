@@ -621,7 +621,7 @@ void loop() {
     }
   }
 
-  //  Serial_Printf("got % d protocols\n", number_of_protocols);
+  //  Serial_Printf("got %d protocols\n", number_of_protocols);
 
   if (DEBUGSIMPLE) {
     // print each json
@@ -637,7 +637,7 @@ void loop() {
 
   crc32_init();          // reset CRC
 
-  Serial_Printf(" {\"device_id\":%ld", eeprom->device_id);
+  Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"firmware_version\":%s", FIRMWARE_VERSION);
   Serial_Print(",\"sample\":[");
 

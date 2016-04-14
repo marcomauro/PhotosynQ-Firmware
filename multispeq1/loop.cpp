@@ -29,9 +29,11 @@ int abort_cmd(void);
 void environmentals(JsonArray a, const int x);
 void environmentals2(JsonArray a, const int x);
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode);
-void MAG3110_read (int *x,int *y,int *z);
+void MAG3110_read (int *x, int *y, int *z);
 void MMA8653FC_read(int *axeXnow, int *axeYnow, int *axeZnow);
-           
+float MLX90615_Read(int TaTo);
+
+
 // Globals (try to avoid)
 
 int averages = 1;   // ??
@@ -402,10 +404,12 @@ void loop() {
         Serial_Print_Line(eeprom->mag_cal[1][1]);
         Serial_Printf("%ld\n", eeprom->device_id);
         break;
-      case 1029:                                                                   // save user defined value to accelerometer
+      case 1029:                                                                   // read accelerometer
+        {
           int Xval, Yval, Zval;
+          Serial_Flush_Input();
           while (Serial_Peek() != '1') {
-            MMA8653FC_read(&Xval,&Yval,&Zval);
+            MMA8653FC_read(&Xval, &Yval, &Zval);
             Serial_Print(Xval);
             Serial_Print(",");
             Serial_Print(Yval);
@@ -415,11 +419,14 @@ void loop() {
             delay(100);
           }
           Serial_Read();
-          break;
-      case 1030:                                                                   // save user defined value to compass
+        }
+        break;
+      case 1030:                                                                   // read compass
+        {
           int Xcomp, Ycomp, Zcomp;
+          Serial_Flush_Input();
           while (Serial_Peek() != '1') {
-            MAG3110_read(&Xcomp,&Ycomp,&Zcomp);
+            MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
             delay(200);
             Serial_Print(Xcomp);
             Serial_Print(",");
@@ -429,30 +436,43 @@ void loop() {
             Serial_Print(",");
           }
           Serial_Read();
-          break;
-      case 1031:                                                                   // save user defined value to EEPROM
-//          Xval, Yval, Zval;
-//          Xcomp, Ycomp, Zcomp;
+        }
+        break;
+      case 1031:                                               // read accel and compass
+        {
+          int Xval, Yval, Zval;
+          int Xcomp, Ycomp, Zcomp;
+          Serial_Flush_Input();
           while (Serial_Peek() != '1') {
-            MMA8653FC_read(&Xval,&Yval,&Zval);
-            MAG3110_read(&Xcomp,&Ycomp,&Zcomp);
+            MMA8653FC_read(&Xval, &Yval, &Zval);
+            MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
             delay(200);
-            Serial_Print(Xval);
-            Serial_Print(",");
-            Serial_Print(Yval);
-            Serial_Print(",");
-            Serial_Print(Zval);
-            Serial_Print(",");
-            Serial_Print(Xcomp);
-            Serial_Print(",");
-            Serial_Print(Ycomp);
-            Serial_Print(",");
-            Serial_Print(Zcomp);
-            Serial_Print(",");
+            Serial_Printf("%d,%d,%d,%d,%d,%d\n", Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
           }
           Serial_Read();
-          break;
-        
+        }
+        break;
+
+      case 1032:                                              // read hall sensor
+        {
+          Serial_Flush_Input();
+          while (Serial_Peek() != '1') {
+            delay(200);
+            Serial_Printf("%.1f\n", (analogRead(HALL_OUT)+ analogRead(HALL_OUT) + analogRead(HALL_OUT)) / 3.0);  // should take the median of 100 values
+          }
+          Serial_Read();
+        }
+        break;
+
+      case 1076:                                              // read IR sensor
+        Serial_Flush_Input();
+        while (Serial_Peek() != '1') {
+          Serial_Print_Line(MLX90615_Read(0), 1);
+          delay(500);
+        }
+        Serial_Read();
+        break;
+
       case 4044:
         {
           // JZ test - do not remove
@@ -479,10 +499,10 @@ void loop() {
           interrupts();
           for (int i = 0; i < SAMPLES; ++i) {
             val[i] += i * 1.4;                                // adjust for droop (about 1 count per sample)
-            Serial_Printf("%d\n", (int)val[i]);
+            Serial_Printf(" % d\n", (int)val[i]);
           }
-          Serial_Printf("single pulse stdev = %.2f AD counts\n", stdev16(val, SAMPLES));
-          Serial_Printf("time = %d usec for %d samples\n", delta_time, SAMPLES);
+          Serial_Printf("single pulse stdev = % .2f AD counts\n", stdev16(val, SAMPLES));
+          Serial_Printf("time = % d usec for % d samples\n", delta_time, SAMPLES);
         }
         break;
 
@@ -521,11 +541,11 @@ void loop() {
             interrupts();
             data[count] = median16(val, SAMPLES);
             if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-            Serial_Printf("%d,%d\n", i, data[count]);
+            Serial_Printf(" % d, % d\n", i, data[count]);
             ++count;
           } // for
           // results from each pulse are in data[]
-          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count), data[0]);
+          Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
         }
         break;
 
@@ -568,14 +588,14 @@ void loop() {
 
             data[count] = median16(val, SAMPLES);
             if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-            //Serial_Printf("%d,%d\n", i, data[count]);
+            //Serial_Printf(" % d, % d\n", i, data[count]);
             ++count;
           } // for
 
           stopTimers();
 
           // results from each pulse are in data[]
-          Serial_Printf("pulse to pulse stdev = %.2f AD counts, first = %d\n\n", stdev16(data, count), data[0]);
+          Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
         }
         break;
 
@@ -616,12 +636,12 @@ void loop() {
     }
   }
 
-  //  Serial_Printf("got %d protocols\n", number_of_protocols);
+  //  Serial_Printf("got % d protocols\n", number_of_protocols);
 
   if (DEBUGSIMPLE) {
     // print each json
     for (int i = 0; i < number_of_protocols; i++) {
-      //Serial_Printf("Incoming JSON %d as received by Teensy: %s", i, json2[i]);
+      //Serial_Printf("Incoming JSON % d as received by Teensy : % s", i, json2[i]);
     } // for
   } // DEBUGSIMPLE
 
@@ -632,7 +652,7 @@ void loop() {
 
   crc32_init();          // reset CRC
 
-  Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
+  Serial_Printf(" {\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"firmware_version\":%s", FIRMWARE_VERSION);
   Serial_Print(",\"sample\":[");
 
@@ -969,16 +989,16 @@ void loop() {
 
             _number_samples = number_samples.getLong(cycle);                                               // set the _number_samples for this cycle
             assert(_number_samples >= 0 && _number_samples < 500);
-            
+
             _meas_light = meas_lights.getArray(cycle).getLong(meas_number % meas_array_size);             // move to next measurement light
             uint16_t _m_intensity = m_intensities.getArray(cycle).getLong(meas_number % meas_array_size);  // move to next measurement light intensity
             assert(_m_intensity >= 0 && _m_intensity <= 4095);                                             // error checking is important...
-            
+
             uint16_t detector = detectors.getArray(cycle).getLong(meas_number % meas_array_size);          // move to next detector
             assert(detector >= 1 && detector <= 10);
-            
+
             uint16_t _reference = reference.getArray(cycle).getLong(meas_number % meas_array_size);
-            
+
             if (_number_samples == 0) {                                                                    // if _number_samples wasn't set or == 0, set it automatically to 19 (default)
               _number_samples = 19;
             }
@@ -1343,7 +1363,7 @@ void loop() {
         r_average_forpar = 0;
         g_average_forpar = 0;
         b_average_forpar = 0;
-        
+
         if (CORAL_SPEQ) {
           for (int i = 0; i < SPEC_CHANNELS; i++)
             spec_data_average [i] = 0;
@@ -1383,6 +1403,9 @@ abort:
   Serial_Print_CRC();
 
   act_background_light = 0;          // ??
+
+  // turn off all lights (just in case)
+  // TODO
 
   if (data_raw_average)
     free(data_raw_average);            // free the calloc() of data_raw_average

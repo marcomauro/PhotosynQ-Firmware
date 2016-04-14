@@ -212,11 +212,12 @@
 #define SPEC_CHANNELS    256
 uint16_t spec_data[SPEC_CHANNELS];
 unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
+
+// function definitions used in this file
 int MAG3110_init(void);           // initialize compass
-int MMA8653FC_init();         // initialize accelerometer
-void MMA8653FC_read(int, int, int);
-void MAG3110_read (int,int,int);
-int idx = 0;
+int MMA8653FC_init(void);         // initialize accelerometer
+
+//int idx = 0;
 #endif
 
 // don't make these global

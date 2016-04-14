@@ -29,7 +29,9 @@ int abort_cmd(void);
 void environmentals(JsonArray a, const int x);
 void environmentals2(JsonArray a, const int x);
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode);
-
+void MAG3110_read (int *x,int *y,int *z);
+void MMA8653FC_read(int *axeXnow, int *axeYnow, int *axeZnow);
+           
 // Globals (try to avoid)
 
 int averages = 1;   // ??
@@ -94,9 +96,9 @@ static float objt_average = 0;
 //#define LED470         20
 //#define LED2200K       2
 #define SPEC_CHANNELS    256
-uint16_t spec_data[SPEC_CHANNELS];
-unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
-int idx = 0;
+extern uint16_t spec_data[SPEC_CHANNELS];
+extern unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
+extern int idx;
 
 //////////////////////// MAIN LOOP /////////////////////////
 
@@ -404,11 +406,11 @@ void loop() {
           int Xval, Yval, Zval;
           while (Serial_Peek() != '1') {
             MMA8653FC_read(&Xval,&Yval,&Zval);
-            Serial_Print_Float(Xval,6);
+            Serial_Print(Xval);
             Serial_Print(",");
-            Serial_Print_Float(Yval,6);
+            Serial_Print(Yval);
             Serial_Print(",");
-            Serial_Print_Float(Zval,6);
+            Serial_Print(Zval);
             Serial_Print(",");
             delay(100);
           }
@@ -419,11 +421,11 @@ void loop() {
           while (Serial_Peek() != '1') {
             MAG3110_read(&Xcomp,&Ycomp,&Zcomp);
             delay(200);
-            Serial_Print_Float(Xcomp,6);
+            Serial_Print(Xcomp);
             Serial_Print(",");
-            Serial_Print_Float(Ycomp,6);
+            Serial_Print(Ycomp);
             Serial_Print(",");
-            Serial_Print_Float(Zcomp,6);
+            Serial_Print(Zcomp);
             Serial_Print(",");
           }
           Serial_Read();
@@ -435,17 +437,17 @@ void loop() {
             MMA8653FC_read(&Xval,&Yval,&Zval);
             MAG3110_read(&Xcomp,&Ycomp,&Zcomp);
             delay(200);
-            Serial_Print_Float(Xval,6);
+            Serial_Print(Xval);
             Serial_Print(",");
-            Serial_Print_Float(Yval,6);
+            Serial_Print(Yval);
             Serial_Print(",");
-            Serial_Print_Float(Zval,6);
+            Serial_Print(Zval);
             Serial_Print(",");
-            Serial_Print_Float(Xcomp,6);
+            Serial_Print(Xcomp);
             Serial_Print(",");
-            Serial_Print_Float(Ycomp,6);
+            Serial_Print(Ycomp);
             Serial_Print(",");
-            Serial_Print_Float(Zcomp,6);
+            Serial_Print(Zcomp);
             Serial_Print(",");
           }
           Serial_Read();

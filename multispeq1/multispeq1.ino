@@ -198,7 +198,12 @@
 #include "utility/crc32.h"
 #include <SPI.h>    // include the new SPI library:
 
-#ifdef CORAL_SPEQ
+
+// function definitions used in this file
+int MAG3110_init(void);           // initialize compass
+int MMA8653FC_init(void);         // initialize accelerometer
+
+
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
 //#define SPEC_EOS       NA
@@ -212,15 +217,8 @@
 #define SPEC_CHANNELS    256
 uint16_t spec_data[SPEC_CHANNELS];
 unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
+int idx = 0;
 
-// function definitions used in this file
-int MAG3110_init(void);           // initialize compass
-int MMA8653FC_init(void);         // initialize accelerometer
-
-//int idx = 0;
-#endif
-
-// don't make these global
 #if 0
 #define NUM_PINS 26
 

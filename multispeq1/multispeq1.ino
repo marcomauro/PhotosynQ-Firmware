@@ -198,33 +198,26 @@
 #include "utility/crc32.h"
 #include <SPI.h>    // include the new SPI library:
 
-
-//void call_print_calibration (int _print);
-
-// set internal analog reference
-// any unused pins? ... organize by function on teensy please!  Make sure thisis updated to teensy 3.2 (right now file == teens 31.sch
-
-/*
-  #define ANALOGRESOLUTION 16
-  #define MEASURINGLIGHT1 15      // comes installed with 505 cyan z led with a 20 ohm resistor on it.  The working range is 0 - 255 (0 is high, 255 is low)
-  #define MEASURINGLIGHT2 16      // comes installed with 520 green z led with a 20 ohm resistor on it.  The working range is 0 - 255 (0 is high, 255 is low)
-  #define MEASURINGLIGHT3 11      // comes installed with 605 amber z led with a 20 ohm resistor on it.  The working range is high 0 to low 80 (around 80 - 90), with zero off safely at 120
-  #define MEASURINGLIGHT4 12      // comes installed with 3.3k ohm resistor with 940 LED from osram (SF 4045).  The working range is high 0 to low 95 (80 - 100) with zer off safely at 110
-  #define ACTINICLIGHT1 20
-  #define ACTINICLIGHT2 2
-  #define CALIBRATINGLIGHT1 14
-  #define CALIBRATINGLIGHT2 10
-  #define ACTINICLIGHT_INTENSITY_SWITCH 5
-  #define DETECTOR1 34
-  #define DETECTOR2 35
-  #define HOLDM 6
-  #define PWR_OFF_LIGHTS 22           // teensy shutdown pin auto power off
-  #define PWR_OFF 21           // teensy shutdown pin auto power off for lights power supply (TL1963)
-  #define BATT_LEVEL 17               // measure battery level
-  #define LDAC1 23
-*/
-
-
+#ifdef CORAL_SPEQ
+//////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
+#define SPEC_GAIN      28
+//#define SPEC_EOS       NA
+#define SPEC_ST        26
+#define SPEC_CLK       25
+#define SPEC_VIDEO     A10
+//#define LED530         15
+//#define LED2200k       16
+//#define LED470         20
+//#define LED2200K       2
+#define SPEC_CHANNELS    256
+uint16_t spec_data[SPEC_CHANNELS];
+unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
+int MAG3110_init(void);           // initialize compass
+int MMA8653FC_init();         // initialize accelerometer
+void MMA8653FC_read(int, int, int);
+void MAG3110_read (int,int,int);
+int idx = 0;
+#endif
 
 // don't make these global
 #if 0
@@ -357,8 +350,8 @@ void setup() {
 #endif
 
   /*NOTES*/  // REINITIATE ONCE MAG AND ACCEL ARE CONNECTED
-  //  MAG3110_init();           // initialize compass
-  //  MMA8653FC_init();         // initialize accelerometer
+    MAG3110_init();           // initialize compass
+    MMA8653FC_init();         // initialize accelerometer
 
 #ifdef BME280
   // pressure/humidity/temp sensors

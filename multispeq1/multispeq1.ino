@@ -27,11 +27,10 @@
   I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.
 
   Hardware
-  Noise in detector - use big  caps?  ANy better ideas?
+  Noise in detector - big caps help, but not completely.  ANy better ideas?
   Low DAC values (eg, LED5 read from main) cause much higher stdev
-  Detector DC filter is significantly effecting pulses < 100 usec - weaken it
   Detector has a DC offset (which causes ADC to read zero)
-  Pulse width vs detector output is very non-linear - caused by the DC filter?
+  Pulse width vs detector output is non-linear - caused by the DC filter?
 
   x Switch to combined ISR for LED pulses (no glitches)
 
@@ -202,7 +201,7 @@
 // function definitions used in this file
 int MAG3110_init(void);           // initialize compass
 int MMA8653FC_init(void);         // initialize accelerometer
-
+void MLX90615_init(void);
 
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
@@ -348,10 +347,15 @@ void setup() {
   //digitalWrite(SPEC_GAIN, LOW); //LOW Gain
 #endif
 
-  /*NOTES*/  // REINITIATE ONCE MAG AND ACCEL ARE CONNECTED
-    MAG3110_init();           // initialize compass
-    MMA8653FC_init();         // initialize accelerometer
+  MAG3110_init();           // initialize compass
+  MMA8653FC_init();         // initialize accelerometer
 
+  { //  init ADC
+    ADC *adc = new ADC();   // adc object
+    adc->setAveraging(16);  // set number of averages
+    adc->setResolution(16); // set bits of resolution
+  }
+    
 #ifdef BME280
   // pressure/humidity/temp sensors
   // note: will need 0x76 or 0x77 to support two chips
@@ -365,13 +369,6 @@ void setup() {
 #endif
 
   //  PAR_init();               // color sensor
-
-#ifdef MLX90615
-  MLX90615_init();          // IR sensor
-#ifdef DEBUGSIMPLE
-  Serial.printf("IR temp = %f C\n", MLX90615_Read(0));
-#endif
-#endif
 
 #undef DEBUGSIMPLE
 
@@ -425,16 +422,18 @@ void set_device_info(const int _set) {
     long val;
 
     // please enter new device ID (lower 4 bytes of BLE MAC address) followed by '+'
-    val = eeprom->device_id = Serial_Input_Long("+", 0);              // save to eeprom
-    if (eeprom->device_id != val)
+    val =  Serial_Input_Long("+", 0);              // save to eeprom
+    if (eeprom->device_id != val) {
       eeprom->device_id = val;              // save to eeprom
-    delay(1);
+      delay(1);
+    }
 
     // please enter new date of manufacture (yyyymm) followed by '+'
     val = Serial_Input_Long("+", 0);
-    if (eeprom->manufacture_date != val)
+    if (eeprom->manufacture_date != val) {
       eeprom->manufacture_date = val;
-    delay(1);
+      delay(1);
+    }
 
     // print again for verification
 

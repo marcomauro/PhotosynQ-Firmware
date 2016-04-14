@@ -372,38 +372,21 @@ void loop() {
           Serial_Print_Line("test print");
         }
         break;
+        
       case 1025:  {                                                                         // Test to make sure that savings parameters to EEPROM works
           Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");
           long baudrate = Serial_Input_Long();
           Serial_Begin((int) baudrate);
         }
         break;
-      case 1026:                                                                         // Test to make sure that savings parameters to EEPROM works
-        //        Serial_Print_Line("q2asdf asd fasdfasdf asdfas fa sfda sfa sdf asdf asdfasdf asdfasfasdfa sdfasdf45 asdfasdf as dfasdfa sdf45a sdfa dfa sdfa dfasdfasdf45asd asdfasfd asdfa fdasdfa sfd the end!");
-        //       Serial_Print_Line("q2asdf asd fasdfasdf asdfas fa sfda sfa sdf asdf asdfasdf asdfasfasdfa sdfasdf45 asdfasdf as dfasdfa sdf45a sdfa dfa sdfa dfasdfasdf45asd asdfasfd asdfa fdasdfa sfd the end!");
-
-        for (int i = 0; i < 10; i++) {
-          Serial_Print_Line("1234567890123456789");
-        }
-
-        /*
-                Serial_Print_Line("This is the first really long sentence!!!");
-                delay(50);
-                Serial_Print_Line("And the second long sentence is also long, blah blah blah???");
-                delay(50);
-                Serial_Print_Line("We finally made it to the end of something that we can actually read what a pain in the ass().");
-                Serial_Print("new new new");
-                Serial_Print("new new new");
-                Serial_Print("new new new");
-                Serial_Print("new new new");
-        */
-        break;
+        
       case 1028:
-        Serial_Printf("%d\n", eeprom->manufacture_date);
+        Serial_Print_Line(eeprom->manufacture_date);
         Serial_Print_Line(eeprom->mag_bias[1]);
         Serial_Print_Line(eeprom->mag_cal[1][1]);
         Serial_Printf("%ld\n", eeprom->device_id);
         break;
+        
       case 1029:                                                                   // read accelerometer
         {
           int Xval, Yval, Zval;
@@ -421,6 +404,7 @@ void loop() {
           Serial_Read();
         }
         break;
+        
       case 1030:                                                                   // read compass
         {
           int Xcomp, Ycomp, Zcomp;
@@ -438,6 +422,7 @@ void loop() {
           Serial_Read();
         }
         break;
+        
       case 1031:                                               // read accel and compass
         {
           int Xval, Yval, Zval;
@@ -457,8 +442,8 @@ void loop() {
         {
           Serial_Flush_Input();
           while (Serial_Peek() != '1') {
-            delay(200);
-            Serial_Printf("%.1f\n", (analogRead(HALL_OUT)+ analogRead(HALL_OUT) + analogRead(HALL_OUT)) / 3.0);  // should take the median of 100 values
+            delay(500);
+            Serial_Printf("%d\n", analogRead(HALL_OUT));  // should take the median of 100 values
           }
           Serial_Read();
         }
@@ -467,7 +452,7 @@ void loop() {
       case 1076:                                              // read IR sensor
         Serial_Flush_Input();
         while (Serial_Peek() != '1') {
-          Serial_Print_Line(MLX90615_Read(0), 1);
+          Serial_Print_Line((MLX90615_Read(0)+MLX90615_Read(0)+MLX90615_Read(0)) / 3.0, 1);
           delay(500);
         }
         Serial_Read();
@@ -1092,7 +1077,7 @@ void loop() {
                   Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
                   Serial_Printf("\n _number_samples, _reference, adc_show: %d %d %d\n", _number_samples, _reference, adc_show);
                 } // PULSERDEBUG
-              }
+              } // for
             }
 
             if (Serial_Available() && Serial_Input_Long("+", 1) == -1) {                                      // exit protocol completely if user enters -1+

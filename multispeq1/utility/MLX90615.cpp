@@ -207,6 +207,3 @@ uint16_t MLX90615_getAddress(void) {
   return (dataHigh << 8) | dataLow;
 }    // MLX90615_setAddress()
 
-
-
-  

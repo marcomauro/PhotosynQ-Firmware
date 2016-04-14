@@ -32,7 +32,7 @@
   Detector DC filter is significantly effecting pulses < 100 usec - weaken it
   Detector has a DC offset (which causes ADC to read zero)
   Pulse width vs detector output is very non-linear - caused by the DC filter?
-  
+
   x Switch to combined ISR for LED pulses (no glitches)
 
   Convert all possible into an array to make designing protocols more user friendly
@@ -301,7 +301,7 @@ void setup() {
   // set up MCU pins
 
   // set up LED on/off pins
-  for (unsigned i = 1; i < NUM_LEDS+1; ++i)
+  for (unsigned i = 1; i < NUM_LEDS + 1; ++i)
     pinMode(LED_to_pin[i], OUTPUT);
 
   pinMode(HALL_OUT, INPUT);                                                       // set hall effect sensor to input so it can be read
@@ -321,7 +321,7 @@ void setup() {
   digitalWriteFast(HOLDM, HIGH);                  // discharge cap
   pinMode(HOLDADD, OUTPUT);
   digitalWriteFast(HOLDADD, HIGH);                // discharge cap
-  
+
   pinMode(BLANK, OUTPUT);                                                            // used as a blank pin to pull high and low if the meas lights is otherwise blank (set to 0)
 
 #if 0
@@ -431,17 +431,17 @@ void set_device_info(const int _set) {
 
   if (_set == 1) {
     long val;
-    
-   // please enter new device ID (lower 4 bytes of BLE MAC address) followed by '+'    
-    val = eeprom->device_id = Serial_Input_Long("+", 0);              // save to eeprom     
+
+    // please enter new device ID (lower 4 bytes of BLE MAC address) followed by '+'
+    val = eeprom->device_id = Serial_Input_Long("+", 0);              // save to eeprom
     if (eeprom->device_id != val)
-       eeprom->device_id = val;              // save to eeprom
+      eeprom->device_id = val;              // save to eeprom
     delay(1);
 
     // please enter new date of manufacture (yyyymm) followed by '+'
     val = Serial_Input_Long("+", 0);
     if (eeprom->manufacture_date != val)
-       eeprom->manufacture_date = val;
+      eeprom->manufacture_date = val;
     delay(1);
 
     // print again for verification
@@ -632,7 +632,7 @@ float stdev16(uint16_t val[], const int count)
 {
   // calc stats
   double mean = 0, delta = 0, m2 = 0, variance = 0, stdev = 0, n = 0;
-  
+
   for (int i = 0; i < count; i++) {
     ++n;
     delta = val[i] - mean;
@@ -654,10 +654,10 @@ float stdev16(uint16_t val[], const int count)
 int check_protocol(char *str)
 {
   int bracket = 0, curly = 0;
-  char *start = str;
+  char *ptr = str;
 
-  while (*str != 0) {
-    switch (*str) {
+  while (*ptr != 0) {
+    switch (*ptr) {
       case '[':
         ++bracket;
         break;
@@ -671,35 +671,37 @@ int check_protocol(char *str)
         --curly;
         break;
     } // switch
-    ++str;
+    ++ptr;
   } // while
 
   if (bracket != 0 || curly != 0)  // unbalanced - can't be correct
     return 0;
 
-  // check CRC - 8 hex digits immediately after the closing }
-  char *ptr = strrchr(start, '}'); // find last }
-  if (!ptr)                        // no } found - how can that be?
+  // check CRC - 8 hex digits immediately after the closing ]
+  ptr = strrchr(str, ']'); // find last ]
+  if (!ptr)                        // no ] found - how can that be?
     return 0;
 
-  if (!isxdigit(*(ptr + 1)))      // hex digit follows last }
+  ++ptr;                      // char after last ]
+
+  if (!isxdigit(*(ptr)))      // hex digit follows last ] ?
     return 1;                    // no CRC so report OK
 
   // CRC is there - check it
 
-  crc32_init();     // find crc of json (from first { to last })
-  crc32_buf (start, 1 + ptr - start);
+  crc32_init();     // find crc of json (from first [ to last ])
+  crc32_buf (str, ptr - str);
 
   // note: must be exactly 8 upper case hex digits
-  if (strncmp(int32_to_hex (crc32_value()), ptr + 1, 8) != 0) {
+  if (strncmp(int32_to_hex (crc32_value()), ptr, 8) != 0) {
     return 0;                 // bad CRC
   }
 
-  return 1;
+  return 1;                   // CRC is OK
 } // check_protocol()
 
 
-const unsigned long SHUTDOWN=10000;     // power down after X ms of inactivity
+const unsigned long SHUTDOWN = 10000;   // power down after X ms of inactivity
 static unsigned long last_activity = millis();
 // if there hasn't been any activity for x seconds, then power down
 // also power down if the battery is too low
@@ -708,9 +710,9 @@ void powerdown() {
   // only the BLE module can power up/down the MCU
 #if 0
   if (millis() - last_activity > SHUTDOWN) {
-     Serial_Print_Line("powerdown");
-     // send request to BLE module to power down this MCU
-     for (;;) {}
+    Serial_Print_Line("powerdown");
+    // send request to BLE module to power down this MCU
+    for (;;) {}
   } // if
 #endif
 }
@@ -719,11 +721,11 @@ void activity() {
   last_activity = millis();
 }
 
-// Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  
+// Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.
 // This should run just before any new protocol - if it’s too low, report to the user
 
 int battery_check()
 {
-   return 0;
+  return 0;
 }
 

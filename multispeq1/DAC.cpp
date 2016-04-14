@@ -53,13 +53,15 @@ int DAC_init(void)
 
 void DAC_set(unsigned int led, unsigned int value)
 {
-  if (led ==  0)                                            // if you get a zero, skip it
+  if (led ==  0)                                            // if you get a zero, quietly skip it
     return;
 
   assert(led > 0 && led <= NUM_LEDS);                       // any other wrong value is a fatal error
   
   led -= 1;   // convert to 0-x numbering
 
+  assert(value >= 0 && value <= 4095);
+  
   // for readability, break these out
   int dac_number = LED_to_dac[led];
   int dac_channel = LED_to_channel[led];

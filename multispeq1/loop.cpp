@@ -910,24 +910,30 @@ void loop() {
               }
             }
 
-
             if (PULSERDEBUG) {
               Serial_Printf("pulsedistance = %d, pulsesize = %d, cycle = %d, measurement number = %d, measurement array size = %d,total pulses = %d\n", (int) _pulsedistance, (int) _pulsesize, (int) cycle, (int) meas_number, (int) meas_array_size, (int) total_pulses);
             } // PULSERDEBUG
 
             _number_samples = number_samples.getLong(cycle);                                               // set the _number_samples for this cycle
+            assert(_number_samples >= 0 && _number_samples < 500);
+            
             _meas_light = meas_lights.getArray(cycle).getLong(meas_number % meas_array_size);             // move to next measurement light
             uint16_t _m_intensity = m_intensities.getArray(cycle).getLong(meas_number % meas_array_size);  // move to next measurement light intensity
+            assert(_m_intensity >= 0 && _m_intensity <= 4095);                                             // error checking is important...
+            
             uint16_t detector = detectors.getArray(cycle).getLong(meas_number % meas_array_size);          // move to next detector
+            assert(detector >= 1 && detector <= 10);
+            
             uint16_t _reference = reference.getArray(cycle).getLong(meas_number % meas_array_size);
-            if (_number_samples == 0) {                                                                    // if _number_samples wasn't set or == 0, set it automatically to 40 (default)
-              _number_samples = 11;
+            
+            if (_number_samples == 0) {                                                                    // if _number_samples wasn't set or == 0, set it automatically to 19 (default)
+              _number_samples = 19;
             }
             if (_reference != 0) {                                                                      // if using the reference detector, make sure to half the sample rate (1/2 sample from main, 1/2 sample from detector)
               _number_samples = _number_samples / 2;
             }
             if (_reference == 0) {                                                                      // If the reference detector isn't turned on, then we need to set the ADC first
-              AD7689_set (detector - 1);        // set ADC channel to main board, main detector
+              AD7689_set (detector - 1);        // set ADC channel as specified
             }
 
             if (PULSERDEBUG) {
@@ -1023,7 +1029,6 @@ void loop() {
               x = averages;
               z = total_pulses;
             }
-
 
             uint16_t sample_adc[_number_samples];                                                             // initialize the variables to hold the main and reference detector data
             uint16_t sample_adc_ref[_number_samples];

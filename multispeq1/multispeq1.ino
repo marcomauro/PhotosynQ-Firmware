@@ -352,7 +352,7 @@ void setup() {
 
   { //  init ADC
     ADC *adc = new ADC();   // adc object
-    adc->setAveraging(16);  // set number of averages
+    adc->setAveraging(4);   // set number of averages
     adc->setResolution(16); // set bits of resolution
   }
     

@@ -372,21 +372,21 @@ void loop() {
           Serial_Print_Line("test print");
         }
         break;
-        
+
       case 1025:  {                                                                         // Test to make sure that savings parameters to EEPROM works
           Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");
           long baudrate = Serial_Input_Long();
           Serial_Begin((int) baudrate);
         }
         break;
-        
+
       case 1028:
         Serial_Print_Line(eeprom->manufacture_date);
         Serial_Print_Line(eeprom->mag_bias[1]);
         Serial_Print_Line(eeprom->mag_cal[1][1]);
         Serial_Printf("%ld\n", eeprom->device_id);
         break;
-        
+
       case 1029:                                                                   // read accelerometer
         {
           int Xval, Yval, Zval;
@@ -404,7 +404,7 @@ void loop() {
           Serial_Read();
         }
         break;
-        
+
       case 1030:                                                                   // read compass
         {
           int Xcomp, Ycomp, Zcomp;
@@ -422,7 +422,7 @@ void loop() {
           Serial_Read();
         }
         break;
-        
+
       case 1031:                                               // read accel and compass
         {
           int Xval, Yval, Zval;
@@ -438,21 +438,30 @@ void loop() {
         }
         break;
 
-      case 1032:                                              // read hall sensor
+      case 1033:                                              // read hall sensor (13 bits are possible)
         {
           Serial_Flush_Input();
           while (Serial_Peek() != '1') {
-            delay(500);
-            Serial_Printf("%d\n", analogRead(HALL_OUT));  // should take the median of 100 values
-          }
+            long sum = 0;
+            const int samples = 1000;
+
+            delay(200);
+            
+            for (int i = 0; i < samples; ++i) {
+              sum += analogRead(HALL_OUT);
+            }
+            Serial_Printf("%d\n", sum / samples);
+            delay(1);
+          } // while
           Serial_Read();
         }
         break;
 
+
       case 1076:                                              // read IR sensor
         Serial_Flush_Input();
         while (Serial_Peek() != '1') {
-          Serial_Print_Line((MLX90615_Read(0)+MLX90615_Read(0)+MLX90615_Read(0)) / 3.0, 1);
+          Serial_Print_Line((MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0, 1);
           delay(500);
         }
         Serial_Read();

@@ -33,6 +33,7 @@ class eeprom_class
     */
     //    float light_slope;
     float light_yint;
+    float light_slope_all;
     float light_slope_r;
     float light_slope_g;
     float light_slope_b;

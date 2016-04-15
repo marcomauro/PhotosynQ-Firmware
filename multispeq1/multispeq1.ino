@@ -201,7 +201,9 @@
 // function definitions used in this file
 int MAG3110_init(void);           // initialize compass
 int MMA8653FC_init(void);         // initialize accelerometer
-void MLX90615_init(void);
+void MLX90615_init(void);         // initialize contactless temperature sensor
+void PAR_init(void);               // initialize PAR and RGB sensor
+
 
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
@@ -368,7 +370,7 @@ void setup() {
 #endif
 #endif
 
-  //  PAR_init();               // color sensor
+  PAR_init();               // color sensor
 
 #undef DEBUGSIMPLE
 
@@ -415,7 +417,7 @@ void reset_freq() {
 // read/write device_id and manufacture_date to eeprom
 
 void set_device_info(const int _set) {
-  Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
   Serial_Print_CRC();
 
   if (_set == 1) {
@@ -437,7 +439,7 @@ void set_device_info(const int _set) {
 
     // print again for verification
 
-    Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
     Serial_Print_CRC();
   } // if
 

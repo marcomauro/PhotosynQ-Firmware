@@ -26,8 +26,8 @@ int Light_Intensity(int var1);
 static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
 void set_device_info(const int _set);
 int abort_cmd(void);
-void environmentals(JsonArray a, const int x);
-void environmentals2(JsonArray a, const int x);
+void environmentals(JsonArray a, const int x, int beforeOrAfter);
+//void environmentals2(JsonArray a, const int x);
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode);
 void MAG3110_read (int *x, int *y, int *z);
 void MMA8653FC_read(int *axeXnow, int *axeYnow, int *axeZnow);
@@ -36,7 +36,7 @@ float MLX90615_Read(int TaTo);
 
 // Globals (try to avoid)
 
-int averages = 1;   // ??
+int averages = 1;                        // ??
 uint8_t _meas_light;                    // measuring light to be used during the interrupt
 uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
 static volatile uint8_t led_off = 0;    // status of LED set by ISR
@@ -308,17 +308,25 @@ void loop() {
         break;
 
       case 1011: {                                                                         // continuously output until user enter -1+
-          Serial_Print("{\"light_intensity\":[");
+          int Xcomp, Ycomp, Zcomp;
+          int Xval, Yval, Zval;
           int leave = 0;
-          int sensor_value;
+          const int samples = 1000;
           while (leave != -1) {
-            leave = Serial_Input_Long("+", 2000);
-            sensor_value = 10;
-            //          sensor_value = MLX90614_Read(0);
-            Serial_Print(sensor_value);
-            Serial_Print("`,");
+            long sum = 0;
+            leave = Serial_Input_Long("+", 1000);
+            int par_raw = Light_Intensity(0);
+            float contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
+            MMA8653FC_read(&Xval, &Yval, &Zval);
+            MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
+            delay(200);
+            for (int i = 0; i < samples; ++i) {
+              sum += analogRead(HALL_OUT);
+            }
+            int hall = (sum / samples);
+            delay(1);
+            Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}\n", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
           }
-          Serial_Print("0]}");
           Serial_Print_CRC();
         }
         break;
@@ -446,7 +454,7 @@ void loop() {
             const int samples = 1000;
 
             delay(200);
-            
+
             for (int i = 0; i < samples; ++i) {
               sum += analogRead(HALL_OUT);
             }
@@ -647,6 +655,7 @@ void loop() {
   crc32_init();          // reset CRC
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
+  Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
   Serial_Printf(",\"firmware_version\":%s", FIRMWARE_VERSION);
   Serial_Print(",\"sample\":[");
 
@@ -883,7 +892,7 @@ void loop() {
           //      options for relative humidity, temperature, contactless temperature. light_intensity,co2
           //           0 - take before spectroscopy measurements
           //           1 - take after spectroscopy measurements
-          environmentals(environmental, x);
+          environmentals(environmental, x, 0);
 
           //&&
           //          analogReadAveraging(analog_averages);                                      // set analog averaging (ie ADC takes one signal per ~3u)
@@ -1263,7 +1272,7 @@ void loop() {
             0 - take before spectroscopy measurements
             1 - take after spectroscopy measurements
           */
-          environmentals(environmental, x);
+          environmentals(environmental, x, 1);
 
           if (x + 1 < averages) {                                                             //  to next average, unless it's the end of the very last run
             if (averages_delay > 0) {
@@ -1516,7 +1525,21 @@ int abort_cmd()
   return 0;    // TODO
 }
 
-void environmentals(JsonArray environmental, const int x)
+/*
+ * Here's what I propose for this:  When you call a sensor, it saves a global variable for the current sensor reading AND adds that value to another global variable for the cumulative reading which is displayed when you print.  
+ * The current reading must be global because if it is called in a function in protocol JSON it needs to be current and available
+ * The cumulative reading must be global because it needs to persist between averages
+ * In addition, sensor calls should include an option to call the calibrated value or the uncalibrated (raw) value.  Most have both values available.  
+ * 
+ * Light_intensity() has a nice structure which can be copied.  
+ * Other monday items:
+ * clean up and put items in structures
+ * implement sensor structure as described above
+ * save to eeprom as another appliction for the expression (say "save":{1:(light_intensity/2)}, ... )
+ * consider an "any" call in the save function (say "save":{any:(light_intensity/2)}) - this would allow someone only saving one value to save it in a random location, reducing the eeprom persistence problem... is this possible?  How to remember where it was saved?
+ */
+
+void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
 {
   for (int i = 0; i < environmental.getLength(); i++) {                                       // call environmental measurements after the spectroscopic measurement
     if (DEBUGSIMPLE) {
@@ -1544,6 +1567,7 @@ void environmentals(JsonArray environmental, const int x)
                     Serial_Print(",");
                   }
                 }
+
                 if (environmental.getArray(i).getLong(1) == 1 \
                 && (String) environmental.getArray(i).getString(0) == "contactless_temperature") {
                   Contactless_Temperature( environmental.getArray(i).getLong(1));
@@ -1563,8 +1587,9 @@ void environmentals(JsonArray environmental, const int x)
                     Serial_Print(",");
                   }
                 }
-    */
-    if (environmental.getArray(i).getLong(1) == 1 \
+*/
+
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "light_intensity") {
       Light_Intensity(1);
       if (x == averages - 1) {
@@ -1584,7 +1609,7 @@ void environmentals(JsonArray environmental, const int x)
         */
       }
     }
-    if (environmental.getArray(i).getLong(1) == 1 \
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "light_intensity_raw") {
       Light_Intensity(0);
       if (x == averages - 1) {
@@ -1602,7 +1627,7 @@ void environmentals(JsonArray environmental, const int x)
         Serial_Print(",");
       }
     }
-    if (environmental.getArray(i).getLong(1) == 1 \
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
@@ -1613,7 +1638,7 @@ void environmentals(JsonArray environmental, const int x)
         Serial_Print(",");
       }
     }
-    if (environmental.getArray(i).getLong(1) == 1 \
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
@@ -1624,14 +1649,14 @@ void environmentals(JsonArray environmental, const int x)
         Serial_Print(",");
       }
     }
-    if (environmental.getArray(i).getLong(1) == 1 \
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
       pinMode(pin, OUTPUT);
       digitalWriteFast(pin, setting);
     }
-    if (environmental.getArray(i).getLong(1) == 1 \
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
@@ -1655,6 +1680,8 @@ void environmentals(JsonArray environmental, const int x)
   } // for
 }  //environmentals()
 
+/*
+ * Yes this is redundant.  I just included a beforeOrAfter so you know if the protocol JSON indicated at 0 or 1 (before or after the spectral measurement)
 
 #if 0
 // TODO - is this redundant?
@@ -1669,7 +1696,6 @@ void environmentals2(JsonArray environmental, const int x)
       Serial_Print(", ");
       Serial_Print_Line(environmental.getArray(i).getLong(1));
     } // DEBUGSIMPLE
-    /*
                 if (environmental.getArray(i).getLong(1) == 0 \
                 && (String) environmental.getArray(i).getString(0) == "relative_humidity") {
                   Relative_Humidity((int) environmental.getArray(i).getLong(1));                        // if this string is in the JSON and the 2nd component in the array is == 0 (meaning they want this measurement taken prior to the spectroscopic measurement), then call the associated measurement (and so on for all if statements in this for loop)
@@ -1707,13 +1733,11 @@ void environmentals2(JsonArray environmental, const int x)
                     Serial_Print(",");
                   }
                 }
-    */
     if (environmental.getArray(i).getLong(1) == 0 \
         && (String) environmental.getArray(i).getString(0) == "light_intensity") {
       Light_Intensity(1);
       if (x == averages - 1) {
         Serial_Print("\"light_intensity\":");
-        /*
                         Serial_Print(lux_to_uE(lux_average_forpar), 2);
                         Serial_Print(",");
                         Serial_Print("\"r\":");
@@ -1725,7 +1749,7 @@ void environmentals2(JsonArray environmental, const int x)
                         Serial_Print("\"b\":");
                         Serial_Print(lux_to_uE(b_average_forpar), 2);
                         Serial_Print(",");
-        */
+
       }
     }
     if (environmental.getArray(i).getLong(1) == 0 \
@@ -1798,7 +1822,7 @@ void environmentals2(JsonArray environmental, const int x)
   }
 }
 #endif
-
+*/
 
 
 

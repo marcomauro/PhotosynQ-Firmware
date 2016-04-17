@@ -201,7 +201,9 @@
 // function definitions used in this file
 int MAG3110_init(void);           // initialize compass
 int MMA8653FC_init(void);         // initialize accelerometer
-void MLX90615_init(void);
+void MLX90615_init(void);         // initialize contactless temperature sensor
+void PAR_init(void);               // initialize PAR and RGB sensor
+
 
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
@@ -350,7 +352,6 @@ void setup() {
   MAG3110_init();           // initialize compass
   MMA8653FC_init();         // initialize accelerometer
 
-
   // ADC config
   analogReference(EXTERNAL);
   analogReadResolution(16);
@@ -360,6 +361,7 @@ void setup() {
     uint32_t mv = (178 * x * x + 2688757565 - 1184375 * x) / 372346; // milli-volts input to MCU, clips at ~3500
     assert(mv > 3400);      // voltage is too low for proper operation
   }
+  analogReference(INTERNAL);
 
 #ifdef BME280
   // pressure/humidity/temp sensors
@@ -373,7 +375,7 @@ void setup() {
 #endif
 #endif
 
-  //  PAR_init();               // color sensor
+  PAR_init();               // color sensor
 
 #undef DEBUGSIMPLE
 
@@ -420,7 +422,7 @@ void reset_freq() {
 // read/write device_id and manufacture_date to eeprom
 
 void set_device_info(const int _set) {
-  Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
   Serial_Print_CRC();
 
   if (_set == 1) {
@@ -442,7 +444,7 @@ void set_device_info(const int _set) {
 
     // print again for verification
 
-    Serial_Printf("{\"device_name\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
     Serial_Print_CRC();
   } // if
 

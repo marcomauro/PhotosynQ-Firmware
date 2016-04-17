@@ -45,3 +45,7 @@ void Serial_Print_CRC (void);
     for (;;) {} \
  }
 
+// could be useful with assert()
+// get current address
+// void* p = __builtin_return_address(0);
+// printf("0x%x\n", (unsigned int)p);

@@ -192,7 +192,7 @@
 #include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
 #define EXTERN
 #include "eeprom.h"
-#include <ADC.h>                  // internal ADC
+//#include <ADC.h>                  // internal ADC
 #include "serial.h"
 #include "utility/crc32.h"
 #include <SPI.h>    // include the new SPI library:
@@ -350,12 +350,17 @@ void setup() {
   MAG3110_init();           // initialize compass
   MMA8653FC_init();         // initialize accelerometer
 
-  { //  init ADC
-    ADC *adc = new ADC();   // adc object
-    adc->setAveraging(4);   // set number of averages
-    adc->setResolution(16); // set bits of resolution
+
+  // ADC config
+  analogReference(EXTERNAL);
+  analogReadResolution(16);
+  analogReadAveraging(4); 
+  {
+    uint32_t x = analogRead(39) >> 4;  // forumla needs 12 bits, not 16
+    uint32_t mv = (178 * x * x + 2688757565 - 1184375 * x) / 372346; // milli-volts input to MCU, clips at ~3500
+    assert(mv > 3400);      // voltage is too low for proper operation
   }
-    
+
 #ifdef BME280
   // pressure/humidity/temp sensors
   // note: will need 0x76 or 0x77 to support two chips
@@ -719,4 +724,7 @@ int battery_check()
 {
   return 0;
 }
+
+
+
 

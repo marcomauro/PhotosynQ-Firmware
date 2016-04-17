@@ -446,11 +446,12 @@ void loop() {
             const int samples = 1000;
 
             delay(200);
+            analogReference(INTERNAL);
             
             for (int i = 0; i < samples; ++i) {
-              sum += analogRead(HALL_OUT);
+              sum += analogRead(HALL_OUT);           // 0 gauss is approx 65535
             }
-            Serial_Printf("%d\n", sum / samples);
+            Serial_Printf("%d\n", 65535 - (sum / samples));
             delay(1);
           } // while
           Serial_Read();

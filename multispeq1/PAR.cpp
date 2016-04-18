@@ -3,7 +3,6 @@
 // code related to the PAR/color sensor
 
 #include <Arduino.h>
-#include "utility/Adafruit_TCS34725.h"    // color sensor
 #include "utility/TCS3471.h"              // color sensor
 #include "serial.h"
 #include "utility/crc32.h"

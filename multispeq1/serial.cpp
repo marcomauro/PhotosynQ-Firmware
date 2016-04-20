@@ -145,8 +145,10 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
   crc32_string ((char *)str);
 
   // add to resend buffer
-  strncpy(resend_buffer + resend_count,(char *)str, MAX_RESEND_SIZE - resend_count);
-  resend_count += strlen(str);
+  int count = min(strlen(str),MAX_RESEND_SIZE - resend_count);   // check for enough remaining space
+  strncpy(resend_buffer + resend_count,(char *)str, count);
+  resend_count += count;
+  resend_buffer[resend_count] = 0;    // null terminate
 }
 
 #define BLE_DELAY 20                    // milli seconds between packets
@@ -297,7 +299,6 @@ Serial_Print_CRC (void)
   Serial_Flush_Output();          // force it to go out
 
   Serial_Start();                 // new packet
-
 }
 
 // start an output packet

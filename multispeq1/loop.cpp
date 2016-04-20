@@ -326,8 +326,8 @@ void loop() {
             int hall = (sum / samples);
             delay(1);
             Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}\n", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+            Serial_Print_CRC();
           }
-          Serial_Print_CRC();
         }
         break;
 
@@ -465,7 +465,6 @@ void loop() {
           Serial_Read();
         }
         break;
-
 
       case 1076:                                              // read IR sensor
         Serial_Flush_Input();

@@ -220,46 +220,6 @@ uint16_t spec_data[SPEC_CHANNELS];
 unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
 int idx = 0;
 
-#if 0
-#define NUM_PINS 26
-
-// MCU pins that are controllable by the user
-// More explanation???
-
-float all_pins [NUM_PINS] = {
-  15, 16, 11, 12, 2, 20, 14, 10, 34, 35, 36, 37, 38, 3, 4, 9, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33
-};
-float calibration_slope [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_yint [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_slope_factory [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_yint_factory [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_baseline_slope [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_baseline_yint [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_blank1 [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_blank2 [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_other1 [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-float calibration_other2 [NUM_PINS] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-#endif
 
 
 // pressure/temp/humidity sensors
@@ -316,24 +276,6 @@ void setup() {
   digitalWriteFast(HOLDADD, HIGH);                // discharge cap
 
   pinMode(BLANK, OUTPUT);                                                            // used as a blank pin to pull high and low if the meas lights is otherwise blank (set to 0)
-
-#if 0
-  // ???
-  float default_resolution = 488.28;
-  int timer0 [8] = {
-    5, 6, 9, 10, 20, 21, 22, 23
-  };
-  int timer1 [2] = {
-    3, 4
-  };
-  int timer2 [2] = {
-    25, 32
-  };
-#endif
-
-  // ??
-  //analogWriteFrequency(3, 187500);                                              // Pins 3 and 5 are each on timer 0 and 1, respectively.  This will automatically convert all other pwm pins to the same frequency.
-  //analogWriteFrequency(5, 187500);
 
 #if CORALSPEQ == 1
   // Set pinmodes for the coralspeq

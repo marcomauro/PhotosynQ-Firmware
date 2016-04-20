@@ -4,6 +4,8 @@
 // declare serial functions
 
 void Serial_Set(int s);
+void Serial_Resend(void);
+void Serial_Start(void);
 void Serial_Printf(const char * format, ... );
 int Serial_Read(void);
 unsigned Serial_Available(void);

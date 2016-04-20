@@ -4,6 +4,7 @@
 // Jon Zeeff 2016
 
 // WARNING: Serial_Printf() is limited to 200 characters per call
+// Zero is used as a string terminator - it can't be sent/received
 
 // Should change this to C++ and a class
 
@@ -36,6 +37,15 @@ void Serial_Flush_Input(void)
     Serial_Read();
 }
 
+const int MAX_RESEND_SIZE = 5000;
+static char resend_buffer[MAX_RESEND_SIZE+1];        // allow re-transmission of previous output
+static int  resend_count = 0;                        // number of chars in the resend buffer
+
+// re-send everything since the last Serial_Start()
+void Serial_Resend()
+{
+     Serial_Print(resend_buffer);
+}
 
 // specify which ports to send output to
 void Serial_Set(int s)
@@ -133,6 +143,10 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
 
   // add to crc value
   crc32_string ((char *)str);
+
+  // add to resend buffer
+  strncpy(resend_buffer + resend_count,(char *)str, MAX_RESEND_SIZE - resend_count);
+  resend_count += strlen(str);
 }
 
 #define BLE_DELAY 20                    // milli seconds between packets
@@ -282,9 +296,18 @@ Serial_Print_CRC (void)
   Serial_Print_Line (p);
   Serial_Flush_Output();          // force it to go out
 
-  crc32_init ();		// reset for next time
+  Serial_Start();                 // new packet
+
 }
 
+// start an output packet
+void 
+Serial_Start(void)
+{
+  crc32_init ();          // reset for next time
+
+  resend_count = 0;       // empty resend buffer 
+}
 
 #include <string.h>
 

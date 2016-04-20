@@ -176,7 +176,7 @@ void loop() {
       continue;                     // go read another command
     }
 
-    crc32_init();                   // clear CRC value since below may print a json
+    Serial_Start();                   // new packet
 
     switch (atoi(choose)) {
       case 440:
@@ -476,6 +476,10 @@ void loop() {
         Serial_Read();
         break;
 
+      case 1100:     // resend last packet
+        Serial_Resend();
+        break;
+
       case 4044:
         {
           // JZ test - do not remove
@@ -615,7 +619,7 @@ void loop() {
 
   // read in a protocol (starts with '[', ends with '!' or timeout)
 
-  // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]!
+  // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]<newline>
 
   Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);
 
@@ -653,7 +657,7 @@ void loop() {
   digitalWriteFast(HOLDADD, HIGH);
   delay(10);
 
-  crc32_init();          // reset CRC
+  Serial_Start();          // new packet
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
@@ -1527,22 +1531,27 @@ int abort_cmd()
 }
 
 /*
- * Here's what I propose for this:  When you call a sensor, it saves a global variable for the current sensor reading AND adds that value to another global variable for the cumulative reading which is displayed when you print.  
- * The current reading must be global because if it is called in a function in protocol JSON it needs to be current and available
- * The cumulative reading must be global because it needs to persist between averages
- * In addition, sensor calls should include an option to call the calibrated value or the uncalibrated (raw) value.  Most have both values available.  
- * 
- * Light_intensity() has a nice structure which can be copied.  
- * Other monday items:
- * clean up and put items in structures
- * implement sensor structure as described above
- * save to eeprom as another appliction for the expression (say "save":{1:(light_intensity/2)}, ... )
- * consider an "any" call in the save function (say "save":{any:(light_intensity/2)}) - this would allow someone only saving one value to save it in a random location, reducing the eeprom persistence problem... is this possible?  How to remember where it was saved?
- */
+   Here's what I propose for this:  When you call a sensor, it saves a global variable for the current sensor reading AND adds that value to another global variable for the cumulative reading which is displayed when you print.
+   The current reading must be global because if it is called in a function in protocol JSON it needs to be current and available
+   The cumulative reading must be global because it needs to persist between averages
+   In addition, sensor calls should include an option to call the calibrated value or the uncalibrated (raw) value.  Most have both values available.
+
+   Light_intensity() has a nice structure which can be copied.
+   Other monday items:
+   clean up and put items in structures
+   implement sensor structure as described above
+   save to eeprom as another appliction for the expression (say "save":{1:(light_intensity/2)}, ... )
+   consider an "any" call in the save function (say "save":{any:(light_intensity/2)}) - this would allow someone only saving one value to save it in a random location, reducing the eeprom persistence problem... is this possible?  How to remember where it was saved?
+*/
 
 void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
 {
+
   for (int i = 0; i < environmental.getLength(); i++) {                                       // call environmental measurements after the spectroscopic measurement
+
+    if (environmental.getArray(i).getLong(1) != beforeOrAfter)
+      continue;            // not the right time
+
     if (DEBUGSIMPLE) {
       Serial_Print_Line("Here's the environmental measurements called:    ");
       Serial_Print(environmental.getArray(i).getString(0));
@@ -1588,10 +1597,9 @@ void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
                     Serial_Print(",");
                   }
                 }
-*/
+    */
 
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "light_intensity") {
+    if ((String) environmental.getArray(i).getString(0) == "light_intensity") {
       Light_Intensity(1);
       if (x == averages - 1) {
         Serial_Print("\"light_intensity\":");
@@ -1610,8 +1618,8 @@ void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
         */
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "light_intensity_raw") {
+
+    if ((String) environmental.getArray(i).getString(0) == "light_intensity_raw") {
       Light_Intensity(0);
       if (x == averages - 1) {
         Serial_Print("\"light_intensity_raw\":");
@@ -1628,8 +1636,8 @@ void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
         Serial_Print(",");
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
+
+    if ((String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
       int analog_read = analogRead(pin);
@@ -1639,8 +1647,8 @@ void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
         Serial_Print(",");
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
+
+    if ((String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
       int digital_read = digitalRead(pin);
@@ -1650,15 +1658,15 @@ void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
         Serial_Print(",");
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
+
+    if ((String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
       pinMode(pin, OUTPUT);
       digitalWriteFast(pin, setting);
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
+
+    if ((String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
       int freq = environmental.getArray(i).getLong(4);
@@ -1681,149 +1689,6 @@ void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
   } // for
 }  //environmentals()
 
-/*
- * Yes this is redundant.  I just included a beforeOrAfter so you know if the protocol JSON indicated at 0 or 1 (before or after the spectral measurement)
-
-#if 0
-// TODO - is this redundant?
-
-void environmentals2(JsonArray environmental, const int x)
-{
-
-  for (int i = 0; i < environmental.getLength(); i++) {                                   // call environmental measurements
-    if (DEBUGSIMPLE) {
-      Serial_Print_Line("Here's the environmental measurements called:    ");
-      Serial_Print(environmental.getArray(i).getString(0));
-      Serial_Print(", ");
-      Serial_Print_Line(environmental.getArray(i).getLong(1));
-    } // DEBUGSIMPLE
-                if (environmental.getArray(i).getLong(1) == 0 \
-                && (String) environmental.getArray(i).getString(0) == "relative_humidity") {
-                  Relative_Humidity((int) environmental.getArray(i).getLong(1));                        // if this string is in the JSON and the 2nd component in the array is == 0 (meaning they want this measurement taken prior to the spectroscopic measurement), then call the associated measurement (and so on for all if statements in this for loop)
-                  if (x == averages-1) {                                                                // if it's the last measurement to average, then print the results
-                    Serial_Print("\"relative_humidity\":");
-                    Serial_Print(relative_humidity_average,2);
-                    Serial_Print(",");
-                  }
-                }
-                if (environmental.getArray(i).getLong(1) == 0 \
-                && (String) environmental.getArray(i).getString(0) == "temperature") {
-                  Temperature((int) environmental.getArray(i).getLong(1));
-                  if (x == averages-1) {
-                    Serial_Print("\"temperature\":");
-                    Serial_Print(temperature_average,2);
-                    Serial_Print(",");
-                  }
-                }
-                if (environmental.getArray(i).getLong(1) == 0 \
-                && (String) environmental.getArray(i).getString(0) == "contactless_temperature") {
-                  Contactless_Temperature( environmental.getArray(i).getLong(1));
-                  float c_temp = MLX90614_Read(0);
-                  if (x == averages-1) {
-                    Serial_Print("\"contactless_temperature\":");
-                    Serial_Print(c_temp,2);
-                    Serial_Print(",");
-                  }
-                }
-                if (environmental.getArray(i).getLong(1) == 0 \
-                && (String) environmental.getArray(i).getString(0) == "co2") {
-                  Co2( environmental.getArray(i).getLong(1));
-                  if (x == averages-1) {                                                                // if it's the last measurement to average, then print the results
-                    Serial_Print("\"co2\":");
-                    Serial_Print(co2_value_average,2);
-                    Serial_Print(",");
-                  }
-                }
-    if (environmental.getArray(i).getLong(1) == 0 \
-        && (String) environmental.getArray(i).getString(0) == "light_intensity") {
-      Light_Intensity(1);
-      if (x == averages - 1) {
-        Serial_Print("\"light_intensity\":");
-                        Serial_Print(lux_to_uE(lux_average_forpar), 2);
-                        Serial_Print(",");
-                        Serial_Print("\"r\":");
-                        Serial_Print(lux_to_uE(r_average_forpar), 2);
-                        Serial_Print(",");
-                        Serial_Print("\"g\":");
-                        Serial_Print(lux_to_uE(g_average_forpar), 2);
-                        Serial_Print(",");
-                        Serial_Print("\"b\":");
-                        Serial_Print(lux_to_uE(b_average_forpar), 2);
-                        Serial_Print(",");
-
-      }
-    }
-    if (environmental.getArray(i).getLong(1) == 0 \
-        && (String) environmental.getArray(i).getString(0) == "light_intensity_raw") {
-      Light_Intensity(0);
-      if (x == averages - 1) {
-        Serial_Print("\"light_intensity_raw\":");
-        Serial_Print(lux_average, 2);
-        Serial_Print(",");
-        Serial_Print("\"r\":");
-        Serial_Print(r_average, 2);
-        Serial_Print(",");
-        Serial_Print("\"g\":");
-        Serial_Print(g_average, 2);
-        Serial_Print(",");
-        Serial_Print("\"b\":");
-        Serial_Print(b_average, 2);
-        Serial_Print(",");
-      }
-    }
-    if (environmental.getArray(i).getLong(1) == 0 \
-        && (String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
-      int pin = environmental.getArray(i).getLong(2);
-      pinMode(pin, INPUT);
-      int analog_read = analogRead(pin);
-      if (x == averages - 1) {
-        Serial_Print("\"analog_read\":");
-        Serial_Print(analog_read);
-        Serial_Print(",");
-      }
-    }
-    if (environmental.getArray(i).getLong(1) == 0 \
-        && (String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
-      int pin = environmental.getArray(i).getLong(2);
-      pinMode(pin, INPUT);
-      int digital_read = digitalRead(pin);
-      if (x == averages - 1) {
-        Serial_Print("\"digital_read\":");
-        Serial_Print(digital_read);
-        Serial_Print(",");
-      }
-    }
-    if (environmental.getArray(i).getLong(1) == 0 \
-        && (String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
-      int pin = environmental.getArray(i).getLong(2);
-      int setting = environmental.getArray(i).getLong(3);
-      pinMode(pin, OUTPUT);
-      digitalWriteFast(pin, setting);
-    }
-    if (environmental.getArray(i).getLong(1) == 0 \
-        && (String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
-      int pin = environmental.getArray(i).getLong(2);
-      int setting = environmental.getArray(i).getLong(3);
-      int freq = environmental.getArray(i).getLong(4);
-      int wait = environmental.getArray(i).getLong(5);
-      if (DEBUGSIMPLE) {
-        Serial_Print_Line(pin);
-        Serial_Print_Line(pin);
-        Serial_Print_Line(wait);
-        Serial_Print_Line(setting);
-        Serial_Print_Line(freq);
-      } // DEBUGSIMPLE
-      pinMode(pin, OUTPUT);
-      analogWriteFrequency(pin, freq);                                                           // set analog frequency
-      analogWrite(pin, setting);
-      delay(wait);
-      analogWrite(pin, 0);
-      reset_freq();                                                                              // reset analog frequencies
-    }
-  }
-}
-#endif
-*/
 
 
 

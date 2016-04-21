@@ -3,16 +3,19 @@
 
 #include <Arduino.h>
 #include "flasher.h"
-#include "serial.h"
+#include "serial.h"          // you probably don't want this, comment it out
 
 void flash_erase_upper();
 RAMFUNC static int flash_word (uint32_t address, uint32_t word_value);
 RAMFUNC static int flash_erase_sector (uint32_t address, int unsafe);
 RAMFUNC static void flash_move (uint32_t min_address, uint32_t max_address);
 static int flash_hex_line(const char *line);
-int parse_hex_line(const char *theline, uint8_t bytes[], unsigned int *addr, unsigned int *num, unsigned int *code);
+int parse_hex_line (const char *theline, char *bytes, unsigned int *addr, unsigned int *num, unsigned int *code);
 static int flash_block(uint32_t address, uint32_t *bytes, int count);
 
+// you probably need these, customized for your serial port (ie, Serial, Serial1, etc)
+//#define Serial_Available()  Serial.available()
+//#define Serial_Read()       Serial.read()
 
 //const int ledPin = 13;
 
@@ -54,7 +57,7 @@ loop ()
 
 // *******************************
 
-// Version 1.2
+// Version 1.3
 
 // code to allow firmware update over a Serial port
 // for teensy 3.x.  It is intended that this code always be included in your application.
@@ -77,7 +80,7 @@ loop ()
 // enter the ":flash xxx" command.
 
 void
-upgrade_firmware(void)
+upgrade_firmware(void)   // main entry point
 {
   Serial_Printf("%s flash size = %dK in %dK sectors\n", FLASH_ID, FLASH_SIZE / 1024, FLASH_SECTOR_SIZE / 1024);
 
@@ -110,8 +113,8 @@ upgrade_firmware(void)
   for (;;)  {
     int c;
 
-    while (!Serial_Available()) {}
-    c = Serial_Read();
+    while (!Serial.available()) {}
+    c = Serial.read();
 
     if (c == '\n' || c == '\r') {
       line[count] = 0;          // terminate string
@@ -334,7 +337,7 @@ flash_hex_line (const char *line)
   unsigned int byte_count;
   static uint32_t address;
   unsigned int code;
-  uint8_t data[128];   // assume no hex line will have more than this.  Alignment?
+  char data[128];   // assume no hex line will have more than this.  Alignment?
 
   static uint32_t base_address = 0;
   static int line_count = 0;
@@ -366,8 +369,10 @@ flash_hex_line (const char *line)
 
   ++line_count;
 
+  //int parse_hex_line(const char *theline, char bytes, unsigned int *addr, unsigned int *num, unsigned int *code);
+
   // must be a hex data line
-  if (! parse_hex_line (line, data, (unsigned int *) &address, (unsigned int*) &byte_count,(unsigned int*) &code))
+  if (! parse_hex_line ((const char *)line, (char *)data, (unsigned int *) &address, (unsigned int*) &byte_count,(unsigned int*) &code))
   {
     Serial_Printf ("bad hex line %s\n", line);
     error = 1;
@@ -522,8 +527,7 @@ Example:
 /* num gets the number of bytes that were stored into bytes[] */
 
 int
-parse_hex_line (const char *theline, uint8_t bytes[], uint32_t * addr, unsigned int *num,
-                unsigned int *code)
+parse_hex_line (const char *theline, char *bytes, unsigned int *addr, unsigned int *num, unsigned int *code)
 {
   unsigned sum, len, cksum;
   const char *ptr;

@@ -548,22 +548,6 @@ void print_data()
 }
 #endif
 
-#if 0
-// give it a channel, outputs outputs x,y,z 3 axis data comes out (16 bit)
-// perhaps add an option to return raw values or values with calibration applied
-void compass (uint16_t array[]) {};
-
-// give it a channel, outputs outputs x,y,z  3 axis data comes out (16 bit)
-// perhaps add an option to return raw values or values with calibration applied
-void accel (uint16_t array[]) {};
-
-// read this channel from ??, replys with one number (16 bit)
-// maybe best to take 33 readings and return the median
-uint16_t atod (int channel) {
-  return 0;
-};
-#endif
-
 // qsort uint16_t comparison function (tri-state) - needed for median16()
 
 static int uint16_cmp(const void *a, const void *b)

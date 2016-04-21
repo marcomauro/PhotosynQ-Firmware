@@ -4,6 +4,18 @@
 #include<stdio.h>
 #include<string.h>
 #include "eeprom.h"
+#include "defines.h"
+
+extern float light_intensity;
+extern float light_intensity_averaged;
+extern float light_intensity_raw;
+extern float light_intensity_raw_averaged;
+extern float r;
+extern float r_averaged;
+extern float g;
+extern float g_averaged;
+extern float b;
+extern float b_averaged;
 
 extern "C" {
 #include "expr/expression_parser.h"
@@ -20,9 +32,9 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     if (index < NUM_USERDEFS)
       *value = eeprom->userdef[index];
     return PARSER_TRUE;
-  } else if ( strcmp( name, "var1" ) == 0 ) {
+  } else if ( strcmp( name, "light_intensity" ) == 0 ) {
     // set return value, return true
-    *value = 1.0;
+    *value = light_intensity;
     return PARSER_TRUE;
   } else if ( strcmp( name, "var2" ) == 0 ) {
     // set return value, return true

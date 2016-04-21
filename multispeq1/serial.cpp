@@ -24,7 +24,7 @@ static int last_read = 0;     // where last incoming byte was from, 0 = Serial, 
 
 void Serial_Begin(int rate)
 {
-  assert(rate >= 9600 && rate <= 115200);
+//  assert(rate >= 9600 && rate <= 115200);
 
   Serial.begin(115200);   // USB serial port, baud rate is irrelevant
   Serial1.begin(rate);    // for BLE, 57600 is standard

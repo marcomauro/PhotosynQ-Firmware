@@ -10,14 +10,16 @@
 
 /*
 
-  test get_device_info
-  test sensors in "environmental" make sure averages works as it should
+  test get_device_info - WORKS!  But set to a string (currently it's a long)
+  test sensors in "environmental" make sure averages works as it should - WORKS!
   test par_to_dac an light_intensity_raw_to_par
   so the rule is whatever the last value you took (could have been this protocol, or two protocols ago...) that's the one you get when you call an expression variable (light_intensity for example)... values do not get deleted between protocols.
   they only get reset between measurements.
   maybe consolidate all sensor measurements into PAR.cpp and call it sensors (?) - they are all pretty similar in structure.  Also, probably should make those a structure so Jon can reference them as global variables in the expression
   finish IR baseline calibrations
   test + document 1030 = 1045
+  make sure that the IR LEDs are calibrated to yint = 0 and slope = 1
+
   + test do we need to calibrate offsets (like we did with the betas?)
 
   Discuss meringing other eeprom floats into userdef[] with #define
@@ -309,7 +311,7 @@ void setup() {
   {
     uint32_t x = analogRead(39) >> 4;  // forumla needs 12 bits, not 16
     uint32_t mv = (178 * x * x + 2688757565 - 1184375 * x) / 372346; // milli-volts input to MCU, clips at ~3500
-    assert(mv > 3400);      // voltage is too low for proper operation
+    //    assert(mv > 3400);      // voltage is too low for proper operation
   }
   analogReference(INTERNAL);
 
@@ -380,22 +382,22 @@ void get_set_device_info(const int _set) {
                 DEVICE_FIRMWARE, eeprom->device_manufacture);
   Serial_Print_CRC();
 
-  if (_set == 0)                                                                       // if you're not trying to set the values, then just print this and bail
+  if (_set == 0) {                                                                      // if you're not trying to set the values, then just print this and bail
     return;
-  
-  if (_set == 1) { // save 4 bytes sent as an integer
+  }
+  if (_set == 1) { // jon! again here we need 6 bytes in character format to be saved
     long val;
 
     // please enter new device ID (lower 6 bytes of BLE MAC address) followed by '+'
-    Serial_Print("Please enter lower 4 bytes of device mac address as an int followed by +");
-    val =  Serial_Input_Long("+", 0);             
+    Serial_Print_Line("Please enter device mac address (12 characters) followed by +: ");
+    val =  Serial_Input_Long("+", 0);              // save to eeprom
     if (eeprom->device_id != val) {
       eeprom->device_id = val;              // save to eeprom
       delay(1);
     }
 
     // please enter new date of manufacture (yyyymm) followed by '+'
-    Serial_Print("Please enter device manufacture date followed by + (example 052016");
+    Serial_Print_Line("Please enter device manufacture date followed by + (example 052016): ");
     val = Serial_Input_Long("+", 0);
     if (eeprom->device_manufacture != val) {
       eeprom->device_manufacture = val;

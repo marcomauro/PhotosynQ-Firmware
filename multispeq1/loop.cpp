@@ -62,8 +62,9 @@ static int act_background_light = 0;
 // shared with PAR.cpp
 // these should be eliminated - use a structure
 /*
- * So this whole set of variables should be a global structure, so it can be used in expressions.  However, that structure should be reset at this point (between different measurements).  
- */
+   So this whole set of variables should be a global structure, so it can be used in expressions.  However, that structure should be reset at this point (between different measurements).
+*/
+
 extern float light_intensity;
 extern float light_intensity_averaged;
 extern float light_intensity_raw;
@@ -75,29 +76,29 @@ extern float g_averaged;
 extern float b;
 extern float b_averaged;
 
-float thickness;
-float thickness_averaged;
-int thickness_raw;
-float thickness_raw_averaged;
+extern float thickness;
+extern float thickness_averaged;
+extern int thickness_raw;
+extern float thickness_raw_averaged;
 
-float contactless_temp;
-float contactless_temp_averaged;
+extern float contactless_temp;
+extern float contactless_temp_averaged;
 
-int cardinal;
-int cardinal_averaged;
-int x_cardinal_raw, y_cardinal_raw, z_cardinal_raw;
-float x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged;
+extern int cardinal;
+extern int cardinal_averaged;
+extern int x_cardinal_raw, y_cardinal_raw, z_cardinal_raw;
+extern float x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged;
 
-float x_tilt, y_tilt, z_tilt;
-float x_tilt_averaged, y_tilt_averaged, z_tilt_averaged;
-int x_tilt_raw, y_tilt_raw, z_tilt_raw;
-float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
+extern float x_tilt, y_tilt, z_tilt;
+extern float x_tilt_averaged, y_tilt_averaged, z_tilt_averaged;
+extern int x_tilt_raw, y_tilt_raw, z_tilt_raw;
+extern float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
 
-float temperature, humidity, pressure;
+extern float temperature, humidity, pressure;
 
 ////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
-//static float analog_read_average = 0;
-//static float digital_read_average = 0;
+static float analog_read_average = 0;
+static float digital_read_average = 0;
 
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
@@ -204,7 +205,8 @@ void loop() {
         DAC_set_address(LDAC3, 0, 3);
         get_set_device_info(1);                                                           //  input device info and write to eeprom
         break;
-      case 1002: {                                                                         // continuously output until user enter -1+
+      case 1002:                                                                          // continuously output until user enter -1+
+        {
           int Xcomp, Ycomp, Zcomp;
           int Xval, Yval, Zval;
           int leave = 0;
@@ -222,12 +224,26 @@ void loop() {
             }
             int hall = (sum / samples);
             delay(1);
-            Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}\n", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+            Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
             Serial_Print_CRC();
           }
         }
         break;
-
+      case 1003:
+        {
+          Serial_Print_Line("Enter led # setting followed by +: ");
+          int led =  Serial_Input_Double("+", 0);
+          Serial_Print_Line("Enter dac setting followed by +: ");
+          int setting =  Serial_Input_Double("+", 0);
+          DAC_set(led, setting);
+          DAC_change();
+          digitalWriteFast(LED_to_pin[led], HIGH);
+          delay(5000);
+          digitalWriteFast(LED_to_pin[led], LOW);
+          DAC_set(led, 0);
+          DAC_change();
+        }
+        break;
       case 1007:
         get_set_device_info(0);
         break;
@@ -321,7 +337,6 @@ void loop() {
         DAC_set(9, 0);
         DAC_change();
         break;
-
       case 1020:
         Serial_Print_Line("PULSE10");
         DAC_set(10, 50);
@@ -335,17 +350,18 @@ void loop() {
 
       case 1021:                                                                            // variety of test commands used during development
         {
+/*
           char S[10];
           Serial_Print_Line(eeprom->userdef[0], 4);                                                                   // test the Serial_Input_Chars() command and saving values in userdef
           Serial_Input_Chars(S, "+", 20000, sizeof(S));
           Serial_Printf("output is %s \n", S);
           eeprom->userdef[0] = atof(S);
-
+*/
           Serial_Print_Line(eeprom->userdef[1], 4);
           eeprom->userdef[1] = Serial_Input_Double("+", 20000);                                                       // test Serial_Input_Double, save as userdef and recall
           Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
           // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
-
+/*
           Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");                         //  Change the baud rate of the BLE
           long baudrate = Serial_Input_Long();
           Serial_Begin((int) baudrate);
@@ -355,6 +371,7 @@ void loop() {
           Serial_Printf("set serial to %d\n", (int)setserial);
           Serial_Set((int) setserial);
           Serial_Print_Line("test print");
+*/
         }
         break;
 
@@ -375,11 +392,11 @@ void loop() {
         break;
       case 1031:
         Serial_Print("input 9 magnetometer calibration values, each followed by +: ");
-        for (int i = 0;i<3;i++) {
-          for (int j = 0;j<3;j++) {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
             eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
             eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
-            eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);            
+            eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
           }
         }
         break;
@@ -391,48 +408,62 @@ void loop() {
         break;
       case 1033:
         Serial_Print("input 9 accelerometer calibration values, each followed by +: ");
-        for (int i = 0;i<3;i++) {
-          for (int j = 0;j<3;j++) {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
             eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
             eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
-            eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);            
+            eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
           }
         }
         break;
       case 1034:
-        Serial_Print("input y intercept for ambient par calibration followed by +: ");
-        eeprom->light_yint = Serial_Input_Double("+", 0);
-        break;
-      case 1035:
-        Serial_Print("input light slope for ambient par calibration followed by +: ");
+        Serial_Print_Line(eeprom->light_slope_all);
+        Serial_Print_Line("input light slope for ambient par calibration followed by +: ");
         eeprom->light_slope_all = Serial_Input_Double("+", 0);
         break;
+      case 1035:
+        Serial_Print_Line(eeprom->light_yint);
+        Serial_Print_Line("input y intercept for ambient par calibration followed by +: ");
+        eeprom->light_yint = Serial_Input_Double("+", 0);
+        break;
       case 1036:
-        Serial_Print("input r slope for ambient par calibration followed by +: ");
+        Serial_Print_Line(eeprom->light_slope_r);
+        Serial_Print_Line("input r slope for ambient par calibration followed by +: ");
         eeprom->light_slope_r = Serial_Input_Double("+", 0);
         break;
       case 1037:
-        Serial_Print("input g slope for ambient par calibration followed by +: ");
+        Serial_Print_Line(eeprom->light_slope_g);
+        Serial_Print_Line("input g slope for ambient par calibration followed by +: ");
         eeprom->light_slope_g = Serial_Input_Double("+", 0);
         break;
       case 1038:
-        Serial_Print("input b slope for ambient par calibration followed by +: ");
+        Serial_Print_Line(eeprom->light_slope_b);
+        Serial_Print_Line("input b slope for ambient par calibration followed by +: ");
         eeprom->light_slope_b = Serial_Input_Double("+", 0);
         break;
       case 1039:
-        Serial_Print("input thickness calibration value a for leaf thickness followed by +: ");
+        Serial_Print_Line(eeprom->thickness_a);
+        Serial_Print_Line("input thickness calibration value a for leaf thickness followed by +: ");
         eeprom->thickness_a = Serial_Input_Double("+", 0);
         break;
       case 1040:
-        Serial_Print("input thickness calibration value b for leaf thickness  followed by +: ");
+        Serial_Print_Line(eeprom->thickness_b);
+        Serial_Print_Line("input thickness calibration value b for leaf thickness  followed by +: ");
         eeprom->thickness_b = Serial_Input_Double("+", 0);
         break;
       case 1041:
-        Serial_Print("input thickness calibration value d for leaf thickness  followed by +: ");
+        Serial_Print_Line(eeprom->thickness_d);
+        Serial_Print_Line("input thickness calibration value d for leaf thickness  followed by +: ");
         eeprom->thickness_d = Serial_Input_Double("+", 0);
         break;
       case 1042:
-        Serial_Print("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+        Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+          Serial_Print_Line("before:  ");
+        for (int i=0;i<NUM_LEDS + 1;i++) {                                              // print what's currently saved
+          Serial_Print(eeprom->par_to_dac_slope[i],4);
+          Serial_Print(",");
+          Serial_Print_Line(eeprom->par_to_dac_yint[i],4);          
+        }
         for (;;) {
           int led = Serial_Input_Double("+", 0);
           if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -441,9 +472,14 @@ void loop() {
           eeprom->par_to_dac_slope[led] = Serial_Input_Double("+", 0);
           eeprom->par_to_dac_yint[led] = Serial_Input_Double("+", 0);
         }
+        for (int i=0;i<NUM_LEDS + 1;i++) {                                              // print what is now saved
+          Serial_Print(eeprom->par_to_dac_slope[i],4);
+          Serial_Print(",");
+          Serial_Print_Line(eeprom->par_to_dac_yint[i],4);          
+        }
         break;
       case 1043:
-        Serial_Print("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+        Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
         for (;;) {
           int led = Serial_Input_Double("+", 0);
           if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -454,7 +490,7 @@ void loop() {
         }
         break;
       case 1044:
-        Serial_Print("input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+        Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: ");
         for (;;) {
           int led = Serial_Input_Double("+", 0);
           if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -465,7 +501,7 @@ void loop() {
         }
         break;
       case 1045:
-        Serial_Print("input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+        Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: ");
         for (;;) {
           int led = Serial_Input_Double("+", 0);
           if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -475,6 +511,7 @@ void loop() {
           eeprom->colorcal_intensity3_yint[led] = Serial_Input_Double("+", 0);
         }
         break;
+
       case 1100:     // resend last packet
         Serial_Resend();
         break;
@@ -849,18 +886,39 @@ void loop() {
         //        print_sensor_calibration(1);                                               // print sensor calibration data
 
         // this should be a structure, so I can reset it all......
-/*
-        analog_read_average = 0;
-        digital_read_average = 0;
-        relative_humidity_average = 0;                                                                    // reset all of the environmental variables
-        temperature_average = 0;
-        light_intensity_raw_averaged = 0;
-        light_intensity_averaged = 0;
-        r_averaged = 0;
-        g_averaged = 0;
-        b_averaged = 0;
-*/
-        //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
+
+light_intensity = 0;
+light_intensity_averaged = 0;
+light_intensity_raw = 0;
+light_intensity_raw_averaged = 0;
+r = 0;
+r_averaged = 0;
+g = 0;
+g_averaged = 0;
+b = 0;
+b_averaged = 0;
+
+thickness = 0;
+thickness_averaged = 0;
+thickness_raw = 0;
+thickness_raw_averaged = 0;
+
+contactless_temp = 0;
+contactless_temp_averaged = 0;
+
+cardinal = 0;
+cardinal_averaged = 0;
+x_cardinal_raw = 0, y_cardinal_raw = 0, z_cardinal_raw = 0;
+x_cardinal_raw_averaged = 0, y_cardinal_raw_averaged = 0, z_cardinal_raw_averaged = 0;
+
+x_tilt = 0, y_tilt = 0, z_tilt = 0;
+x_tilt_averaged = 0, y_tilt_averaged = 0, z_tilt_averaged = 0;
+x_tilt_raw = 0, y_tilt_raw = 0, z_tilt_raw = 0;
+x_tilt_raw_averaged = 0, y_tilt_raw_averaged = 0, z_tilt_raw_averaged = 0;
+
+temperature = 0, humidity = 0, pressure = 0;
+
+//!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
         //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
 
         // perform the protocol averages times
@@ -883,10 +941,10 @@ void loop() {
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           uint16_t _number_samples = 0;                                                               // create the adc sampling rate number
-//          lux_local = 0;                                                                     // reset local (this measurement) light levels
-//          r_local = 0;
-//          g_local = 0;
-//          b_local = 0;
+          //          lux_local = 0;                                                                     // reset local (this measurement) light levels
+          //          r_local = 0;
+          //          g_local = 0;
+          //          b_local = 0;
 
           //      options for relative humidity, temperature, contactless temperature. light_intensity,co2
           //           0 - take before spectroscopy measurements
@@ -983,7 +1041,7 @@ void loop() {
                 //              stopTimers();                                                                                   // stop the old timers
                 startTimers(_pulsedistance);                                    // restart the measurement light timer
               }
-            }  // if pulse == 0
+            }
 
             if (PULSERDEBUG) {
               Serial_Printf("pulsedistance = %d, pulsesize = %d, cycle = %d, measurement number = %d, measurement array size = %d,total pulses = %d\n", (int) _pulsedistance, (int) _pulsesize, (int) cycle, (int) meas_number, (int) meas_array_size, (int) total_pulses);
@@ -1088,7 +1146,7 @@ void loop() {
               DAC_change();
 
               for (unsigned i = 0; i < NUM_LEDS; i++) {                         // set the DAC lights for actinic lights in the current pulse set
-                DAC_set(_a_lights[i], par_to_dac(_a_intensities[i],_a_lights[i]));
+                DAC_set(_a_lights[i], par_to_dac(_a_intensities[i], _a_lights[i]));
                 if (PULSERDEBUG) {
                   Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
                   Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
@@ -1355,17 +1413,17 @@ void loop() {
           _a_lights[i] = 0;
         }
         /*
-        relative_humidity_average = 0;                                                // reset all environmental variables to zero
-        temperature_average = 0;
-        objt_average = 0;
-        lux_averaged = 0;
-        r_averaged = 0;
-        g_averaged = 0;
-        b_averaged = 0;
-        lux_averaged_forpar = 0;
-        r_averaged_forpar = 0;
-        g_averaged_forpar = 0;
-        b_averaged_forpar = 0;
+          relative_humidity_average = 0;                                                // reset all environmental variables to zero
+          temperature_average = 0;
+          objt_average = 0;
+          lux_averaged = 0;
+          r_averaged = 0;
+          g_averaged = 0;
+          b_averaged = 0;
+          lux_averaged_forpar = 0;
+          r_averaged_forpar = 0;
+          g_averaged_forpar = 0;
+          b_averaged_forpar = 0;
         */
 
         if (CORAL_SPEQ) {
@@ -1445,7 +1503,48 @@ inline static void startTimers(unsigned _pulsedistance) {
 
 inline static void stopTimers() {
   timer0.end();                         // if it's the last cycle and last pulse, then... stop the timers
+  //timer1.end();                       // old version used two timers
 }
+
+#if 0
+// interrupt service routine which turns the measuring light on
+
+void pulse1() {
+  if (PULSERDEBUG) {
+    startTimer = micros();
+  } // PULSERDEBUG
+  digitalWriteFast(LED_to_pin[_meas_light], HIGH);            // turn on measuring light
+  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
+  // the light on completely + stabilize.  But the effect is seen even after 50 usec.
+  // Very low intensity measuring pulses may require an even longer delay here.
+  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
+  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
+  on = 1;                               // flag for foreground to read
+}
+
+// interrupt service routine which turns the measuring light off
+// consider merging this into pulse1()
+
+void pulse2() {
+  if (PULSERDEBUG) {
+    endTimer = micros();
+  } // PULSERDEBUG
+  digitalWriteFast(LED_to_pin[_meas_light], LOW);
+  off = 1;
+}
+// schedule the turn on and off of the LED(s) via an ISR
+
+void startTimers(unsigned _pulsedistance) {
+  timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
+  noInterrupts();
+  delayMicroseconds(_pulsesize);                                             // I don't think this accounts for the actopulser stabilization delay - JZ
+  interrupts();
+  timer1.begin(pulse2, _pulsedistance);                                      // schedule off
+}
+
+#endif
+
+
 
 // read/write userdef[] values from/to eeprom
 // example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
@@ -1505,24 +1604,24 @@ void get_temperature_humidity_pressure (int _averages) {
 float get_contactless_temp (int _averages) {
   contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
   contactless_temp_averaged += contactless_temp / _averages;
-  return contactless_temp_averaged;
+  return contactless_temp;
 }
 
 void get_tilt (int notRaw, int _averages) {
   MMA8653FC_read(&x_tilt_raw, &y_tilt_raw, &z_tilt_raw);                      // saves x_tilt_raw, y_... and z_... values
   // consider adding a calibration with more useful outputs
-  x_tilt = x_tilt_raw * (180. / 1000);
-  y_tilt = y_tilt_raw * (180. / 1000);
-  z_tilt = z_tilt_raw * (180. / 1000);
+  x_tilt = x_tilt_raw * (180 / 1000);
+  y_tilt = y_tilt_raw * (180 / 1000);
+  z_tilt = z_tilt_raw * (180 / 1000);
   if (notRaw == 0) {                                              // save the raw values average
-    x_tilt_raw_averaged += (float)x_tilt_raw / _averages;
-    y_tilt_raw_averaged += (float)y_tilt_raw / _averages;
-    z_tilt_raw_averaged += (float)z_tilt_raw / _averages;
+    x_tilt_raw_averaged += x_tilt_raw / _averages;
+    y_tilt_raw_averaged += y_tilt_raw / _averages;
+    z_tilt_raw_averaged += z_tilt_raw / _averages;
   }
   if (notRaw == 1) {                                              // save the calibrated values and average
-    x_tilt_averaged += (float)x_tilt / _averages;
-    y_tilt_averaged += (float)y_tilt / _averages;
-    z_tilt_averaged += (float)z_tilt / _averages;
+    x_tilt_averaged += x_tilt / _averages;
+    y_tilt_averaged += y_tilt / _averages;
+    z_tilt_averaged += z_tilt / _averages;
   }
   // add better routine here to produce clearer tilt values
 }
@@ -1531,17 +1630,17 @@ void get_cardinal (int notRaw, int _averages) {
   MAG3110_read(&x_cardinal_raw, &y_cardinal_raw, &z_cardinal_raw);            // saves x_cardinal, y_ and z_ values
   // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called cardinal
   if (notRaw == 0) {                                              // save the raw values average
-    x_cardinal_raw_averaged += (float)x_cardinal_raw / _averages;
-    y_cardinal_raw_averaged += (float)y_cardinal_raw / _averages;
-    z_cardinal_raw_averaged += (float)z_cardinal_raw / _averages;
+    x_cardinal_raw_averaged += x_cardinal_raw / _averages;
+    y_cardinal_raw_averaged += y_cardinal_raw / _averages;
+    z_cardinal_raw_averaged += z_cardinal_raw / _averages;
   }
   if (notRaw == 1) {                                              // save the calibrated values and average
-    cardinal_averaged += (float)x_cardinal_raw / _averages;
+    cardinal_averaged += x_cardinal_raw / _averages;
   }
 }
 
 float get_thickness (int notRaw, int _averages) {
-  int sum=0;
+  int sum;
   for (int i = 0; i < 1000; ++i) {
     sum += analogRead(HALL_OUT);
   }
@@ -1550,12 +1649,12 @@ float get_thickness (int notRaw, int _averages) {
   // add calibration routine here with calls to thickness_a thickness_b thickness_d;
   //  thickness += ...
   if (notRaw == 0) {                                              // save the raw values average
-    thickness_raw_averaged += (float)thickness_raw / _averages;
-    return thickness_raw_averaged;
+    thickness_raw_averaged += thickness_raw / _averages;
+    return thickness_raw;
   }
   else if (notRaw == 1) {                                              // save the calibrated values and average
-    thickness_averaged += (float)thickness / _averages;
-    return thickness_averaged;
+    thickness_averaged += thickness / _averages;
+    return thickness;
   }
   else {
     return 0;
@@ -1569,8 +1668,6 @@ void environmentals(JsonArray environmental, const int _averages, const int x, i
 
     if (environmental.getArray(i).getLong(1) != beforeOrAfter)
       continue;            // not the right time
-
-    // Greg - no need to check beforeOrAfter again
     /*
         if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
@@ -1598,49 +1695,49 @@ void environmentals(JsonArray environmental, const int _averages, const int x, i
         && (String) environmental.getArray(i).getString(0) == "contactless_temp") {                 // measure contactless temperature
       get_contactless_temp(_averages);
       if (x == _averages - 1) {
-        Serial_Printf("\"contactless_temp\":%.2f,", get_contactless_temp);
+        Serial_Printf("\"contactless_temp\":%.2f,", contactless_temp_averaged);
       }
     }
     if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "thickness") {                        // measure thickness via hall sensor, with calibration applied
       get_thickness(1, _averages);
       if (x == _averages - 1) {
-        Serial_Printf("\"thickness\":%.2f,", thickness);
+        Serial_Printf("\"thickness\":%.2f,", thickness_averaged);
       }
     }
     if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "thickness_raw") {                    // measure thickness via hall sensor, raw analog_read
       get_thickness(0, _averages);
       if (x == _averages - 1) {
-        Serial_Printf("\"thickness_raw\":%.2f,", thickness_raw);
+        Serial_Printf("\"thickness_raw\":%.2f,", thickness_raw_averaged);
       }
     }
     if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "tilt") {                             // measure tilt in -180 - 180 degrees
       get_tilt(1, _averages);
       if (x == _averages - 1) {
-        Serial_Printf("\"x_tilt\":%.2f, \"y_tilt\":%.2f, \"z_tilt\":%.2f,", x_tilt, y_tilt, z_tilt);
+        Serial_Printf("\"x_tilt\":%.2f, \"y_tilt\":%.2f, \"z_tilt\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged);
       }
     }
     if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "tilt_raw") {                         // measure tilt from -1000 - 1000
       get_tilt(0, _averages);
       if (x == _averages - 1) {
-        Serial_Printf("\"x_tilt_raw\":%.2f, \"y_tilt_raw\":%.2f, \"z_tilt_raw\":%.2f,", x_tilt_raw, y_tilt_raw, z_tilt_raw);
+        Serial_Printf("\"x_tilt_raw\":%.2f, \"y_tilt_raw\":%.2f, \"z_tilt_raw\":%.2f,", x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged);
       }
     }
     if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "cardinal") {                         // measure cardinal direction, with calibration applied
       get_cardinal(1, _averages);
       if (x == _averages - 1) {
-        Serial_Printf("\"cardinal\":%.2f,", cardinal);
+        Serial_Printf("\"cardinal\":%.2f,", cardinal_averaged);
       }
     }
     if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "cardinal_raw") {                     // measure cardinal direction, raw values
       get_cardinal(0, _averages);
       if (x == _averages - 1) {
-        Serial_Printf("\"x_cardinal_raw\":%.2f,\"y_cardinal_raw\":%.2f,\"z_cardinal_raw\":%.2f,", x_cardinal_raw, y_cardinal_raw, z_cardinal_raw);
+        Serial_Printf("\"x_cardinal_raw\":%.2f,\"y_cardinal_raw\":%.2f,\"z_cardinal_raw\":%.2f,", x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged);
       }
     }
     if (environmental.getArray(i).getLong(1) == beforeOrAfter \

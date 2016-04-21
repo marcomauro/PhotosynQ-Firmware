@@ -13,7 +13,7 @@ const int PULSERDEBUG=0;   // uncomment to debug the pulser and detector
 #define CORAL_SPEQ 0
 
 // FIRMWARE VERSION OF THIS FILE (SAVED TO EEPROM ON FIRMWARE FLASH)
-#define DEVICE_FIRMWARE "0.50"
+#define DEVICE_FIRMWARE "0.53"
 #define DEVICE_NAME "MultispeQ"
 #define DEVICE_VERSION "1"
      
@@ -96,3 +96,37 @@ uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
 float stdev16(uint16_t array[], const int n);
 int check_protocol(char *str);
 
+/*
+ * Sensor-related variables which are accessed in loop
+ */
+
+float light_intensity;
+float light_intensity_averaged;
+float light_intensity_raw;
+float light_intensity_raw_averaged;
+float r;
+float r_averaged;
+float g;
+float g_averaged;
+float b;
+float b_averaged;
+
+float thickness;
+float thickness_averaged;
+int thickness_raw;
+float thickness_raw_averaged;
+
+float contactless_temp;
+float contactless_temp_averaged;
+
+int cardinal;
+int cardinal_averaged;
+int x_cardinal_raw, y_cardinal_raw, z_cardinal_raw;
+float x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged;
+
+float x_tilt, y_tilt, z_tilt;
+float x_tilt_averaged, y_tilt_averaged, z_tilt_averaged;
+int x_tilt_raw, y_tilt_raw, z_tilt_raw;
+float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
+
+float temperature, humidity, pressure;

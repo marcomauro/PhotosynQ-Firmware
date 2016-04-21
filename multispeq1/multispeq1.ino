@@ -372,17 +372,23 @@ void reset_freq() {
 // read/write device_id and manufacture_date to eeprom
 
 void get_set_device_info(const int _set) {
-  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, DEVICE_FIRMWARE, eeprom->device_manufacture);
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
+                (unsigned)eeprom->device_id >> 24,
+                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
+                ((unsigned)eeprom->device_id & 0xff00) >> 8,
+                (unsigned)eeprom->device_id & 0xff,
+                DEVICE_FIRMWARE, eeprom->device_manufacture);
   Serial_Print_CRC();
-  if (_set == 0) {                                                                      // if you're not trying to set the values, then just print this and bail
+
+  if (_set == 0)                                                                       // if you're not trying to set the values, then just print this and bail
     return;
-  }
+  
   if (_set == 1) { // save 4 bytes sent as an integer
     long val;
-    
+
     // please enter new device ID (lower 6 bytes of BLE MAC address) followed by '+'
-    Serial_Print("Please enter lower 4 bytes of device mac address followed by +");
-    val =  Serial_Input_Long("+", 0);              // save to eeprom
+    Serial_Print("Please enter lower 4 bytes of device mac address as an int followed by +");
+    val =  Serial_Input_Long("+", 0);             
     if (eeprom->device_id != val) {
       eeprom->device_id = val;              // save to eeprom
       delay(1);
@@ -397,9 +403,14 @@ void get_set_device_info(const int _set) {
     }
 
     // print again for verification
-
-    Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, DEVICE_FIRMWARE, eeprom->device_manufacture);
+    Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
+                  (unsigned)eeprom->device_id >> 24,
+                  ((unsigned)eeprom->device_id & 0xff0000) >> 16,
+                  ((unsigned)eeprom->device_id & 0xff00) >> 8,
+                  (unsigned)eeprom->device_id & 0xff,
+                  DEVICE_FIRMWARE, eeprom->device_manufacture);
     Serial_Print_CRC();
+
   } // if
 
   return;

@@ -22,7 +22,7 @@ class eeprom_class
 {
   public:
     // each of these needs a comment
-    long device_id;                   // 6 bytes of BLE mac address
+    long device_id;                   // lower 4 bytes of BLE mac address
     uint16_t device_manufacture;        // month and year, eg 12016
     float mag_bias[3];       // magnetometer/compass calibration
     float mag_cal[3][3];

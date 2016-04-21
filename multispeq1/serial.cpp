@@ -145,7 +145,7 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
   crc32_string ((char *)str);
 
   // add to resend buffer
-  int count = min(strlen(str),MAX_RESEND_SIZE - resend_count);   // check for enough remaining space
+  int count = min((int)strlen(str),MAX_RESEND_SIZE - resend_count);   // check for enough remaining space
   strncpy(resend_buffer + resend_count,(char *)str, count);
   resend_count += count;
   resend_buffer[resend_count] = 0;    // null terminate

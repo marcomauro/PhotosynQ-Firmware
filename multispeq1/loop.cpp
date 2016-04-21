@@ -16,6 +16,7 @@
 #include "serial.h"
 #include "flasher.h"
 #include "utility/crc32.h"
+#include <TimeLib.h>
 
 // function declarations
 
@@ -193,9 +194,7 @@ void loop() {
 
     Serial_Start();                   // new packet
 
-    // other potential things to add here
-    // set real-time clock (needed if battery is removed)
-    //setTime(hours, minutes, seconds, days, months, years); // TODO finish this
+
     switch (atoi(choose)) {
       case 1000:                                                                    // print "Ready" to USB and Bluetooth
         Serial_Print(DEVICE_NAME);
@@ -246,6 +245,21 @@ void loop() {
           DAC_change();
         }
         break;
+
+      case 1004: {
+          Serial_Print_Line("enter hours+min+sec+day+month+year+");
+          int hours, minutes, seconds, days, months, years;
+          hours =  Serial_Input_Long("+");
+          minutes =  Serial_Input_Long("+");
+          seconds =  Serial_Input_Long("+");
+          days =  Serial_Input_Long("+");
+          months =  Serial_Input_Long("+");
+          years =  Serial_Input_Long("+");
+          setTime(hours, minutes, seconds, days, months, years); 
+          //Serial_Printf("time is %d:%d:%d on %d/%d/%d\n", hour(), minute(), second(), month(), day(), year());
+        }
+        break;
+        
       case 1007:
         get_set_device_info(0);
         break;
@@ -352,28 +366,28 @@ void loop() {
 
       case 1021:                                                                            // variety of test commands used during development
         {
-/*
-          char S[10];
-          Serial_Print_Line(eeprom->userdef[0], 4);                                                                   // test the Serial_Input_Chars() command and saving values in userdef
-          Serial_Input_Chars(S, "+", 20000, sizeof(S));
-          Serial_Printf("output is %s \n", S);
-          eeprom->userdef[0] = atof(S);
-*/
+          /*
+                    char S[10];
+                    Serial_Print_Line(eeprom->userdef[0], 4);                                                                   // test the Serial_Input_Chars() command and saving values in userdef
+                    Serial_Input_Chars(S, "+", 20000, sizeof(S));
+                    Serial_Printf("output is %s \n", S);
+                    eeprom->userdef[0] = atof(S);
+          */
           Serial_Print_Line(eeprom->userdef[1], 4);
           eeprom->userdef[1] = Serial_Input_Double("+", 20000);                                                       // test Serial_Input_Double, save as userdef and recall
           Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
           // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
-/*
-          Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");                         //  Change the baud rate of the BLE
-          long baudrate = Serial_Input_Long();
-          Serial_Begin((int) baudrate);
+          /*
+                    Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");                         //  Change the baud rate of the BLE
+                    long baudrate = Serial_Input_Long();
+                    Serial_Begin((int) baudrate);
 
-          Serial_Print("Enter 1/2/3/4+\n");
-          long setserial = Serial_Input_Long();
-          Serial_Printf("set serial to %d\n", (int)setserial);
-          Serial_Set((int) setserial);
-          Serial_Print_Line("test print");
-*/
+                    Serial_Print("Enter 1/2/3/4+\n");
+                    long setserial = Serial_Input_Long();
+                    Serial_Printf("set serial to %d\n", (int)setserial);
+                    Serial_Set((int) setserial);
+                    Serial_Print_Line("test print");
+          */
         }
         break;
 
@@ -460,11 +474,11 @@ void loop() {
         break;
       case 1042:
         Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
-          Serial_Print_Line("before:  ");
-        for (unsigned i=0;i<NUM_LEDS + 1;i++) {                                              // print what's currently saved
-          Serial_Print(eeprom->par_to_dac_slope[i],4);
+        Serial_Print_Line("before:  ");
+        for (unsigned i = 0; i < NUM_LEDS + 1; i++) {                                        // print what's currently saved
+          Serial_Print(eeprom->par_to_dac_slope[i], 4);
           Serial_Print(",");
-          Serial_Print_Line(eeprom->par_to_dac_yint[i],4);          
+          Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
         }
         for (;;) {
           int led = Serial_Input_Double("+", 0);
@@ -474,10 +488,10 @@ void loop() {
           eeprom->par_to_dac_slope[led] = Serial_Input_Double("+", 0);
           eeprom->par_to_dac_yint[led] = Serial_Input_Double("+", 0);
         }
-        for (unsigned i=0;i<NUM_LEDS + 1;i++) {                                              // print what is now saved
-          Serial_Print(eeprom->par_to_dac_slope[i],4);
+        for (unsigned i = 0; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
+          Serial_Print(eeprom->par_to_dac_slope[i], 4);
           Serial_Print(",");
-          Serial_Print_Line(eeprom->par_to_dac_yint[i],4);          
+          Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
         }
         break;
       case 1043:
@@ -889,38 +903,38 @@ void loop() {
 
         // this should be a structure, so I can reset it all......
 
-light_intensity = 0;
-light_intensity_averaged = 0;
-light_intensity_raw = 0;
-light_intensity_raw_averaged = 0;
-r = 0;
-r_averaged = 0;
-g = 0;
-g_averaged = 0;
-b = 0;
-b_averaged = 0;
+        light_intensity = 0;
+        light_intensity_averaged = 0;
+        light_intensity_raw = 0;
+        light_intensity_raw_averaged = 0;
+        r = 0;
+        r_averaged = 0;
+        g = 0;
+        g_averaged = 0;
+        b = 0;
+        b_averaged = 0;
 
-thickness = 0;
-thickness_averaged = 0;
-thickness_raw = 0;
-thickness_raw_averaged = 0;
+        thickness = 0;
+        thickness_averaged = 0;
+        thickness_raw = 0;
+        thickness_raw_averaged = 0;
 
-contactless_temp = 0;
-contactless_temp_averaged = 0;
+        contactless_temp = 0;
+        contactless_temp_averaged = 0;
 
-cardinal = 0;
-cardinal_averaged = 0;
-x_cardinal_raw = 0, y_cardinal_raw = 0, z_cardinal_raw = 0;
-x_cardinal_raw_averaged = 0, y_cardinal_raw_averaged = 0, z_cardinal_raw_averaged = 0;
+        cardinal = 0;
+        cardinal_averaged = 0;
+        x_cardinal_raw = 0, y_cardinal_raw = 0, z_cardinal_raw = 0;
+        x_cardinal_raw_averaged = 0, y_cardinal_raw_averaged = 0, z_cardinal_raw_averaged = 0;
 
-x_tilt = 0, y_tilt = 0, z_tilt = 0;
-x_tilt_averaged = 0, y_tilt_averaged = 0, z_tilt_averaged = 0;
-x_tilt_raw = 0, y_tilt_raw = 0, z_tilt_raw = 0;
-x_tilt_raw_averaged = 0, y_tilt_raw_averaged = 0, z_tilt_raw_averaged = 0;
+        x_tilt = 0, y_tilt = 0, z_tilt = 0;
+        x_tilt_averaged = 0, y_tilt_averaged = 0, z_tilt_averaged = 0;
+        x_tilt_raw = 0, y_tilt_raw = 0, z_tilt_raw = 0;
+        x_tilt_raw_averaged = 0, y_tilt_raw_averaged = 0, z_tilt_raw_averaged = 0;
 
-temperature = 0, humidity = 0, pressure = 0;
+        temperature = 0, humidity = 0, pressure = 0;
 
-//!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
+        //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
         //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
 
         // perform the protocol averages times
@@ -1642,7 +1656,7 @@ void get_cardinal (int notRaw, int _averages) {
 }
 
 float get_thickness (int notRaw, int _averages) {
-  int sum=0;
+  int sum = 0;
   for (int i = 0; i < 1000; ++i) {
     sum += analogRead(HALL_OUT);
   }

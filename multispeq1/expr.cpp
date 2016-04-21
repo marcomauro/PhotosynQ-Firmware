@@ -6,17 +6,6 @@
 #include "eeprom.h"
 #include "defines.h"
 
-extern float light_intensity;
-extern float light_intensity_averaged;
-extern float light_intensity_raw;
-extern float light_intensity_raw_averaged;
-extern float r;
-extern float r_averaged;
-extern float g;
-extern float g_averaged;
-extern float b;
-extern float b_averaged;
-
 extern "C" {
 #include "expr/expression_parser.h"
 }
@@ -31,8 +20,10 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     unsigned index = atoi(name + 7);
     if (index < NUM_USERDEFS)
       *value = eeprom->userdef[index];
+    else 
+      *value = NAN;
     return PARSER_TRUE;
-  } else if ( strcmp( name, "light_intensity" ) == 0 ) {
+  } else if (strcmp( name, "light_intensity" ) == 0 ) {
     // set return value, return true
     *value = light_intensity;
     return PARSER_TRUE;
@@ -97,6 +88,8 @@ double expr(const char str[])
 {
   int num_arguments = 3;
 
-  return parse_expression_with_callbacks( str, variable_callback, function_callback, &num_arguments );
+  if (str == 0 || str[0] == 0)
+     return NAN;
 
-}
+  return parse_expression_with_callbacks( str, variable_callback, function_callback, &num_arguments );
+}  // expr()

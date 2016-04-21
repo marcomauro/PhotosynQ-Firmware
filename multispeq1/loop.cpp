@@ -22,16 +22,20 @@ inline static void stopTimers(void);
 void reset_freq(void);
 void upgrade_firmware(void);            // for over-the-air firmware updates
 void boot_check(void);                  // for over-the-air firmware updates
-int Light_Intensity(int var1);
+int get_light_intensity(int notRaw, int x);
 static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
-void set_device_info(const int _set);
+void get_set_device_info(const int _set);
 int abort_cmd(void);
-void environmentals(JsonArray a, const int x, int beforeOrAfter);
+void environmentals(JsonArray a, const int _averages, const int x, int beforeOrAfter);
 //void environmentals2(JsonArray a, const int x);
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode);
 void MAG3110_read (int *x, int *y, int *z);
 void MMA8653FC_read(int *axeXnow, int *axeYnow, int *axeZnow);
 float MLX90615_Read(int TaTo);
+uint16_t par_to_dac (float _par, uint16_t _pin);
+float light_intensity_raw_to_par (float _light_intensity_raw, float _r, float _g, float _b);
+void print_all (void);
+void print_userdef (void);
 
 
 // Globals (try to avoid)
@@ -57,35 +61,43 @@ static int act_background_light = 0;
 
 // shared with PAR.cpp
 // these should be eliminated - use a structure
-extern float light_slope;
-extern float lux_local;
-extern float r_local;
-extern float g_local;
-extern float b_local;
-extern float lux_average;
-extern float r_average;
-extern float g_average;
-extern float b_average;
-extern float lux_average_forpar;
-extern float r_average_forpar;
-extern float g_average_forpar;
-extern float b_average_forpar;
-
 /*
-  extern float light_y_intercept;
-  extern float lux_to_uE(float _lux_average);
-  extern int Light_Intensity(int var1);
-  extern int calculate_intensity(int _light, int tcs_on, int _cycle, float _light_intensity);
-  extern int calculate_intensity_background(int _light, int tcs_on, int _cycle, float _light_intensity, int _background_intensity);
-*/
+ * So this whole set of variables should be a global structure, so it can be used in expressions.  However, that structure should be reset at this point (between different measurements).  
+ */
+extern float light_intensity;
+extern float light_intensity_averaged;
+extern float light_intensity_raw;
+extern float light_intensity_raw_averaged;
+extern float r;
+extern float r_averaged;
+extern float g;
+extern float g_averaged;
+extern float b;
+extern float b_averaged;
+
+float thickness;
+float thickness_averaged;
+int thickness_raw;
+float thickness_raw_averaged;
+
+float contactless_temp;
+float contactless_temp_averaged;
+
+int cardinal;
+int cardinal_averaged;
+int x_cardinal_raw, y_cardinal_raw, z_cardinal_raw;
+float x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged;
+
+float x_tilt, y_tilt, z_tilt;
+float x_tilt_averaged, y_tilt_averaged, z_tilt_averaged;
+int x_tilt_raw, y_tilt_raw, z_tilt_raw;
+float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
+
+float temperature, humidity, pressure;
 
 ////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
 static float analog_read_average = 0;
 static float digital_read_average = 0;
-static float relative_humidity_average = 0;
-static float temperature_average = 0;
-static float objt_average = 0;
-
 
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
@@ -178,136 +190,21 @@ void loop() {
 
     Serial_Start();                   // new packet
 
+    // other potential things to add here
+    // set real-time clock (needed if battery is removed)
+    //setTime(hours, minutes, seconds, days, months, years); // TODO finish this
     switch (atoi(choose)) {
-      case 440:
-        // set real-time clock (needed if battery is removed)
-        //setTime(hours, minutes, seconds, days, months, years); // TODO finish this
-        break;
       case 1000:                                                                    // print "Ready" to USB and Bluetooth
         Serial_Print(DEVICE_NAME);
         Serial_Print_Line(" Ready");
         break;
-      case 666:
-        Serial_Print("wake up");
-        // TODO dac1.update();
+      case 1001:                                                                      // standard startup routine for new device
+        DAC_set_address(LDAC1, 0, 1);                                                 // Set DAC addresses to 1,2,3 assuming addresses are unset and all are factory (0,0,0)
+        DAC_set_address(LDAC2, 0, 2);
+        DAC_set_address(LDAC3, 0, 3);
+        get_set_device_info(1);                                                           //  input device info and write to eeprom
         break;
-      case 667:
-        Serial_Print("get status  ");
-        // TODO Serial_Print_Line(dac1.getId());
-        break;
-      case 1001:
-        Serial_Print_Line("PULSE1");
-        DAC_set(1, 50);
-        DAC_change();
-        digitalWriteFast(PULSE1, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE1, LOW);
-        DAC_set(1, 0);
-        DAC_change();
-        break;
-      case 1002:
-        Serial_Print_Line("PULSE2");
-        DAC_set(2, 50);
-        DAC_change();
-        digitalWriteFast(PULSE2, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE2, LOW);
-        DAC_set(2, 0);
-        DAC_change();
-        break;
-      case 1003:
-        Serial_Print_Line("PULSE3");
-        DAC_set(3, 50);
-        DAC_change();
-        digitalWriteFast(PULSE3, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE3, LOW);
-        DAC_set(3, 0);
-        DAC_change();
-        break;
-      case 1004:
-        Serial_Print_Line("PULSE4");
-        DAC_set(4, 50);
-        DAC_change();
-        digitalWriteFast(PULSE4, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE4, LOW);
-        DAC_set(4, 0);
-        DAC_change();
-        break;
-      case 1005:
-        Serial_Print_Line("PULSE5");
-        DAC_set(5, 50);
-        DAC_change();
-        digitalWriteFast(PULSE5, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE5, LOW);
-        DAC_set(5, 0);
-        DAC_change();
-        break;
-      case 1006:
-        Serial_Print_Line("PULSE6");
-        DAC_set(6, 50);
-        DAC_change();
-        digitalWriteFast(PULSE6, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE6, LOW);
-        DAC_set(6, 0);
-        DAC_change();
-        break;
-      case 1007:
-        Serial_Print("{\"device_name\":\"MultispeQ\"");
-        Serial_Print(",\"device_id\":\"1\"");
-        Serial_Print(",\"device_firmware\":\"1.0\"");
-        Serial_Print(",\"device_manufacture\":\"03112016\"");
-        Serial_Print("}");
-        Serial_Print_CRC();
-        break;
-      /*
-        case 1007:
-        Serial_Print_Line("PULSE7");
-        DAC_set(7, 50);
-        DAC_change();
-        digitalWriteFast(PULSE7, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE7, LOW);
-        DAC_set(7, 0);
-        DAC_change();
-        break;
-      */
-      case 1008:
-        Serial_Print_Line("PULSE8");
-        DAC_set(8, 50);
-        DAC_change();
-        digitalWriteFast(PULSE8, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE8, LOW);
-        DAC_set(8, 0);
-        DAC_change();
-        break;
-      case 1009:
-        Serial_Print_Line("PULSE9");
-        DAC_set(9, 50);
-        DAC_change();
-        digitalWriteFast(PULSE9, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE9, LOW);
-        DAC_set(9, 0);
-        DAC_change();
-        break;
-
-      case 1010:
-        Serial_Print_Line("PULSE10");
-        DAC_set(10, 50);
-        DAC_change();
-        digitalWriteFast(PULSE10, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE10, LOW);
-        DAC_set(10, 0);
-        DAC_change();
-        break;
-
-      case 1011: {                                                                         // continuously output until user enter -1+
+      case 1002: {                                                                         // continuously output until user enter -1+
           int Xcomp, Ycomp, Zcomp;
           int Xval, Yval, Zval;
           int leave = 0;
@@ -315,7 +212,7 @@ void loop() {
           while (leave != -1) {
             long sum = 0;
             leave = Serial_Input_Long("+", 1000);
-            int par_raw = Light_Intensity(0);
+            int par_raw = get_light_intensity(0, 1);
             float contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
             MMA8653FC_read(&Xval, &Yval, &Zval);
             MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
@@ -331,48 +228,128 @@ void loop() {
         }
         break;
 
-      case 1019:                                                                          // test the Serial_Input_Chars() command
-        char S[10];
-        Serial_Print_Line(eeprom->userdef[0], 4);
-        Serial_Input_Chars(S, "+", 20000, sizeof(S));
-        Serial_Printf("output is %s \n", S);
-        eeprom->userdef[0] = atof(S);
+      case 1007:
+        get_set_device_info(0);
+        break;
+      case 1011:
+        Serial_Print_Line("PULSE1");
+        DAC_set(1, 50);
+        DAC_change();
+        digitalWriteFast(PULSE1, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE1, LOW);
+        DAC_set(1, 0);
+        DAC_change();
+        break;
+      case 1012:
+        Serial_Print_Line("PULSE2");
+        DAC_set(2, 50);
+        DAC_change();
+        digitalWriteFast(PULSE2, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE2, LOW);
+        DAC_set(2, 0);
+        DAC_change();
+        break;
+      case 1013:
+        Serial_Print_Line("PULSE3");
+        DAC_set(3, 50);
+        DAC_change();
+        digitalWriteFast(PULSE3, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE3, LOW);
+        DAC_set(3, 0);
+        DAC_change();
+        break;
+      case 1014:
+        Serial_Print_Line("PULSE4");
+        DAC_set(4, 50);
+        DAC_change();
+        digitalWriteFast(PULSE4, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE4, LOW);
+        DAC_set(4, 0);
+        DAC_change();
+        break;
+      case 1015:
+        Serial_Print_Line("PULSE5");
+        DAC_set(5, 50);
+        DAC_change();
+        digitalWriteFast(PULSE5, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE5, LOW);
+        DAC_set(5, 0);
+        DAC_change();
+        break;
+      case 1016:
+        Serial_Print_Line("PULSE6");
+        DAC_set(6, 50);
+        DAC_change();
+        digitalWriteFast(PULSE6, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE6, LOW);
+        DAC_set(6, 0);
+        DAC_change();
+        break;
+      case 1017:
+        Serial_Print_Line("PULSE7");
+        DAC_set(7, 50);
+        DAC_change();
+        digitalWriteFast(PULSE7, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE7, LOW);
+        DAC_set(7, 0);
+        DAC_change();
+        break;
+      case 1018:
+        Serial_Print_Line("PULSE8");
+        DAC_set(8, 50);
+        DAC_change();
+        digitalWriteFast(PULSE8, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE8, LOW);
+        DAC_set(8, 0);
+        DAC_change();
+        break;
+      case 1019:
+        Serial_Print_Line("PULSE9");
+        DAC_set(9, 50);
+        DAC_change();
+        digitalWriteFast(PULSE9, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE9, LOW);
+        DAC_set(9, 0);
+        DAC_change();
         break;
 
-      case 1020:                                                                          // test the Serial_Input_Float command
-        Serial_Print_Line(eeprom->userdef[1], 4);
-        eeprom->userdef[1] = Serial_Input_Double("+", 20000);
-        Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
-        // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
+      case 1020:
+        Serial_Print_Line("PULSE10");
+        DAC_set(10, 50);
+        DAC_change();
+        digitalWriteFast(PULSE10, HIGH);
+        delay(1000);
+        digitalWriteFast(PULSE10, LOW);
+        DAC_set(10, 0);
+        DAC_change();
         break;
 
-      case 1027:
-        _reboot_Teensyduino_();                                                    // restart teensy
-        break;
+      case 1021:                                                                            // variety of test commands used during development
+        {
+          char S[10];
+          Serial_Print_Line(eeprom->userdef[0], 4);                                                                   // test the Serial_Input_Chars() command and saving values in userdef
+          Serial_Input_Chars(S, "+", 20000, sizeof(S));
+          Serial_Printf("output is %s \n", S);
+          eeprom->userdef[0] = atof(S);
 
-      case 1021:                                                                          // Compare the new AD read method from AD7689
-        AD7689_set(0);
-        //        AD7689_sample();                                                                               // start conversion
-        uint16_t middle_data3[100];
-        AD7689_read_array(middle_data3, 100);
-        for (int i = 0; i < 100; i++) {
-          Serial_Print(middle_data3[i]);
-          Serial_Print(",");
-        }
-        Serial_Print_Line("");
-        AD7689_set(0);
-        AD7689_sample();                                                                   // start conversion
-        //        middle_data2 = AD7689_read_sample();                                    // read value (could subtract off baseline)
-        //        Serial_Print_Line(middle_data2);
-        break;
+          Serial_Print_Line(eeprom->userdef[1], 4);
+          eeprom->userdef[1] = Serial_Input_Double("+", 20000);                                                       // test Serial_Input_Double, save as userdef and recall
+          Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
+          // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
 
-      case 1022:                                                                          // Set DAC addresses to 1,2,3 assuming addresses are unset and all are factory (0,0,0)
-        DAC_set_address(LDAC1, 0, 1);
-        DAC_set_address(LDAC2, 0, 2);
-        DAC_set_address(LDAC3, 0, 3);
-        break;
+          Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");                         //  Change the baud rate of the BLE
+          long baudrate = Serial_Input_Long();
+          Serial_Begin((int) baudrate);
 
-      case 1024:   {
           Serial_Print("Enter 1/2/3/4+\n");
           long setserial = Serial_Input_Long();
           Serial_Printf("set serial to %d\n", (int)setserial);
@@ -381,100 +358,123 @@ void loop() {
         }
         break;
 
-      case 1025:  {                                                                         // Test to make sure that savings parameters to EEPROM works
-          Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");
-          long baudrate = Serial_Input_Long();
-          Serial_Begin((int) baudrate);
-        }
+      case 1027:                                                                                // restart teensy (keep here!)
+        _reboot_Teensyduino_();
         break;
-
       case 1028:
-        Serial_Print_Line(eeprom->manufacture_date);
-        Serial_Print_Line(eeprom->mag_bias[1]);
-        Serial_Print_Line(eeprom->mag_cal[1][1]);
-        Serial_Printf("%ld\n", eeprom->device_id);
+        print_userdef();                                                                        // print only the userdef eeprom values
         break;
-
-      case 1029:                                                                   // read accelerometer
-        {
-          int Xval, Yval, Zval;
-          Serial_Flush_Input();
-          while (Serial_Peek() != '1') {
-            MMA8653FC_read(&Xval, &Yval, &Zval);
-            Serial_Print(Xval);
-            Serial_Print(",");
-            Serial_Print(Yval);
-            Serial_Print(",");
-            Serial_Print(Zval);
-            Serial_Print_Line(",");
-            delay(100);
+      case 1029:
+        print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
+        break;
+      case 1030:
+        Serial_Print("input 3 magnetometer bias values, each followed by +: ");
+        eeprom->mag_bias[0] = Serial_Input_Double("+", 0);
+        eeprom->mag_bias[1] = Serial_Input_Double("+", 0);
+        eeprom->mag_bias[2] = Serial_Input_Double("+", 0);
+        break;
+      case 1031:
+        Serial_Print("input 9 magnetometer calibration values, each followed by +: ");
+        for (int i = 0;i<3;i++) {
+          for (int j = 0;j<3;j++) {
+            eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
+            eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
+            eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);            
           }
-          Serial_Read();
         }
         break;
-
-      case 1030:                                                                   // read compass
-        {
-          int Xcomp, Ycomp, Zcomp;
-          Serial_Flush_Input();
-          while (Serial_Peek() != '1') {
-            MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
-            delay(200);
-            Serial_Print(Xcomp);
-            Serial_Print(",");
-            Serial_Print(Ycomp);
-            Serial_Print(",");
-            Serial_Print(Zcomp);
-            Serial_Print_Line(",");
+      case 1032:
+        Serial_Print("input 3 accelerometer bias values, each followed by +: ");
+        eeprom->accel_bias[0] = Serial_Input_Double("+", 0);
+        eeprom->accel_bias[1] = Serial_Input_Double("+", 0);
+        eeprom->accel_bias[2] = Serial_Input_Double("+", 0);
+        break;
+      case 1033:
+        Serial_Print("input 9 accelerometer calibration values, each followed by +: ");
+        for (int i = 0;i<3;i++) {
+          for (int j = 0;j<3;j++) {
+            eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
+            eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
+            eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);            
           }
-          Serial_Read();
         }
         break;
-
-      case 1031:                                               // read accel and compass
-        {
-          int Xval, Yval, Zval;
-          int Xcomp, Ycomp, Zcomp;
-          Serial_Flush_Input();
-          while (Serial_Peek() != '1') {
-            MMA8653FC_read(&Xval, &Yval, &Zval);
-            MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
-            delay(200);
-            Serial_Printf("%d,%d,%d,%d,%d,%d\n", Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+      case 1034:
+        Serial_Print("input y intercept for ambient par calibration followed by +: ");
+        eeprom->light_yint = Serial_Input_Double("+", 0);
+        break;
+      case 1035:
+        Serial_Print("input light slope for ambient par calibration followed by +: ");
+        eeprom->light_slope_all = Serial_Input_Double("+", 0);
+        break;
+      case 1036:
+        Serial_Print("input r slope for ambient par calibration followed by +: ");
+        eeprom->light_slope_r = Serial_Input_Double("+", 0);
+        break;
+      case 1037:
+        Serial_Print("input g slope for ambient par calibration followed by +: ");
+        eeprom->light_slope_g = Serial_Input_Double("+", 0);
+        break;
+      case 1038:
+        Serial_Print("input b slope for ambient par calibration followed by +: ");
+        eeprom->light_slope_b = Serial_Input_Double("+", 0);
+        break;
+      case 1039:
+        Serial_Print("input thickness calibration value a for leaf thickness followed by +: ");
+        eeprom->thickness_a = Serial_Input_Double("+", 0);
+        break;
+      case 1040:
+        Serial_Print("input thickness calibration value b for leaf thickness  followed by +: ");
+        eeprom->thickness_b = Serial_Input_Double("+", 0);
+        break;
+      case 1041:
+        Serial_Print("input thickness calibration value d for leaf thickness  followed by +: ");
+        eeprom->thickness_d = Serial_Input_Double("+", 0);
+        break;
+      case 1042:
+        Serial_Print("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+        for (;;) {
+          int led = Serial_Input_Double("+", 0);
+          if (led == -1) {                                    // user can bail with -1+ setting as LED
+            break;
           }
-          Serial_Read();
+          eeprom->par_to_dac_slope[led] = Serial_Input_Double("+", 0);
+          eeprom->par_to_dac_yint[led] = Serial_Input_Double("+", 0);
         }
         break;
-
-      case 1033:                                              // read hall sensor (13 bits are possible)
-        {
-          Serial_Flush_Input();
-          while (Serial_Peek() != '1') {
-            long sum = 0;
-            const int samples = 1000;
-
-            analogReference(INTERNAL);
-            delay(200);
-
-            for (int i = 0; i < samples; ++i) {
-              sum += analogRead(HALL_OUT);           // 0 gauss is approx 65535
-            }
-            Serial_Printf("%d\n", 65535 - (sum / samples));
-            delay(1);
-          } // while
-          Serial_Read();
+      case 1043:
+        Serial_Print("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+        for (;;) {
+          int led = Serial_Input_Double("+", 0);
+          if (led == -1) {                                    // user can bail with -1+ setting as LED
+            break;
+          }
+          eeprom->colorcal_intensity1_slope[led] = Serial_Input_Double("+", 0);
+          eeprom->colorcal_intensity1_yint[led] = Serial_Input_Double("+", 0);
         }
         break;
-
-      case 1076:                                              // read IR sensor
-        Serial_Flush_Input();
-        while (Serial_Peek() != '1') {
-          Serial_Print_Line((MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0, 1);
-          delay(500);
+      case 1044:
+        Serial_Print("input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+        for (;;) {
+          int led = Serial_Input_Double("+", 0);
+          if (led == -1) {                                    // user can bail with -1+ setting as LED
+            break;
+          }
+          eeprom->colorcal_intensity2_slope[led] = Serial_Input_Double("+", 0);
+          eeprom->colorcal_intensity2_yint[led] = Serial_Input_Double("+", 0);
         }
-        Serial_Read();
         break;
-
+      case 1045:
+        Serial_Print("input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+        for (;;) {
+          int led = Serial_Input_Double("+", 0);
+          if (led == -1) {                                    // user can bail with -1+ setting as LED
+            break;
+          }
+          eeprom->colorcal_intensity3_slope[led] = Serial_Input_Double("+", 0);
+          eeprom->colorcal_intensity3_yint[led] = Serial_Input_Double("+", 0);
+        }
+        break;
       case 1100:     // resend last packet
         Serial_Resend();
         break;
@@ -510,10 +510,6 @@ void loop() {
           Serial_Printf("single pulse stdev = % .2f AD counts\n", stdev16(val, SAMPLES));
           Serial_Printf("time = % d usec for % d samples\n", delta_time, SAMPLES);
         }
-        break;
-
-      case 4045:
-        set_device_info(1);  //  input device info and write to eeprom
         break;
 
       case 4047:
@@ -606,7 +602,7 @@ void loop() {
         break;
 
       default:
-        Serial_Printf("bad command # %s\n", choose);
+        Serial_Printf("{\"error\":\"bad command # %s\n\"", choose);
         break;
     }  // switch()
 
@@ -660,7 +656,7 @@ void loop() {
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
-  Serial_Printf(",\"firmware_version\":%s", FIRMWARE_VERSION);
+  Serial_Printf(",\"device_firmware\":%s", DEVICE_FIRMWARE);
   Serial_Print(",\"sample\":[");
 
   // loop through the all measurements to create a measurement group
@@ -695,9 +691,9 @@ void loop() {
         uint16_t adc_only[150];                                                   // this and first_adc_ref are used to save the first set of ADC averages produced, so it can be optionally displayed instead of data_raw (for signal quality debugging).  USE ONLY WITH REFERENCE == 0 (ie reference is OFF!)
         JsonArray pulses =        hashTable.getArray("pulses");                                // the number of measuring pulses, as an array.  For example [50,10,50] means 50 pulses, followed by 10 pulses, follwed by 50 pulses.
         String protocol_id =      hashTable.getString("protocol_id");                          // used to determine what macro to apply
-        int analog_averages =     hashTable.getLong("analog_averages");                          // DEPRECIATED IN NEWEST HARDWARE 10/14 # of measurements per measurement pulse to be internally averaged (min 1 measurement per 6us pulselengthon) - LEAVE THIS AT 1 for now
-        if (analog_averages == 0) {                                                              // if averages don't exist, set it to 1 automatically.
-          analog_averages = 1;
+        int analog_averageds =     hashTable.getLong("analog_averageds");                          // DEPRECIATED IN NEWEST HARDWARE 10/14 # of measurements per measurement pulse to be internally averaged (min 1 measurement per 6us pulselengthon) - LEAVE THIS AT 1 for now
+        if (analog_averageds == 0) {                                                              // if averages don't exist, set it to 1 automatically.
+          analog_averageds = 1;
         }
         averages =                hashTable.getLong("averages");                               // The number of times to average this protocol.  The spectroscopic and environmental data is averaged in the device and appears as a single measurement.
         if (averages == 0) {                                                                   // if averages don't exist, set it to 1 automatically.
@@ -853,18 +849,17 @@ void loop() {
         //        print_sensor_calibration(1);                                               // print sensor calibration data
 
         // this should be a structure, so I can reset it all......
+/*
         analog_read_average = 0;
         digital_read_average = 0;
         relative_humidity_average = 0;                                                                    // reset all of the environmental variables
         temperature_average = 0;
-        lux_average = 0;
-        r_average = 0;
-        g_average = 0;
-        b_average = 0;
-        lux_average_forpar = 0;
-        r_average_forpar = 0;
-        g_average_forpar = 0;
-        b_average_forpar = 0;
+        light_intensity_raw_averaged = 0;
+        light_intensity_averaged = 0;
+        r_averaged = 0;
+        g_averaged = 0;
+        b_averaged = 0;
+*/
         //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
         //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
 
@@ -888,18 +883,18 @@ void loop() {
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           uint16_t _number_samples = 0;                                                               // create the adc sampling rate number
-          lux_local = 0;                                                                     // reset local (this measurement) light levels
-          r_local = 0;
-          g_local = 0;
-          b_local = 0;
+//          lux_local = 0;                                                                     // reset local (this measurement) light levels
+//          r_local = 0;
+//          g_local = 0;
+//          b_local = 0;
 
           //      options for relative humidity, temperature, contactless temperature. light_intensity,co2
           //           0 - take before spectroscopy measurements
           //           1 - take after spectroscopy measurements
-          environmentals(environmental, x, 0);
+          environmentals(environmental, averages, x, 0);
 
           //&&
-          //          analogReadAveraging(analog_averages);                                      // set analog averaging (ie ADC takes one signal per ~3u)
+          //          analogReadAveraging(analog_averageds);                                      // set analog averaging (ie ADC takes one signal per ~3u)
 
           //////////////////////ADC SETUP////////////////////////
 
@@ -1089,11 +1084,11 @@ void loop() {
 
               // calculate_intensity(_meas_light, tcs_to_act, cycle, _light_intensity);                   // in addition, calculate the intensity of the current measuring light
 
-              DAC_set(_meas_light, _m_intensity);
+              DAC_set(_meas_light, par_to_dac(_m_intensity, _meas_light));                                // set the DAC, make sure to convert PAR intensity to DAC value
               DAC_change();
 
               for (unsigned i = 0; i < NUM_LEDS; i++) {                         // set the DAC lights for actinic lights in the current pulse set
-                DAC_set(_a_lights[i], _a_intensities[i]);
+                DAC_set(_a_lights[i], par_to_dac(_a_intensities[i],_a_lights[i]));
                 if (PULSERDEBUG) {
                   Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
                   Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
@@ -1276,7 +1271,7 @@ void loop() {
             0 - take before spectroscopy measurements
             1 - take after spectroscopy measurements
           */
-          environmentals(environmental, x, 1);
+          environmentals(environmental, averages, x, 1);
 
           if (x + 1 < averages) {                                                             //  to next average, unless it's the end of the very last run
             if (averages_delay > 0) {
@@ -1355,21 +1350,23 @@ void loop() {
         averages = 1;                                                 // number of times to repeat the entire run
         averages_delay = 0;                                                           // seconds wait time between averages
         averages_delay_ms = 0;                                                    // seconds wait time between averages
-        analog_averages = 1;                                                             // # of measurements per pulse to be averaged (min 1 measurement per 6us pulselengthon)
+        analog_averageds = 1;                                                             // # of measurements per pulse to be averaged (min 1 measurement per 6us pulselengthon)
         for (unsigned i = 0; i < NUM_LEDS; i++) {
           _a_lights[i] = 0;
         }
+        /*
         relative_humidity_average = 0;                                                // reset all environmental variables to zero
         temperature_average = 0;
         objt_average = 0;
-        lux_average = 0;
-        r_average = 0;
-        g_average = 0;
-        b_average = 0;
-        lux_average_forpar = 0;
-        r_average_forpar = 0;
-        g_average_forpar = 0;
-        b_average_forpar = 0;
+        lux_averaged = 0;
+        r_averaged = 0;
+        g_averaged = 0;
+        b_averaged = 0;
+        lux_averaged_forpar = 0;
+        r_averaged_forpar = 0;
+        g_averaged_forpar = 0;
+        b_averaged_forpar = 0;
+        */
 
         if (CORAL_SPEQ) {
           for (int i = 0; i < SPEC_CHANNELS; i++)
@@ -1530,142 +1527,188 @@ int abort_cmd()
 }
 
 /*
-   Here's what I propose for this:  When you call a sensor, it saves a global variable for the current sensor reading AND adds that value to another global variable for the cumulative reading which is displayed when you print.
-   The current reading must be global because if it is called in a function in protocol JSON it needs to be current and available
-   The cumulative reading must be global because it needs to persist between averages
-   In addition, sensor calls should include an option to call the calibrated value or the uncalibrated (raw) value.  Most have both values available.
-
-   Light_intensity() has a nice structure which can be copied.
-   Other monday items:
-   clean up and put items in structures
-   implement sensor structure as described above
-   save to eeprom as another appliction for the expression (say "save":{1:(light_intensity/2)}, ... )
-   consider an "any" call in the save function (say "save":{any:(light_intensity/2)}) - this would allow someone only saving one value to save it in a random location, reducing the eeprom persistence problem... is this possible?  How to remember where it was saved?
+   The structure of the sensor calls follows these general rules:
+   1) user enters "environmental":[[...],[...]] structure into API, where ... is the call ("light_intensity" or "thickness" for example), and followed by a 0 or 1 (0 if it's before the main spec measurement, or 1 if it's after)
+      An example - "environmental":[["tilt",1],["light_intensity",0]] would call tilt after the measurement, and light intensity before the measurement.
+   2) Sensor data gets called in 3 ways: either inside the measurement as part of an expression (maybe "a_intensities":[light_intensity/2]), after a measurement or set of averaged measurements.
+      In addition, there are often raw and calibrated versions of sensors, like raw tcs value versus the PAR value, or raw hall sensor versus calibrated thickness.
+      As a result, for most sensors there is the base version (like x_tilt) which is available in that measurment, an averaged version (like x_tilt_averaged) which is outputted after averaging, and raw versions of each of those (x_tilt_raw and x_tilt_raw_averaged)
 */
+void get_temperature_humidity_pressure (int _averages) {
+  /*
+    if (notRaw == 0) {                                              // save the raw values average
+    }
+    if (notRaw == 1) {                                              // save the calibrated values and average
+    }
+  */
+}
 
-void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
+float get_contactless_temp (int _averages) {
+  contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
+  contactless_temp_averaged += contactless_temp / _averages;
+  return contactless_temp_averaged;
+}
+
+void get_tilt (int notRaw, int _averages) {
+  MMA8653FC_read(&x_tilt_raw, &y_tilt_raw, &z_tilt_raw);                      // saves x_tilt_raw, y_... and z_... values
+  // consider adding a calibration with more useful outputs
+  x_tilt = x_tilt_raw * (180 / 1000);
+  y_tilt = y_tilt_raw * (180 / 1000);
+  z_tilt = z_tilt_raw * (180 / 1000);
+  if (notRaw == 0) {                                              // save the raw values average
+    x_tilt_raw_averaged += x_tilt_raw / _averages;
+    y_tilt_raw_averaged += y_tilt_raw / _averages;
+    z_tilt_raw_averaged += z_tilt_raw / _averages;
+  }
+  if (notRaw == 1) {                                              // save the calibrated values and average
+    x_tilt_averaged += x_tilt / _averages;
+    y_tilt_averaged += y_tilt / _averages;
+    z_tilt_averaged += z_tilt / _averages;
+  }
+  // add better routine here to produce clearer tilt values
+}
+
+void get_cardinal (int notRaw, int _averages) {
+  MAG3110_read(&x_cardinal_raw, &y_cardinal_raw, &z_cardinal_raw);            // saves x_cardinal, y_ and z_ values
+  // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called cardinal
+  if (notRaw == 0) {                                              // save the raw values average
+    x_cardinal_raw_averaged += x_cardinal_raw / _averages;
+    y_cardinal_raw_averaged += y_cardinal_raw / _averages;
+    z_cardinal_raw_averaged += z_cardinal_raw / _averages;
+  }
+  if (notRaw == 1) {                                              // save the calibrated values and average
+    cardinal_averaged += x_cardinal_raw / _averages;
+  }
+}
+
+float get_thickness (int notRaw, int _averages) {
+  int sum;
+  for (int i = 0; i < 1000; ++i) {
+    sum += analogRead(HALL_OUT);
+  }
+  thickness_raw = (sum / 1000);
+  thickness = (sum / 1000);
+  // add calibration routine here with calls to thickness_a thickness_b thickness_d;
+  //  thickness += ...
+  if (notRaw == 0) {                                              // save the raw values average
+    thickness_raw_averaged += thickness_raw / _averages;
+    return thickness_raw_averaged;
+  }
+  else if (notRaw == 1) {                                              // save the calibrated values and average
+    thickness_averaged += thickness / _averages;
+    return thickness_averaged;
+  }
+  else {
+    return 0;
+  }
+}
+
+void environmentals(JsonArray environmental, const int _averages, const int x, int beforeOrAfter)
 {
 
   for (int i = 0; i < environmental.getLength(); i++) {                                       // call environmental measurements after the spectroscopic measurement
 
     if (environmental.getArray(i).getLong(1) != beforeOrAfter)
       continue;            // not the right time
-
-    if (DEBUGSIMPLE) {
-      Serial_Print_Line("Here's the environmental measurements called:    ");
-      Serial_Print(environmental.getArray(i).getString(0));
-      Serial_Print(", ");
-      Serial_Print_Line(environmental.getArray(i).getLong(1));
-    } // DEBUGSIMPLE
     /*
-                if (environmental.getArray(i).getLong(1) == 1 \
-                && (String) environmental.getArray(i).getString(0) == "relative_humidity") {
-                  Relative_Humidity((int) environmental.getArray(i).getLong(1));                        // if this string is in the JSON and the 3rd component in the array is == 1 (meaning they want this measurement taken prior to the spectroscopic measurement), then call the associated measurement (and so on for all if statements in this for loop)
-                  if (x == averages-1) {                                                                // if it's the last measurement to average, then print the results
-                    Serial_Print("\"relative_humidity\":");
-                    Serial_Print(relative_humidity_average,2);
-                    Serial_Print(",");
-                  }
-                }
-                if (environmental.getArray(i).getLong(1) == 1 \
-              && (String) environmental.getArray(i).getString(0) == "temperature") {
-                  Temperature((int) environmental.getArray(i).getLong(1));
-                  if (x == averages-1) {
-                    Serial_Print("\"temperature\":");
-                    Serial_Print(temperature_average,2);
-                    Serial_Print(",");
-                  }
-                }
-
-                if (environmental.getArray(i).getLong(1) == 1 \
-                && (String) environmental.getArray(i).getString(0) == "contactless_temperature") {
-                  Contactless_Temperature( environmental.getArray(i).getLong(1));
-                  float c_temp = MLX90614_Read(0);
-                  if (x == averages-1) {
-                    Serial_Print("\"contactless_temperature\":");
-                    Serial_Print(c_temp,2);
-                    Serial_Print(",");
-                  }
-                }
-                if (environmental.getArray(i).getLong(1) == 1 \
-              && (String) environmental.getArray(i).getString(0) == "co2") {
-                  Co2( environmental.getArray(i).getLong(1));
-                  if (x == averages-1) {
-                    Serial_Print("\"co2\":");
-                    Serial_Print(co2_value_average,2);
-                    Serial_Print(",");
-                  }
-                }
+        if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
+          get_temperature_humidity_pressure(1,_averages);
+          if (x == _averages - 1) {
+            Serial_Print("\"temp\":%f,\"humidity\":%f,,\"pressure\":%f,",temperature, humidity, pressure);
+          }
+        }
     */
-
-    if ((String) environmental.getArray(i).getString(0) == "light_intensity") {
-      Light_Intensity(1);
-      if (x == averages - 1) {
-        Serial_Print("\"light_intensity\":");
-        /*
-          Serial_Print(lux_to_uE(lux_average_forpar), 2);
-          Serial_Print(",");
-          Serial_Print("\"r\":");
-          Serial_Print(lux_to_uE(r_average_forpar), 2);
-          Serial_Print(",");
-          Serial_Print("\"g\":");
-          Serial_Print(lux_to_uE(g_average_forpar), 2);
-          Serial_Print(",");
-          Serial_Print("\"b\":");
-          Serial_Print(lux_to_uE(b_average_forpar), 2);
-          Serial_Print(",");
-        */
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "light_intensity") {                   // measure light intensity with par calibration applied
+      get_light_intensity(1, _averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"light_intensity\":%.2f,\"r\":%.2f,\"g\":%.2f,\"b\":%.2f,", light_intensity_averaged, r_averaged, g_averaged, b_averaged);
       }
     }
-
-    if ((String) environmental.getArray(i).getString(0) == "light_intensity_raw") {
-      Light_Intensity(0);
-      if (x == averages - 1) {
-        Serial_Print("\"light_intensity_raw\":");
-        Serial_Print(lux_average, 2);
-        Serial_Print(",");
-        Serial_Print("\"r\":");
-        Serial_Print(r_average, 2);
-        Serial_Print(",");
-        Serial_Print("\"g\":");
-        Serial_Print(g_average, 2);
-        Serial_Print(",");
-        Serial_Print("\"b\":");
-        Serial_Print(b_average, 2);
-        Serial_Print(",");
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "light_intensity_raw") {              // measure raw light intensity from TCS sensor
+      get_light_intensity(0, _averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"light_intensity_raw\":%.2f,\"r\":%.2f,\"g\":%.2f,\"b\":%.2f,", light_intensity_raw_averaged, r_averaged, g_averaged, b_averaged);
       }
     }
-
-    if ((String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "contactless_temp") {                 // measure contactless temperature
+      get_contactless_temp(_averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"contactless_temp\":%.2f,", get_contactless_temp);
+      }
+    }
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "thickness") {                        // measure thickness via hall sensor, with calibration applied
+      get_thickness(1, _averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"thickness\":%.2f,", thickness);
+      }
+    }
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "thickness_raw") {                    // measure thickness via hall sensor, raw analog_read
+      get_thickness(0, _averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"thickness_raw\":%.2f,", thickness_raw);
+      }
+    }
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "tilt") {                             // measure tilt in -180 - 180 degrees
+      get_tilt(1, _averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"x_tilt\":%.2f, \"y_tilt\":%.2f, \"z_tilt\":%.2f,", x_tilt, y_tilt, z_tilt);
+      }
+    }
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "tilt_raw") {                         // measure tilt from -1000 - 1000
+      get_tilt(0, _averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"x_tilt_raw\":%.2f, \"y_tilt_raw\":%.2f, \"z_tilt_raw\":%.2f,", x_tilt_raw, y_tilt_raw, z_tilt_raw);
+      }
+    }
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "cardinal") {                         // measure cardinal direction, with calibration applied
+      get_cardinal(1, _averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"cardinal\":%.2f,", cardinal);
+      }
+    }
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "cardinal_raw") {                     // measure cardinal direction, raw values
+      get_cardinal(0, _averages);
+      if (x == _averages - 1) {
+        Serial_Printf("\"x_cardinal_raw\":%.2f,\"y_cardinal_raw\":%.2f,\"z_cardinal_raw\":%.2f,", x_cardinal_raw, y_cardinal_raw, z_cardinal_raw);
+      }
+    }
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
       int analog_read = analogRead(pin);
-      if (x == averages - 1) {
-        Serial_Print("\"analog_read\":");
-        Serial_Print(analog_read);
-        Serial_Print(",");
+      if (x == _averages - 1) {
+        Serial_Printf("\"analog_read\":%f,", analog_read);
       }
     }
-
-    if ((String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
       int digital_read = digitalRead(pin);
-      if (x == averages - 1) {
-        Serial_Print("\"digital_read\":");
-        Serial_Print(digital_read);
-        Serial_Print(",");
+      if (x == _averages - 1) {
+        Serial_Printf("\"digital_read\":%f,", digital_read);
       }
     }
-
-    if ((String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
       pinMode(pin, OUTPUT);
       digitalWriteFast(pin, setting);
     }
-
-    if ((String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
+    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
+        && (String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
       int freq = environmental.getArray(i).getLong(4);
@@ -1684,10 +1727,14 @@ void environmentals(JsonArray environmental, const int x, int beforeOrAfter)
       analogWrite(pin, 0);
       reset_freq();                                                                              // reset analog frequencies
     } // if
-
   } // for
 }  //environmentals()
 
+void print_all () {
+  // print every value saved in eeprom in valid json structure (even the undefined values which are still 0)
+}
 
-
+void print_userdef () {
+  // print only the userdef values which can be defined by the user
+}
 

@@ -10,7 +10,7 @@ int MLX90615_setAddress(uint8_t address);   // 0x5D is typical
 uint16_t MLX90615_getAddress(void);
 
 
-int MLX90615_address = 0x5D;  // 0x5B is default, be sure to use it initially to re-program
+int MLX90615_address = 0x5B;  // 0x5B is default, be sure to use it initially to re-program
 
 #define TEST 0
 #if TEST

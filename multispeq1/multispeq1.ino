@@ -10,6 +10,14 @@
 
 /*
 
+  test get_device_info
+  test sensors in "environmental" make sure averages works as it should
+  test par_to_dac an light_intensity_raw_to_par
+  so the rule is whatever the last value you took (could have been this protocol, or two protocols ago...) that's the one you get when you call an expression variable (light_intensity for example)... values do not get deleted between protocols.
+  they only get reset between measurements.
+  maybe consolidate all sensor measurements into PAR.cpp and call it sensors (?) - they are all pretty similar in structure.  Also, probably should make those a structure so Jon can reference them as global variables in the expression
+  finish IR baseline calibrations
+  test + document 1030 = 1045
   + test do we need to calibrate offsets (like we did with the betas?)
 
   Discuss meringing other eeprom floats into userdef[] with #define
@@ -297,7 +305,7 @@ void setup() {
   // ADC config
   analogReference(EXTERNAL);
   analogReadResolution(16);
-  analogReadAveraging(4); 
+  analogReadAveraging(4);
   {
     uint32_t x = analogRead(39) >> 4;  // forumla needs 12 bits, not 16
     uint32_t mv = (178 * x * x + 2688757565 - 1184375 * x) / 372346; // milli-volts input to MCU, clips at ~3500
@@ -363,14 +371,17 @@ void reset_freq() {
 
 // read/write device_id and manufacture_date to eeprom
 
-void set_device_info(const int _set) {
-  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
+void get_set_device_info(const int _set) {
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, DEVICE_FIRMWARE, eeprom->device_manufacture);
   Serial_Print_CRC();
-
-  if (_set == 1) {
+  if (_set == 0) {                                                                      // if you're not trying to set the values, then just print this and bail
+    return;
+  }
+  if (_set == 1) { // jon! again here we need 6 bytes in character format to be saved
     long val;
-
-    // please enter new device ID (lower 4 bytes of BLE MAC address) followed by '+'
+    
+    // please enter new device ID (lower 6 bytes of BLE MAC address) followed by '+'
+    Serial_Print("Please enter device mac address (12 characters) followed by +");
     val =  Serial_Input_Long("+", 0);              // save to eeprom
     if (eeprom->device_id != val) {
       eeprom->device_id = val;              // save to eeprom
@@ -378,15 +389,16 @@ void set_device_info(const int _set) {
     }
 
     // please enter new date of manufacture (yyyymm) followed by '+'
+    Serial_Print("Please enter device manufacture date followed by + (example 052016");
     val = Serial_Input_Long("+", 0);
-    if (eeprom->manufacture_date != val) {
-      eeprom->manufacture_date = val;
+    if (eeprom->device_manufacture != val) {
+      eeprom->device_manufacture = val;
       delay(1);
     }
 
     // print again for verification
 
-  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, FIRMWARE_VERSION, eeprom->manufacture_date);
+    Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"%ld\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, eeprom->device_id, DEVICE_FIRMWARE, eeprom->device_manufacture);
     Serial_Print_CRC();
   } // if
 

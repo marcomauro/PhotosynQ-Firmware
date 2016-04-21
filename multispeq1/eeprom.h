@@ -22,8 +22,8 @@ class eeprom_class
 {
   public:
     // each of these needs a comment
-    long device_id;                   // lower 4 bytes of BLE mac address
-    uint16_t manufacture_date;        // year, eg 2016
+    long device_id;                   // 6 bytes of BLE mac address
+    uint16_t device_manufacture;        // month and year, eg 12016
     float mag_bias[3];       // magnetometer/compass calibration
     float mag_cal[3][3];
     float accel_bias[3];
@@ -32,11 +32,11 @@ class eeprom_class
        now we calculate par based on rgb components of the incoming light and a yintercept
     */
     //    float light_slope;
-    float light_yint;
-    float light_slope_all;
-    float light_slope_r;
-    float light_slope_g;
-    float light_slope_b;
+    float light_yint;         // y intercept for par calibration from tcs
+    float light_slope_all;    // slope for the total intensity value for par calibration from tcs
+    float light_slope_r;      // slope for just the red portion of the part calibration from tcs
+    float light_slope_g;      // " " just green
+    float light_slope_b;      // " " just blue
     //    float slope_34;
     //    float yintercept_34;
     //    float slope_35;

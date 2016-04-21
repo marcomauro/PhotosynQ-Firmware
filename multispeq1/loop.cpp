@@ -983,7 +983,7 @@ void loop() {
                 //              stopTimers();                                                                                   // stop the old timers
                 startTimers(_pulsedistance);                                    // restart the measurement light timer
               }
-            }
+            }  // if pulse == 0
 
             if (PULSERDEBUG) {
               Serial_Printf("pulsedistance = %d, pulsesize = %d, cycle = %d, measurement number = %d, measurement array size = %d,total pulses = %d\n", (int) _pulsedistance, (int) _pulsesize, (int) cycle, (int) meas_number, (int) meas_array_size, (int) total_pulses);
@@ -1445,48 +1445,7 @@ inline static void startTimers(unsigned _pulsedistance) {
 
 inline static void stopTimers() {
   timer0.end();                         // if it's the last cycle and last pulse, then... stop the timers
-  //timer1.end();                       // old version used two timers
 }
-
-#if 0
-// interrupt service routine which turns the measuring light on
-
-void pulse1() {
-  if (PULSERDEBUG) {
-    startTimer = micros();
-  } // PULSERDEBUG
-  digitalWriteFast(LED_to_pin[_meas_light], HIGH);            // turn on measuring light
-  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
-  // the light on completely + stabilize.  But the effect is seen even after 50 usec.
-  // Very low intensity measuring pulses may require an even longer delay here.
-  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
-  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
-  on = 1;                               // flag for foreground to read
-}
-
-// interrupt service routine which turns the measuring light off
-// consider merging this into pulse1()
-
-void pulse2() {
-  if (PULSERDEBUG) {
-    endTimer = micros();
-  } // PULSERDEBUG
-  digitalWriteFast(LED_to_pin[_meas_light], LOW);
-  off = 1;
-}
-// schedule the turn on and off of the LED(s) via an ISR
-
-void startTimers(unsigned _pulsedistance) {
-  timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
-  noInterrupts();
-  delayMicroseconds(_pulsesize);                                             // I don't think this accounts for the actopulser stabilization delay - JZ
-  interrupts();
-  timer1.begin(pulse2, _pulsedistance);                                      // schedule off
-}
-
-#endif
-
-
 
 // read/write userdef[] values from/to eeprom
 // example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
@@ -1552,18 +1511,18 @@ float get_contactless_temp (int _averages) {
 void get_tilt (int notRaw, int _averages) {
   MMA8653FC_read(&x_tilt_raw, &y_tilt_raw, &z_tilt_raw);                      // saves x_tilt_raw, y_... and z_... values
   // consider adding a calibration with more useful outputs
-  x_tilt = x_tilt_raw * (180 / 1000);
-  y_tilt = y_tilt_raw * (180 / 1000);
-  z_tilt = z_tilt_raw * (180 / 1000);
+  x_tilt = x_tilt_raw * (180. / 1000);
+  y_tilt = y_tilt_raw * (180. / 1000);
+  z_tilt = z_tilt_raw * (180. / 1000);
   if (notRaw == 0) {                                              // save the raw values average
-    x_tilt_raw_averaged += x_tilt_raw / _averages;
-    y_tilt_raw_averaged += y_tilt_raw / _averages;
-    z_tilt_raw_averaged += z_tilt_raw / _averages;
+    x_tilt_raw_averaged += (float)x_tilt_raw / _averages;
+    y_tilt_raw_averaged += (float)y_tilt_raw / _averages;
+    z_tilt_raw_averaged += (float)z_tilt_raw / _averages;
   }
   if (notRaw == 1) {                                              // save the calibrated values and average
-    x_tilt_averaged += x_tilt / _averages;
-    y_tilt_averaged += y_tilt / _averages;
-    z_tilt_averaged += z_tilt / _averages;
+    x_tilt_averaged += (float)x_tilt / _averages;
+    y_tilt_averaged += (float)y_tilt / _averages;
+    z_tilt_averaged += (float)z_tilt / _averages;
   }
   // add better routine here to produce clearer tilt values
 }
@@ -1572,12 +1531,12 @@ void get_cardinal (int notRaw, int _averages) {
   MAG3110_read(&x_cardinal_raw, &y_cardinal_raw, &z_cardinal_raw);            // saves x_cardinal, y_ and z_ values
   // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called cardinal
   if (notRaw == 0) {                                              // save the raw values average
-    x_cardinal_raw_averaged += x_cardinal_raw / _averages;
-    y_cardinal_raw_averaged += y_cardinal_raw / _averages;
-    z_cardinal_raw_averaged += z_cardinal_raw / _averages;
+    x_cardinal_raw_averaged += (float)x_cardinal_raw / _averages;
+    y_cardinal_raw_averaged += (float)y_cardinal_raw / _averages;
+    z_cardinal_raw_averaged += (float)z_cardinal_raw / _averages;
   }
   if (notRaw == 1) {                                              // save the calibrated values and average
-    cardinal_averaged += x_cardinal_raw / _averages;
+    cardinal_averaged += (float)x_cardinal_raw / _averages;
   }
 }
 
@@ -1591,11 +1550,11 @@ float get_thickness (int notRaw, int _averages) {
   // add calibration routine here with calls to thickness_a thickness_b thickness_d;
   //  thickness += ...
   if (notRaw == 0) {                                              // save the raw values average
-    thickness_raw_averaged += thickness_raw / _averages;
+    thickness_raw_averaged += (float)thickness_raw / _averages;
     return thickness_raw_averaged;
   }
   else if (notRaw == 1) {                                              // save the calibrated values and average
-    thickness_averaged += thickness / _averages;
+    thickness_averaged += (float)thickness / _averages;
     return thickness_averaged;
   }
   else {
@@ -1610,6 +1569,8 @@ void environmentals(JsonArray environmental, const int _averages, const int x, i
 
     if (environmental.getArray(i).getLong(1) != beforeOrAfter)
       continue;            // not the right time
+
+    // Greg - no need to check beforeOrAfter again
     /*
         if (environmental.getArray(i).getLong(1) == beforeOrAfter \
         && (String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied

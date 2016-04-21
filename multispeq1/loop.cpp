@@ -490,7 +490,10 @@ void loop() {
           eeprom->colorcal_intensity3_yint[led] = Serial_Input_Double("+", 0);
         }
         break;
-
+      case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS! 
+        upgrade_firmware();
+        break;
+        
       case 1100:     // resend last packet
         Serial_Resend();
         break;

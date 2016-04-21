@@ -96,8 +96,8 @@ float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
 float temperature, humidity, pressure;
 
 ////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
-static float analog_read_average = 0;
-static float digital_read_average = 0;
+//static float analog_read_average = 0;
+//static float digital_read_average = 0;
 
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
@@ -1582,7 +1582,7 @@ void get_cardinal (int notRaw, int _averages) {
 }
 
 float get_thickness (int notRaw, int _averages) {
-  int sum;
+  int sum=0;
   for (int i = 0; i < 1000; ++i) {
     sum += analogRead(HALL_OUT);
   }

@@ -39,6 +39,7 @@ uint16_t par_to_dac (float _par, uint16_t _pin);
 float light_intensity_raw_to_par (float _light_intensity_raw, float _r, float _g, float _b);
 void print_all (void);
 void print_userdef (void);
+double expr(const char str[]);
 
 
 // Globals (try to avoid), see defines.h for more
@@ -216,12 +217,12 @@ void loop() {
           days =  Serial_Input_Long("+");
           months =  Serial_Input_Long("+");
           years =  Serial_Input_Long("+");
-          setTime(hours, minutes, seconds, days, months, years); 
+          setTime(hours, minutes, seconds, days, months, years);
           //Serial_Printf("current time is %d:%d:%d on %d/%d/%d\n", hour(), minute(), second(), month(), day(), year());
           // TODO output current time in output jsons
         }
         break;
-        
+
       case 1007:
         get_set_device_info(0);
         break;
@@ -975,12 +976,14 @@ void loop() {
                 } // PULSERDEBUG
               }
               for (unsigned i = 0; i < NUM_LEDS; i++) {                                   // save the current list of act lights, determine if they should be on, and determine their intensity
-                _a_lights[i] = a_lights.getArray(cycle).getLong(i);
-                _a_intensities[i] = a_intensities.getArray(cycle).getLong(i);
+                _a_lights[i] = a_lights.getArray(cycle).getLong(i);                        // save which light should be turned on/off
+                String temp_intensity = a_intensities.getArray(cycle).getString(i);
+                _a_intensities[i] = expr(temp_intensity.c_str());                             // evaluate inputted intensity to see if it was an expression
                 if (PULSERDEBUG) {
                   Serial_Printf("\n all a_lights, intensities: %d,%d\n", _a_lights[i], _a_intensities[i]);
                 } // PULSERDEBUG
               }
+              //              }
 
               if (CORAL_SPEQ) {
                 _spec = spec.getLong(cycle);                                                      // pull whether the spec will get called in this cycle or not for coralspeq and set parameters.  If they are empty (not defined by the user) set them to the default value
@@ -1026,14 +1029,15 @@ void loop() {
             } // PULSERDEBUG
 
             _number_samples = number_samples.getLong(cycle);                                               // set the _number_samples for this cycle
-            assert(_number_samples >= 0 && _number_samples < 500);
+            //            assert(_number_samples >= 0 && _number_samples < 500);
 
             _meas_light = meas_lights.getArray(cycle).getLong(meas_number % meas_array_size);             // move to next measurement light
-            uint16_t _m_intensity = m_intensities.getArray(cycle).getLong(meas_number % meas_array_size);  // move to next measurement light intensity
-            assert(_m_intensity >= 0 && _m_intensity <= 4095);                                             // error checking is important...
+            String temp_intensity = m_intensities.getArray(cycle).getString(meas_number % meas_array_size);
+            uint16_t _m_intensity = expr(temp_intensity.c_str());                                             // evaluate inputted intensity to see if it was an expression
+            //            assert(_m_intensity >= 0 && _m_intensity <= 4095);
 
             uint16_t detector = detectors.getArray(cycle).getLong(meas_number % meas_array_size);          // move to next detector
-            assert(detector >= 1 && detector <= 10);
+            //            assert(detector >= 1 && detector <= 10);
 
             uint16_t _reference = reference.getArray(cycle).getLong(meas_number % meas_array_size);
 
@@ -1124,12 +1128,14 @@ void loop() {
               DAC_change();
 
               for (unsigned i = 0; i < NUM_LEDS; i++) {                         // set the DAC lights for actinic lights in the current pulse set
-                DAC_set(_a_lights[i], par_to_dac(_a_intensities[i], _a_lights[i]));
-                if (PULSERDEBUG) {
-                  Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
-                  Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
-                  Serial_Printf("\n _number_samples, _reference, adc_show: %d %d %d\n", _number_samples, _reference, adc_show);
-                } // PULSERDEBUG
+                if (_a_lights[i] != 0) {                                        // if there's a light there, then change it, otherwise skip
+                  DAC_set(_a_lights[i], par_to_dac(_a_intensities[i], _a_lights[i]));
+                  if (PULSERDEBUG) {
+                    Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
+                    Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
+                    Serial_Printf("\n _number_samples, _reference, adc_show: %d %d %d\n", _number_samples, _reference, adc_show);
+                  } // PULSERDEBUG
+                }
               } // for
             }
 

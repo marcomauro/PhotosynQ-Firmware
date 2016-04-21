@@ -318,7 +318,7 @@ void setup() {
 #ifdef BME280
   // pressure/humidity/temp sensors
   // note: will need 0x76 or 0x77 to support two chips
-  assert (bme.begin(0x76) && bme2.begin(0x77));
+//  assert (bme.begin(0x76) && bme2.begin(0x77));
 
 #ifdef DEBUGSIMPLE
   Serial_Print("BME280 Temperature = ");
@@ -335,7 +335,7 @@ void setup() {
   //double expr(const char s[]);
   //Serial_Printf("expr = %f\n",expr("userdef1/2"));  // userdef1 is from eeprom
 
-  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
+//  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
   Serial_Print(DEVICE_NAME);
   Serial_Print_Line(" Ready");

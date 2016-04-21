@@ -1,7 +1,9 @@
 
 // main loop and some support routines
 
-#include "defines.h"
+#define EXTERN
+#include "defines.h"             // various globals
+
 //#include <Time.h>                                                             // enable real time clock library
 //#include "utility/Adafruit_Sensor.h"
 #include "json/JsonParser.h"
@@ -97,8 +99,8 @@ extern float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
 extern float temperature, humidity, pressure;
 
 ////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
-static float analog_read_average = 0;
-static float digital_read_average = 0;
+//static float analog_read_average = 0;
+//static float digital_read_average = 0;
 
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
@@ -459,7 +461,7 @@ void loop() {
       case 1042:
         Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
           Serial_Print_Line("before:  ");
-        for (int i=0;i<NUM_LEDS + 1;i++) {                                              // print what's currently saved
+        for (unsigned i=0;i<NUM_LEDS + 1;i++) {                                              // print what's currently saved
           Serial_Print(eeprom->par_to_dac_slope[i],4);
           Serial_Print(",");
           Serial_Print_Line(eeprom->par_to_dac_yint[i],4);          
@@ -472,7 +474,7 @@ void loop() {
           eeprom->par_to_dac_slope[led] = Serial_Input_Double("+", 0);
           eeprom->par_to_dac_yint[led] = Serial_Input_Double("+", 0);
         }
-        for (int i=0;i<NUM_LEDS + 1;i++) {                                              // print what is now saved
+        for (unsigned i=0;i<NUM_LEDS + 1;i++) {                                              // print what is now saved
           Serial_Print(eeprom->par_to_dac_slope[i],4);
           Serial_Print(",");
           Serial_Print_Line(eeprom->par_to_dac_yint[i],4);          
@@ -1640,7 +1642,7 @@ void get_cardinal (int notRaw, int _averages) {
 }
 
 float get_thickness (int notRaw, int _averages) {
-  int sum;
+  int sum=0;
   for (int i = 0; i < 1000; ++i) {
     sum += analogRead(HALL_OUT);
   }

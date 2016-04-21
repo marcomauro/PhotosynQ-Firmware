@@ -100,33 +100,39 @@ int check_protocol(char *str);
  * Sensor-related variables which are accessed in loop
  */
 
-float light_intensity;
-float light_intensity_averaged;
-float light_intensity_raw;
-float light_intensity_raw_averaged;
-float r;
-float r_averaged;
-float g;
-float g_averaged;
-float b;
-float b_averaged;
+#ifndef EXTERN
+#define EXTERN extern
+#endif
 
-float thickness;
-float thickness_averaged;
-int thickness_raw;
-float thickness_raw_averaged;
+EXTERN float light_intensity;
+EXTERN float light_intensity_averaged;
+EXTERN float light_intensity_raw;
+EXTERN float light_intensity_raw_averaged;
+EXTERN float r;
+EXTERN float r_averaged;
+EXTERN float g;
+EXTERN float g_averaged;
+EXTERN float b;
+EXTERN float b_averaged;
 
-float contactless_temp;
-float contactless_temp_averaged;
+EXTERN float thickness;
+EXTERN float thickness_averaged;
+EXTERN int thickness_raw;
+EXTERN float thickness_raw_averaged;
 
-int cardinal;
-int cardinal_averaged;
-int x_cardinal_raw, y_cardinal_raw, z_cardinal_raw;
-float x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged;
+EXTERN float contactless_temp;
+EXTERN float contactless_temp_averaged;
 
-float x_tilt, y_tilt, z_tilt;
-float x_tilt_averaged, y_tilt_averaged, z_tilt_averaged;
-int x_tilt_raw, y_tilt_raw, z_tilt_raw;
-float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
+EXTERN int cardinal;
+EXTERN int cardinal_averaged;
+EXTERN int x_cardinal_raw, y_cardinal_raw, z_cardinal_raw;
+EXTERN float x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged;
 
-float temperature, humidity, pressure;
+EXTERN float x_tilt, y_tilt, z_tilt;
+EXTERN float x_tilt_averaged, y_tilt_averaged, z_tilt_averaged;
+EXTERN int x_tilt_raw, y_tilt_raw, z_tilt_raw;
+EXTERN float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
+
+EXTERN float temperature, humidity, pressure;
+
+#undef EXTERN

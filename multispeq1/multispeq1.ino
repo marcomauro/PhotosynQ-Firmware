@@ -309,9 +309,9 @@ void setup() {
   analogReadResolution(16);
   analogReadAveraging(4);
   {
-    uint32_t x = analogRead(39) >> 4;  // forumla needs 12 bits, not 16
-    uint32_t mv = (178 * x * x + 2688757565 - 1184375 * x) / 372346; // milli-volts input to MCU, clips at ~3500
-    //    assert(mv > 3400);      // voltage is too low for proper operation
+    //uint32_t x = analogRead(39) >> 4;  // forumla needs 12 bits, not 16
+    //uint32_t mv = (178 * x * x + 2688757565 - 1184375 * x) / 372346; // milli-volts input to MCU, clips at ~3500
+    //assert(mv > 3400);      // voltage is too low for proper operation
   }
   analogReference(INTERNAL);
 

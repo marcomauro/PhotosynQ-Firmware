@@ -81,7 +81,8 @@ int get_light_intensity(int notRaw, int _averages) {
   }
   else if (notRaw == 1) {
     light_intensity_averaged += light_intensity / _averages;
-    return light_intensity;
   }
-}
+  return light_intensity;
+  
+} // get_light_intensity()
 

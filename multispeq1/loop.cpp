@@ -41,7 +41,7 @@ void print_all (void);
 void print_userdef (void);
 
 
-// Globals (try to avoid)
+// Globals (try to avoid), see defines.h for more
 
 int averages = 1;                        // ??
 uint8_t _meas_light;                    // measuring light to be used during the interrupt
@@ -62,46 +62,7 @@ static int act_background_light = 0;
 //float freqtimer1;
 //float freqtimer2;
 
-// shared with PAR.cpp
-// these should be eliminated - use a structure
-/*
-   So this whole set of variables should be a global structure, so it can be used in expressions.  However, that structure should be reset at this point (between different measurements).
-*/
 
-extern float light_intensity;
-extern float light_intensity_averaged;
-extern float light_intensity_raw;
-extern float light_intensity_raw_averaged;
-extern float r;
-extern float r_averaged;
-extern float g;
-extern float g_averaged;
-extern float b;
-extern float b_averaged;
-
-extern float thickness;
-extern float thickness_averaged;
-extern int thickness_raw;
-extern float thickness_raw_averaged;
-
-extern float contactless_temp;
-extern float contactless_temp_averaged;
-
-extern int cardinal;
-extern int cardinal_averaged;
-extern int x_cardinal_raw, y_cardinal_raw, z_cardinal_raw;
-extern float x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged;
-
-extern float x_tilt, y_tilt, z_tilt;
-extern float x_tilt_averaged, y_tilt_averaged, z_tilt_averaged;
-extern int x_tilt_raw, y_tilt_raw, z_tilt_raw;
-extern float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
-
-extern float temperature, humidity, pressure;
-
-////////////////////ENVIRONMENTAL variables averages (must be global) //////////////////////
-//static float analog_read_average = 0;
-//static float digital_read_average = 0;
 
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
 #define SPEC_GAIN      28
@@ -256,7 +217,8 @@ void loop() {
           months =  Serial_Input_Long("+");
           years =  Serial_Input_Long("+");
           setTime(hours, minutes, seconds, days, months, years); 
-          //Serial_Printf("time is %d:%d:%d on %d/%d/%d\n", hour(), minute(), second(), month(), day(), year());
+          //Serial_Printf("current time is %d:%d:%d on %d/%d/%d\n", hour(), minute(), second(), month(), day(), year());
+          // TODO output current time in output jsons
         }
         break;
         

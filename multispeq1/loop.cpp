@@ -399,36 +399,43 @@ void loop() {
         Serial_Print_Line(eeprom->light_slope_all);
         Serial_Print_Line("input light slope for ambient par calibration followed by +: ");
         eeprom->light_slope_all = Serial_Input_Double("+", 0);
+          delay(10);
         break;
       case 1035:
         Serial_Print_Line(eeprom->light_yint);
         Serial_Print_Line("input y intercept for ambient par calibration followed by +: ");
         eeprom->light_yint = Serial_Input_Double("+", 0);
+          delay(10);
         break;
       case 1036:
         Serial_Print_Line(eeprom->light_slope_r);
         Serial_Print_Line("input r slope for ambient par calibration followed by +: ");
         eeprom->light_slope_r = Serial_Input_Double("+", 0);
+          delay(10);
         break;
       case 1037:
         Serial_Print_Line(eeprom->light_slope_g);
         Serial_Print_Line("input g slope for ambient par calibration followed by +: ");
         eeprom->light_slope_g = Serial_Input_Double("+", 0);
+          delay(10);
         break;
       case 1038:
         Serial_Print_Line(eeprom->light_slope_b);
         Serial_Print_Line("input b slope for ambient par calibration followed by +: ");
         eeprom->light_slope_b = Serial_Input_Double("+", 0);
+          delay(10);
         break;
       case 1039:
         Serial_Print_Line(eeprom->thickness_a);
         Serial_Print_Line("input thickness calibration value a for leaf thickness followed by +: ");
         eeprom->thickness_a = Serial_Input_Double("+", 0);
+          delay(10);
         break;
       case 1040:
         Serial_Print_Line(eeprom->thickness_b);
         Serial_Print_Line("input thickness calibration value b for leaf thickness  followed by +: ");
         eeprom->thickness_b = Serial_Input_Double("+", 0);
+          delay(10);
         break;
       case 1041:
         Serial_Print_Line(eeprom->thickness_d);
@@ -449,7 +456,9 @@ void loop() {
             break;
           }
           eeprom->par_to_dac_slope[led] = Serial_Input_Double("+", 0);
+          delay(10);
           eeprom->par_to_dac_yint[led] = Serial_Input_Double("+", 0);
+          delay(10);
         }
         for (unsigned i = 0; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
           Serial_Print(eeprom->par_to_dac_slope[i], 4);

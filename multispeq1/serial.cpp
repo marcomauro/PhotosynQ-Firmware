@@ -50,7 +50,7 @@ void Serial_Resend()
 // specify which ports to send output to
 void Serial_Set(int s)
 {
-  assert(s > 0 && s <= 4);
+//  assert(s > 0 && s <= 4);
 
   if (s == 4) {                 // automatic means that writes will only go to the serial port that last had a byte available
     automatic = 1;
@@ -71,7 +71,7 @@ void Serial_Printf(const char * format, ... )
   va_start( v_List, format );
   vsnprintf( string, SIZE, format, v_List );
 
-  assert(strlen(string) < SIZE);
+//  assert(strlen(string) < SIZE);
   
   string[SIZE] = 0;
   Serial_Print(string);
@@ -202,7 +202,7 @@ Serial_Print(const float x, int places)
 {
   char str[20+1];
   sprintf(str, "%.*f", places, x);
-  assert(strlen(str) < 20);
+//  assert(strlen(str) < 20);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -212,7 +212,7 @@ Serial_Print(const double xx, int places)
 {
   char str[20+1];
   sprintf(str, "%.*f", places, xx);
-    assert(strlen(str) < 20);
+//    assert(strlen(str) < 20);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -284,7 +284,7 @@ Serial_Print_Line (const float x, const int places)
 {
   char str[20+1];
   sprintf(str, "%.*f", places, x);
-  assert(strlen(str) < 20);
+//  assert(strlen(str) < 20);
   // output to both ports
   Serial_Print_Line ((char *)str);
 }
@@ -378,7 +378,7 @@ String Serial_Input_String(const char *terminators, long unsigned int timeout)
   
   serial_string = str;
 
-  assert(strlen(str) < 100);
+//  assert(strlen(str) < 100);
   
   return serial_string;
 

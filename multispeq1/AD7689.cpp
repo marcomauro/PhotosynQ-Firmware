@@ -69,7 +69,7 @@ static uint16_t ad7689_config;
 uint16_t
 AD7689_read(int chan)
 {
-  assert(chan >= 0 && chan < 9);
+//  assert(chan >= 0 && chan < 9);
 
   // set up
   AD7689_set (chan);
@@ -91,7 +91,7 @@ AD7689_read(int chan)
 void
 AD7689_set (int chan, uint16_t config)
 {
-  assert(chan >= 0 && chan < 9);
+//  assert(chan >= 0 && chan < 9);
 
   // bit shifts needed for config register values
 #define CFG 13
@@ -196,7 +196,7 @@ AD7689_read_temp()
 
 void AD7689_read_array(uint16_t array[], int num_samples)
 {
-  assert(num_samples > 0 && num_samples < 4096);
+//  assert(num_samples > 0 && num_samples < 4096);
 
   SPI.beginTransaction (AD7689_settings);    // set up SPI bus speed, etc
 

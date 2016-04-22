@@ -24,7 +24,7 @@
 
   Discuss meringing other eeprom floats into userdef[] with #define
   Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
-  Using bluetooth ID as ID -
+  Using bluetooth ID as ID -  
   Firmware needs api call to write code to eeprom (unique ID).
   Get rid of user_enter… and replace with new user enter, then delete main function
   Pull out the alert/confirm/prompt into a subroutine.

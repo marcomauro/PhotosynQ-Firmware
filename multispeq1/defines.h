@@ -96,6 +96,10 @@ uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
 float stdev16(uint16_t array[], const int n);
 int check_protocol(char *str);
 
+
+// use this to store values to eeprom 
+#define store_eeprom(location, value)   { if (eeprom->location != value) eeprom->location = value; delay(1); }
+
 /*
  * Sensor-related variables which are accessed in loop
  */

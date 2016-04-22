@@ -337,7 +337,7 @@ void loop() {
                     eeprom->userdef[0] = atof(S);
           */
           Serial_Print_Line(eeprom->userdef[1], 4);
-          eeprom->userdef[1] = Serial_Input_Double("+", 20000);                                                       // test Serial_Input_Double, save as userdef and recall
+          store_eeprom(userdef[1],Serial_Input_Double("+", 20000));                                                       // test Serial_Input_Double, save as userdef and recall
           Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
           // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
           /*
@@ -365,9 +365,9 @@ void loop() {
         break;
       case 1030:
         Serial_Print("input 3 magnetometer bias values, each followed by +: ");
-        eeprom->mag_bias[0] = Serial_Input_Double("+", 0);
-        eeprom->mag_bias[1] = Serial_Input_Double("+", 0);
-        eeprom->mag_bias[2] = Serial_Input_Double("+", 0);
+        store_eeprom(mag_bias[0],Serial_Input_Double("+", 0));
+        store_eeprom(mag_bias[1],Serial_Input_Double("+", 0));
+        store_eeprom(mag_bias[2],Serial_Input_Double("+", 0));
         break;
       case 1031:
         Serial_Print("input 9 magnetometer calibration values, each followed by +: ");
@@ -442,6 +442,7 @@ void loop() {
         Serial_Print_Line("input thickness calibration value d for leaf thickness  followed by +: ");
         eeprom->thickness_d = Serial_Input_Double("+", 0);
         break;
+        
       case 1042:
         Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
         Serial_Print_Line("before:  ");
@@ -455,9 +456,9 @@ void loop() {
           if (led == -1) {                                    // user can bail with -1+ setting as LED
             break;
           }
-          eeprom->par_to_dac_slope[led] = Serial_Input_Double("+", 0);
+          store_eeprom(par_to_dac_slope[led],Serial_Input_Double("+", 0));
           delay(10);
-          eeprom->par_to_dac_yint[led] = Serial_Input_Double("+", 0);
+          store_eeprom(par_to_dac_yint[led],Serial_Input_Double("+", 0));
           delay(10);
         }
         for (unsigned i = 0; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
@@ -466,6 +467,7 @@ void loop() {
           Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
         }
         break;
+        
       case 1043:
         Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
         for (;;) {

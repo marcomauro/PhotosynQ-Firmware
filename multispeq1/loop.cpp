@@ -337,7 +337,7 @@ void loop() {
                     eeprom->userdef[0] = atof(S);
           */
           Serial_Print_Line(eeprom->userdef[1], 4);
-          store_eeprom(userdef[1],Serial_Input_Double("+", 20000));                                                       // test Serial_Input_Double, save as userdef and recall
+          store_float(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
           Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
           // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
           /*
@@ -365,9 +365,9 @@ void loop() {
         break;
       case 1030:
         Serial_Print("input 3 magnetometer bias values, each followed by +: ");
-        store_eeprom(mag_bias[0],Serial_Input_Double("+", 0));
-        store_eeprom(mag_bias[1],Serial_Input_Double("+", 0));
-        store_eeprom(mag_bias[2],Serial_Input_Double("+", 0));
+        store_float(mag_bias[0], Serial_Input_Double("+", 0));
+        store_float(mag_bias[1], Serial_Input_Double("+", 0));
+        store_float(mag_bias[2], Serial_Input_Double("+", 0));
         break;
       case 1031:
         Serial_Print("input 9 magnetometer calibration values, each followed by +: ");
@@ -399,75 +399,82 @@ void loop() {
         Serial_Print_Line(eeprom->light_slope_all);
         Serial_Print_Line("input light slope for ambient par calibration followed by +: ");
         eeprom->light_slope_all = Serial_Input_Double("+", 0);
-          delay(10);
+        delay(10);
         break;
       case 1035:
         Serial_Print_Line(eeprom->light_yint);
         Serial_Print_Line("input y intercept for ambient par calibration followed by +: ");
         eeprom->light_yint = Serial_Input_Double("+", 0);
-          delay(10);
+        delay(10);
         break;
       case 1036:
         Serial_Print_Line(eeprom->light_slope_r);
         Serial_Print_Line("input r slope for ambient par calibration followed by +: ");
         eeprom->light_slope_r = Serial_Input_Double("+", 0);
-          delay(10);
+        delay(10);
         break;
       case 1037:
         Serial_Print_Line(eeprom->light_slope_g);
         Serial_Print_Line("input g slope for ambient par calibration followed by +: ");
         eeprom->light_slope_g = Serial_Input_Double("+", 0);
-          delay(10);
+        delay(10);
         break;
       case 1038:
         Serial_Print_Line(eeprom->light_slope_b);
         Serial_Print_Line("input b slope for ambient par calibration followed by +: ");
         eeprom->light_slope_b = Serial_Input_Double("+", 0);
-          delay(10);
+        delay(10);
         break;
       case 1039:
         Serial_Print_Line(eeprom->thickness_a);
         Serial_Print_Line("input thickness calibration value a for leaf thickness followed by +: ");
         eeprom->thickness_a = Serial_Input_Double("+", 0);
-          delay(10);
+        delay(10);
         break;
       case 1040:
         Serial_Print_Line(eeprom->thickness_b);
         Serial_Print_Line("input thickness calibration value b for leaf thickness  followed by +: ");
         eeprom->thickness_b = Serial_Input_Double("+", 0);
-          delay(10);
+        delay(10);
         break;
       case 1041:
         Serial_Print_Line(eeprom->thickness_d);
         Serial_Print_Line("input thickness calibration value d for leaf thickness  followed by +: ");
         eeprom->thickness_d = Serial_Input_Double("+", 0);
         break;
-        
+
       case 1042:
         Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
         Serial_Print_Line("before:  ");
-        for (unsigned i = 0; i < NUM_LEDS + 1; i++) {                                        // print what's currently saved
+        for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what's currently saved
           Serial_Print(eeprom->par_to_dac_slope[i], 4);
           Serial_Print(",");
           Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
         }
+        Serial_Print_Line("");
         for (;;) {
           int led = Serial_Input_Double("+", 0);
           if (led == -1) {                                    // user can bail with -1+ setting as LED
             break;
           }
-          store_eeprom(par_to_dac_slope[led],Serial_Input_Double("+", 0));
+          store_float(par_to_dac_slope[led], Serial_Input_Double("+", 0));
           delay(10);
-          store_eeprom(par_to_dac_yint[led],Serial_Input_Double("+", 0));
+          store_float(par_to_dac_yint[led], Serial_Input_Double("+", 0));
           delay(10);
         }
-        for (unsigned i = 0; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
+        for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
           Serial_Print(eeprom->par_to_dac_slope[i], 4);
           Serial_Print(",");
           Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
         }
         break;
-        
+
+      case  7000:
+        Serial_Print("enter value then +\n");
+        store_float(par_to_dac_slope[1], Serial_Input_Double("+", 0));
+        Serial_Print_Line(eeprom->par_to_dac_slope[1], 4);
+        break;
+
       case 1043:
         Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
         for (;;) {
@@ -501,10 +508,10 @@ void loop() {
           eeprom->colorcal_intensity3_yint[led] = Serial_Input_Double("+", 0);
         }
         break;
-      case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS! 
+      case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
         upgrade_firmware();
         break;
-        
+
       case 1100:     // resend last packet
         Serial_Resend();
         break;

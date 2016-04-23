@@ -3,8 +3,8 @@
 
 #include<stdio.h>
 #include<string.h>
-#include "eeprom.h"
 #include "defines.h"
+#include "eeprom.h"
 
 extern "C" {
 #include "expr/expression_parser.h"

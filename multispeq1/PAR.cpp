@@ -8,8 +8,8 @@
 #include "utility/crc32.h"
 #include "json/JsonParser.h"
 #include "utility/mcp4728.h"              // DAC
-#include "eeprom.h"
 #include "defines.h"
+#include "eeprom.h"
 
 // external function declarations
 void i2cWrite(byte address, byte count, byte* buffer);

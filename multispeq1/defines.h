@@ -1,7 +1,6 @@
 
 // Global defines and some misc functions
 
-
 #include <Arduino.h>
 #include <stdint.h>
 
@@ -100,6 +99,10 @@ void powerdown(void);
 uint16_t median16(uint16_t array[], const int n, const float percentile = .50);
 float stdev16(uint16_t array[], const int n);
 int check_protocol(char *str);
+
+
+// use this to store values to eeprom 
+#define store_float(location, value)   { float f = value;  if (eeprom->location != f) eeprom->location = f; delay(1); }
 
 /*
  * Sensor-related variables which are accessed in loop

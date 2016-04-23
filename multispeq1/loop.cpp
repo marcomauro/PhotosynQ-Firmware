@@ -3,7 +3,6 @@
 
 #define EXTERN
 #include "defines.h"             // various globals
-
 //#include <Time.h>                                                             // enable real time clock library
 //#include "utility/Adafruit_Sensor.h"
 #include "json/JsonParser.h"
@@ -29,56 +28,36 @@ int get_light_intensity(int notRaw, int x);
 static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom);
 void get_set_device_info(const int _set);
 int abort_cmd(void);
-void environmentals(JsonArray a, const int _averages, const int x, int beforeOrAfter);
-//void environmentals2(JsonArray a, const int x);
+static void environmentals(JsonArray a, const int _averages, const int x, int beforeOrAfter);
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode);
 void MAG3110_read (int *x, int *y, int *z);
 void MMA8653FC_read(int *axeXnow, int *axeYnow, int *axeZnow);
 float MLX90615_Read(int TaTo);
 uint16_t par_to_dac (float _par, uint16_t _pin);
 float light_intensity_raw_to_par (float _light_intensity_raw, float _r, float _g, float _b);
-void print_all (void);
-void print_userdef (void);
+static void print_all (void);
+static void print_userdef (void);
 double expr(const char str[]);
 
 
-// Globals (try to avoid), see defines.h for more
+// Globals (try to avoid), see defines.h for non-statics
 
-int averages = 1;                        // ??
-uint8_t _meas_light;                    // measuring light to be used during the interrupt
-uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
+static int averages = 1;                        // ??
+static uint8_t _meas_light;                    // measuring light to be used during the interrupt
+static uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
 static volatile uint8_t led_off = 0;    // status of LED set by ISR
 static uint16_t _pulsesize = 0;         // pulse width in usec
-
 static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
 static const int max_jsons = 15;                                                   // max number of protocols per measurement
-
-//int analogresolutionvalue;
+//static int analogresolutionvalue;
 static IntervalTimer timer0;
 static float data = 0;
 static float data_ref = 0;
 static int act_background_light = 0;
-//extern float light_y_intercept;
-//float freqtimer0;
-//float freqtimer1;
-//float freqtimer2;
+//static float freqtimer0;
+//static float freqtimer1;
+//static float freqtimer2;
 
-
-
-//////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
-#define SPEC_GAIN      28
-//#define SPEC_EOS       NA
-#define SPEC_ST        26
-#define SPEC_CLK       25
-#define SPEC_VIDEO     A10
-//#define LED530         15
-//#define LED2200k       16
-//#define LED470         20
-//#define LED2200K       2
-#define SPEC_CHANNELS    256
-extern uint16_t spec_data[SPEC_CHANNELS];
-extern unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
-extern int idx;
 
 //////////////////////// MAIN LOOP /////////////////////////
 
@@ -154,9 +133,10 @@ void loop() {
       continue;                     // go read another command
     }
 
-    Serial_Start();                   // new packet
+    Serial_Start();                   // new packet, reset recording buffer and CRC
 
-
+    // process + commands
+    
     switch (atoi(choose)) {
       case 1000:                                                                    // print "Ready" to USB and Bluetooth
         Serial_Print(DEVICE_NAME);
@@ -337,7 +317,7 @@ void loop() {
                     eeprom->userdef[0] = atof(S);
           */
           Serial_Print_Line(eeprom->userdef[1], 4);
-          eeprom->userdef[1] = Serial_Input_Double("+", 20000);                                                       // test Serial_Input_Double, save as userdef and recall
+          store_float(userdef[1],Serial_Input_Double("+", 20000));                                                       // test Serial_Input_Double, save as userdef and recall
           Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
           // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
           /*
@@ -448,8 +428,8 @@ void loop() {
           if (led == -1) {                                    // user can bail with -1+ setting as LED
             break;
           }
-          eeprom->par_to_dac_slope[led] = Serial_Input_Double("+", 0);
-          eeprom->par_to_dac_yint[led] = Serial_Input_Double("+", 0);
+          store_float(par_to_dac_slope[led],Serial_Input_Double("+", 0));
+          store_float(par_to_dac_yint[led],Serial_Input_Double("+", 0));
         }
         for (unsigned i = 0; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
           Serial_Print(eeprom->par_to_dac_slope[i], 4);
@@ -623,13 +603,14 @@ void loop() {
       default:
         Serial_Printf("{\"error\":\"bad command # %s\n\"", choose);
         break;
+        
     }  // switch()
 
     Serial_Flush_Output();     // force all output to go out
 
   } // for
 
-  // done reading commands
+  // here if not a + command
 
   // read in a protocol (starts with '[', ends with '!' or timeout)
 
@@ -1490,47 +1471,7 @@ inline static void startTimers(unsigned _pulsedistance) {
 
 inline static void stopTimers() {
   timer0.end();                         // if it's the last cycle and last pulse, then... stop the timers
-  //timer1.end();                       // old version used two timers
 }
-
-#if 0
-// interrupt service routine which turns the measuring light on
-
-void pulse1() {
-  if (PULSERDEBUG) {
-    startTimer = micros();
-  } // PULSERDEBUG
-  digitalWriteFast(LED_to_pin[_meas_light], HIGH);            // turn on measuring light
-  delayMicroseconds(10);             // this delay gives the LED current controller op amp the time needed to turn
-  // the light on completely + stabilize.  But the effect is seen even after 50 usec.
-  // Very low intensity measuring pulses may require an even longer delay here.
-  digitalWriteFast(HOLDM, LOW);          // turn off sample and hold discharge
-  digitalWriteFast(HOLDADD, LOW);        // turn off sample and hold discharge
-  on = 1;                               // flag for foreground to read
-}
-
-// interrupt service routine which turns the measuring light off
-// consider merging this into pulse1()
-
-void pulse2() {
-  if (PULSERDEBUG) {
-    endTimer = micros();
-  } // PULSERDEBUG
-  digitalWriteFast(LED_to_pin[_meas_light], LOW);
-  off = 1;
-}
-// schedule the turn on and off of the LED(s) via an ISR
-
-void startTimers(unsigned _pulsedistance) {
-  timer0.begin(pulse1, _pulsedistance);                                      // schedule on - not clear why this can't be done with interrupts off
-  noInterrupts();
-  delayMicroseconds(_pulsesize);                                             // I don't think this accounts for the actopulser stabilization delay - JZ
-  interrupts();
-  timer1.begin(pulse2, _pulsedistance);                                      // schedule off
-}
-
-#endif
-
 
 
 // read/write userdef[] values from/to eeprom
@@ -1588,11 +1529,15 @@ void get_temperature_humidity_pressure (int _averages) {
   */
 }
 
+// read IR temp sensor
+
 float get_contactless_temp (int _averages) {
   contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
   contactless_temp_averaged += contactless_temp / _averages;
   return contactless_temp;
 }
+
+// read accelerometer
 
 void get_tilt (int notRaw, int _averages) {
   MMA8653FC_read(&x_tilt_raw, &y_tilt_raw, &z_tilt_raw);                      // saves x_tilt_raw, y_... and z_... values
@@ -1613,6 +1558,8 @@ void get_tilt (int notRaw, int _averages) {
   // add better routine here to produce clearer tilt values
 }
 
+// read compass
+
 void get_cardinal (int notRaw, int _averages) {
   MAG3110_read(&x_cardinal_raw, &y_cardinal_raw, &z_cardinal_raw);            // saves x_cardinal, y_ and z_ values
   // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called cardinal
@@ -1625,6 +1572,8 @@ void get_cardinal (int notRaw, int _averages) {
     cardinal_averaged += x_cardinal_raw / _averages;
   }
 }
+
+// read the hall sensor to measure thickness of a leaf
 
 float get_thickness (int notRaw, int _averages) {
   int sum = 0;
@@ -1648,87 +1597,89 @@ float get_thickness (int notRaw, int _averages) {
   }
 }
 
-void environmentals(JsonArray environmental, const int _averages, const int x, int beforeOrAfter)
+// check for commands to read various envirmental sensors
+
+static void environmentals(JsonArray environmental, const int _averages, const int x, int beforeOrAfter)
 {
 
   for (int i = 0; i < environmental.getLength(); i++) {                                       // call environmental measurements after the spectroscopic measurement
 
     if (environmental.getArray(i).getLong(1) != beforeOrAfter)
       continue;            // not the right time
+      
     /*
-        if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
+        if ((String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
           get_temperature_humidity_pressure(1,_averages);
           if (x == _averages - 1) {
             Serial_Print("\"temp\":%f,\"humidity\":%f,,\"pressure\":%f,",temperature, humidity, pressure);
           }
         }
     */
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "light_intensity") {                   // measure light intensity with par calibration applied
+    
+    if ((String) environmental.getArray(i).getString(0) == "light_intensity") {                   // measure light intensity with par calibration applied
       get_light_intensity(1, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"light_intensity\":%.2f,\"r\":%.2f,\"g\":%.2f,\"b\":%.2f,", light_intensity_averaged, r_averaged, g_averaged, b_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "light_intensity_raw") {              // measure raw light intensity from TCS sensor
+    
+    if ((String) environmental.getArray(i).getString(0) == "light_intensity_raw") {              // measure raw light intensity from TCS sensor
       get_light_intensity(0, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"light_intensity_raw\":%.2f,\"r\":%.2f,\"g\":%.2f,\"b\":%.2f,", light_intensity_raw_averaged, r_averaged, g_averaged, b_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "contactless_temp") {                 // measure contactless temperature
+    
+    if ((String) environmental.getArray(i).getString(0) == "contactless_temp") {                 // measure contactless temperature
       get_contactless_temp(_averages);
       if (x == _averages - 1) {
         Serial_Printf("\"contactless_temp\":%.2f,", contactless_temp_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "thickness") {                        // measure thickness via hall sensor, with calibration applied
+    
+    if ((String) environmental.getArray(i).getString(0) == "thickness") {                        // measure thickness via hall sensor, with calibration applied
       get_thickness(1, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"thickness\":%.2f,", thickness_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "thickness_raw") {                    // measure thickness via hall sensor, raw analog_read
+    
+    if ((String) environmental.getArray(i).getString(0) == "thickness_raw") {                    // measure thickness via hall sensor, raw analog_read
       get_thickness(0, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"thickness_raw\":%.2f,", thickness_raw_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "tilt") {                             // measure tilt in -180 - 180 degrees
+    
+    if ((String) environmental.getArray(i).getString(0) == "tilt") {                             // measure tilt in -180 - 180 degrees
       get_tilt(1, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"x_tilt\":%.2f, \"y_tilt\":%.2f, \"z_tilt\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "tilt_raw") {                         // measure tilt from -1000 - 1000
+    
+    if ((String) environmental.getArray(i).getString(0) == "tilt_raw") {                         // measure tilt from -1000 - 1000
       get_tilt(0, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"x_tilt_raw\":%.2f, \"y_tilt_raw\":%.2f, \"z_tilt_raw\":%.2f,", x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "cardinal") {                         // measure cardinal direction, with calibration applied
+    
+    if ((String) environmental.getArray(i).getString(0) == "cardinal") {                         // measure cardinal direction, with calibration applied
       get_cardinal(1, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"cardinal\":%.2f,", cardinal_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "cardinal_raw") {                     // measure cardinal direction, raw values
+    
+    if ((String) environmental.getArray(i).getString(0) == "cardinal_raw") {                     // measure cardinal direction, raw values
       get_cardinal(0, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"x_cardinal_raw\":%.2f,\"y_cardinal_raw\":%.2f,\"z_cardinal_raw\":%.2f,", x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
+    
+    if ((String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
       int analog_read = analogRead(pin);
@@ -1736,8 +1687,8 @@ void environmentals(JsonArray environmental, const int _averages, const int x, i
         Serial_Printf("\"analog_read\":%f,", analog_read);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
+    
+    if ((String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
       int digital_read = digitalRead(pin);
@@ -1745,15 +1696,15 @@ void environmentals(JsonArray environmental, const int _averages, const int x, i
         Serial_Printf("\"digital_read\":%f,", digital_read);
       }
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
+    
+    if ((String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
       pinMode(pin, OUTPUT);
       digitalWriteFast(pin, setting);
     }
-    if (environmental.getArray(i).getLong(1) == beforeOrAfter \
-        && (String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
+    
+    if ((String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
       int freq = environmental.getArray(i).getLong(4);
@@ -1775,11 +1726,11 @@ void environmentals(JsonArray environmental, const int _averages, const int x, i
   } // for
 }  //environmentals()
 
-void print_all () {
+static void print_all () {
   // print every value saved in eeprom in valid json structure (even the undefined values which are still 0)
 }
 
-void print_userdef () {
+static void print_userdef () {
   // print only the userdef values which can be defined by the user
 }
 

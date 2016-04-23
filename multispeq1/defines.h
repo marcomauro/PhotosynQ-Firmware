@@ -55,6 +55,11 @@ const int PULSERDEBUG=0;   // uncomment to debug the pulser and detector
 #define PULSE9   25
 #define PULSE10  23
 
+
+// use this to store values to eeprom 
+#define store_float(location, value)   { float f = value;  if (eeprom->location != f) eeprom->location = f; delay(1); }
+
+
 const unsigned NUM_LEDS=10;
 // map LED (1-10) to MCU pin
 const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
@@ -134,5 +139,21 @@ EXTERN int x_tilt_raw, y_tilt_raw, z_tilt_raw;
 EXTERN float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
 
 EXTERN float temperature, humidity, pressure;
+
+// Coral SpeQ
+//////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
+#define SPEC_GAIN      28
+//#define SPEC_EOS       NA
+#define SPEC_ST        26
+#define SPEC_CLK       25
+#define SPEC_VIDEO     A10
+//#define LED530         15
+//#define LED2200k       16
+//#define LED470         20
+//#define LED2200K       2
+#define SPEC_CHANNELS    256
+EXTERN uint16_t spec_data[SPEC_CHANNELS];
+EXTERN unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
+EXTERN int idx;
 
 #undef EXTERN

@@ -207,30 +207,11 @@
 #include "utility/crc32.h"
 #include <SPI.h>    // include the new SPI library:
 
-
 // function definitions used in this file
 int MAG3110_init(void);           // initialize compass
 int MMA8653FC_init(void);         // initialize accelerometer
 void MLX90615_init(void);         // initialize contactless temperature sensor
 void PAR_init(void);               // initialize PAR and RGB sensor
-
-
-//////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
-#define SPEC_GAIN      28
-//#define SPEC_EOS       NA
-#define SPEC_ST        26
-#define SPEC_CLK       25
-#define SPEC_VIDEO     A10
-//#define LED530         15
-//#define LED2200k       16
-//#define LED470         20
-//#define LED2200K       2
-#define SPEC_CHANNELS    256
-uint16_t spec_data[SPEC_CHANNELS];
-unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
-int idx = 0;
-
-
 
 // pressure/temp/humidity sensors
 Adafruit_BME280 bme1;        // I2C sensor

@@ -129,14 +129,14 @@ void loop() {
     }
 
     if (isprint(choose[0]) && !isdigit(choose[0])) {
-      Serial_Print("commands must be numbers or json\n");
+      Serial_Print("{\"error\":\"commands must be numbers or json\"}\n");
       continue;                     // go read another command
     }
 
     Serial_Start();                   // new packet, reset recording buffer and CRC
 
     // process + commands
-    
+
     switch (atoi(choose)) {
       case 1000:                                                                    // print "Ready" to USB and Bluetooth
         Serial_Print(DEVICE_NAME);
@@ -317,11 +317,8 @@ void loop() {
                     eeprom->userdef[0] = atof(S);
           */
           Serial_Print_Line(eeprom->userdef[1], 4);
-<<<<<<< HEAD
-          store_float(userdef[1],Serial_Input_Double("+", 20000));                                                       // test Serial_Input_Double, save as userdef and recall
-=======
           store_float(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
->>>>>>> 24a502a645702aaa0564cee18c0c4830968e585f
+
           Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
           // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
           /*
@@ -441,27 +438,14 @@ void loop() {
           if (led == -1) {                                    // user can bail with -1+ setting as LED
             break;
           }
-<<<<<<< HEAD
-          store_float(par_to_dac_slope[led],Serial_Input_Double("+", 0));
-          store_float(par_to_dac_yint[led],Serial_Input_Double("+", 0));
-=======
           store_float(par_to_dac_slope[led], Serial_Input_Double("+", 0));
-          delay(10);
           store_float(par_to_dac_yint[led], Serial_Input_Double("+", 0));
-          delay(10);
->>>>>>> 24a502a645702aaa0564cee18c0c4830968e585f
         }
         for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
           Serial_Print(eeprom->par_to_dac_slope[i], 4);
           Serial_Print(",");
           Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
         }
-        break;
-
-      case  7000:
-        Serial_Print("enter value then +\n");
-        store_float(par_to_dac_slope[1], Serial_Input_Double("+", 0));
-        Serial_Print_Line(eeprom->par_to_dac_slope[1], 4);
         break;
 
       case 1043:
@@ -628,9 +612,9 @@ void loop() {
         break;
 
       default:
-        Serial_Printf("{\"error\":\"bad command # %s\n\"", choose);
+        Serial_Printf("{\"error\":\"bad command # %s\"}\n", choose);
         break;
-        
+
     }  // switch()
 
     Serial_Flush_Output();     // force all output to go out
@@ -1633,7 +1617,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
     if (environmental.getArray(i).getLong(1) != beforeOrAfter)
       continue;            // not the right time
-      
+
     /*
         if ((String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
           get_temperature_humidity_pressure(1,_averages);
@@ -1642,70 +1626,70 @@ static void environmentals(JsonArray environmental, const int _averages, const i
           }
         }
     */
-    
+
     if ((String) environmental.getArray(i).getString(0) == "light_intensity") {                   // measure light intensity with par calibration applied
       get_light_intensity(1, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"light_intensity\":%.2f,\"r\":%.2f,\"g\":%.2f,\"b\":%.2f,", light_intensity_averaged, r_averaged, g_averaged, b_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "light_intensity_raw") {              // measure raw light intensity from TCS sensor
       get_light_intensity(0, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"light_intensity_raw\":%.2f,\"r\":%.2f,\"g\":%.2f,\"b\":%.2f,", light_intensity_raw_averaged, r_averaged, g_averaged, b_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "contactless_temp") {                 // measure contactless temperature
       get_contactless_temp(_averages);
       if (x == _averages - 1) {
         Serial_Printf("\"contactless_temp\":%.2f,", contactless_temp_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "thickness") {                        // measure thickness via hall sensor, with calibration applied
       get_thickness(1, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"thickness\":%.2f,", thickness_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "thickness_raw") {                    // measure thickness via hall sensor, raw analog_read
       get_thickness(0, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"thickness_raw\":%.2f,", thickness_raw_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "tilt") {                             // measure tilt in -180 - 180 degrees
       get_tilt(1, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"x_tilt\":%.2f, \"y_tilt\":%.2f, \"z_tilt\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "tilt_raw") {                         // measure tilt from -1000 - 1000
       get_tilt(0, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"x_tilt_raw\":%.2f, \"y_tilt_raw\":%.2f, \"z_tilt_raw\":%.2f,", x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "cardinal") {                         // measure cardinal direction, with calibration applied
       get_cardinal(1, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"cardinal\":%.2f,", cardinal_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "cardinal_raw") {                     // measure cardinal direction, raw values
       get_cardinal(0, _averages);
       if (x == _averages - 1) {
         Serial_Printf("\"x_cardinal_raw\":%.2f,\"y_cardinal_raw\":%.2f,\"z_cardinal_raw\":%.2f,", x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
@@ -1714,7 +1698,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
         Serial_Printf("\"analog_read\":%f,", analog_read);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
@@ -1723,14 +1707,14 @@ static void environmentals(JsonArray environmental, const int _averages, const i
         Serial_Printf("\"digital_read\":%f,", digital_read);
       }
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "digital_write") {                      // perform digital write
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);
       pinMode(pin, OUTPUT);
       digitalWriteFast(pin, setting);
     }
-    
+
     if ((String) environmental.getArray(i).getString(0) == "analog_write") {                      // perform analog write with length of time to apply the pwm
       int pin = environmental.getArray(i).getLong(2);
       int setting = environmental.getArray(i).getLong(3);

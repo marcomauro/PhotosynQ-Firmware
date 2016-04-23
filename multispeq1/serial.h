@@ -44,7 +44,6 @@ void Serial_Print_CRC (void);
 #define assert(condition) \
  if (!(condition)) { \
     Serial_Printf("\nerror: in %s, line %d\n", __FILE__, __LINE__); \
-    for (;;) {} \
  }
 
 // could be useful with assert()

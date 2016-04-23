@@ -12,8 +12,6 @@
 
 // this structure overlays eeprom ram
 
-// todo:  use placement new to initialize (until then, methods/contructor are not possible)
-
 #include <stdint.h>
 
 const unsigned NUM_USERDEFS=50;
@@ -99,40 +97,5 @@ class eeprom_class * eeprom = FlexRAM;
 #endif
 
 #undef EXTERN
-
-// these make the code that uses eeprom stored variables cleaner
-//#define userdef[x] eeprom->userdef[x]
-
-
-// since eeprom requires a delay(1) after write, it's better to not use these.  This makes the delay() requirement clearer.
-// consider mapping many of these to userdef values
-
-/*
-#define mag_bias eeprom->mag_bias
-#define mag_cal eeprom->mag_cal
-#define accel_bias eeprom->accel_bias
-#define accel_cal eeprom->accel_cal
-#define light_yint eeprom->light_yint
-#define light_slope_r eeprom->light_slope_r
-#define light_slope_g eeprom->light_slope_g
-#define light_slope_b eeprom->light_slope_b
-#define detector_offset_slope eeprom->detector_offset_slope
-#define detector_offset_yint eeprom->detector_offset_yint
-#define thickness_a eeprom->thickness_a
-#define thickness_b eeprom->thickness_b
-#define thickness_d eeprom->thickness_d
-#define par_to_dac_slope eeprom->par_to_dac_slope
-#define par_to_dac_yint eeprom->par_to_dac_yint
-#define ir_baseline_slope eeprom->ir_baseline_slope
-#define ir_baseline_yint eeprom->ir_baseline_yint
-#define colorcal_intensity1_slope eeprom->colorcal_intensity1_slope
-#define colorcal_intensity1_yint eeprom->colorcal_intensity1_yint
-#define colorcal_intensity2_slope eeprom->colorcal_intensity2_slope
-#define colorcal_intensity2_yint eeprom->colorcal_intensity2_yint
-#define colorcal_intensity3_slope eeprom->colorcal_intensity3_slope
-#define colorcal_intensity3_yint eeprom->colorcal_intensity3_yint
-#define userdef eeprom->userdef
-*/
-
 
 

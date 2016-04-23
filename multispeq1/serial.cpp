@@ -24,7 +24,7 @@ static int last_read = 0;     // where last incoming byte was from, 0 = Serial, 
 
 void Serial_Begin(int rate)
 {
-//  assert(rate >= 9600 && rate <= 115200);
+  //  assert(rate >= 9600 && rate <= 115200);
 
   Serial.begin(115200);   // USB serial port, baud rate is irrelevant
   Serial1.begin(rate);    // for BLE, 57600 is standard
@@ -38,19 +38,19 @@ void Serial_Flush_Input(void)
 }
 
 const int MAX_RESEND_SIZE = 5000;
-static char resend_buffer[MAX_RESEND_SIZE+1];        // allow re-transmission of previous output
+static char resend_buffer[MAX_RESEND_SIZE + 1];      // allow re-transmission of previous output
 static int  resend_count = 0;                        // number of chars in the resend buffer
 
 // re-send everything since the last Serial_Start()
 void Serial_Resend()
 {
-     Serial_Print(resend_buffer);
+  Serial_Print(resend_buffer);
 }
 
 // specify which ports to send output to
 void Serial_Set(int s)
 {
-//  assert(s > 0 && s <= 4);
+  //  assert(s > 0 && s <= 4);
 
   if (s == 4) {                 // automatic means that writes will only go to the serial port that last had a byte available
     automatic = 1;
@@ -66,13 +66,13 @@ void Serial_Set(int s)
 
 void Serial_Printf(const char * format, ... )
 {
-  char string[SIZE+1];          // Warning: fixed buffer size
+  char string[SIZE + 1];        // Warning: fixed buffer size
   va_list v_List;
   va_start( v_List, format );
   vsnprintf( string, SIZE, format, v_List );
 
-//  assert(strlen(string) < SIZE);
-  
+  //  assert(strlen(string) < SIZE);
+
   string[SIZE] = 0;
   Serial_Print(string);
   va_end( v_List );
@@ -98,8 +98,8 @@ unsigned Serial_Available()
   unsigned count = 0;
 
   if (Serial)
-     count += Serial.available();
-     
+    count += Serial.available();
+
   count += Serial1.available();
 
   return count;
@@ -129,7 +129,7 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
   if (automatic) {             // automatic mode takes precedence over Serial_Port setting
     if (last_read == 0) {
       if (Serial)
-         Serial.print(str);
+        Serial.print(str);
     } else
       Serial_Print_BLE(str);
   } else {
@@ -145,8 +145,8 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
   crc32_string ((char *)str);
 
   // add to resend buffer
-  int count = min((int)strlen(str),MAX_RESEND_SIZE - resend_count);   // check for enough remaining space
-  strncpy(resend_buffer + resend_count,(char *)str, count);
+  int count = min((int)strlen(str), MAX_RESEND_SIZE - resend_count);  // check for enough remaining space
+  strncpy(resend_buffer + resend_count, (char *)str, count);
   resend_count += count;
   resend_buffer[resend_count] = 0;    // null terminate
 }
@@ -192,7 +192,7 @@ void Serial_Flush_Output()
   }
 
   // for normal serial (not sure what this does)
-  //if (Serial) 
+  //if (Serial)
   //   Serial.flush();
 }
 
@@ -200,9 +200,9 @@ void Serial_Flush_Output()
 void
 Serial_Print(const float x, int places)
 {
-  char str[20+1];
+  char str[20 + 1];
   sprintf(str, "%.*f", places, x);
-//  assert(strlen(str) < 20);
+  //  assert(strlen(str) < 20);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -210,9 +210,9 @@ Serial_Print(const float x, int places)
 void
 Serial_Print(const double xx, int places)
 {
-  char str[20+1];
+  char str[20 + 1];
   sprintf(str, "%.*f", places, xx);
-//    assert(strlen(str) < 20);
+  //    assert(strlen(str) < 20);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -282,9 +282,9 @@ Serial_Print_Line (const long i)
 void
 Serial_Print_Line (const float x, const int places)
 {
-  char str[20+1];
+  char str[20 + 1];
   sprintf(str, "%.*f", places, x);
-//  assert(strlen(str) < 20);
+  //  assert(strlen(str) < 20);
   // output to both ports
   Serial_Print_Line ((char *)str);
 }
@@ -302,12 +302,11 @@ Serial_Print_CRC (void)
 }
 
 // start an output packet
-void 
+void
 Serial_Start(void)
 {
   crc32_init ();          // reset for next time
-
-  resend_count = 0;       // empty resend buffer 
+  resend_count = 0;       // empty resend buffer
 }
 
 #include <string.h>
@@ -330,12 +329,12 @@ char *Serial_Input_Chars(char *string, const char *terminators, long unsigned in
 
     if (c == -1) continue;    // nothing available
 
-    char b = Serial_Read();                          
+    char b = Serial_Read();
     if (strchr(terminators, b))                     // terminator char seen - throw it away
-        break;
-        
+      break;
+
     string[count++] = b;                            // add to string
- 
+
     if (max_length > 0 && count >= max_length)        // too long
       break;
 
@@ -349,17 +348,19 @@ char *Serial_Input_Chars(char *string, const char *terminators, long unsigned in
 
 
 // read a float value (see above)
-// null or invalid string returns zero
+// empty string returns NAN
 
 double Serial_Input_Double(const char *terminators, long unsigned int timeout) {
   char S[25];
   Serial_Input_Chars(S, terminators, timeout, sizeof(S) - 1);
-  return atof(S);
+  if (strlen(S) == 0)
+    return NAN;
+  return strtod(S,0);
 }  // Serial_Input_Double()
 
 
 // read a long value (see above)
-// null or invalid string returns zero
+// invalid strings return 0
 
 long Serial_Input_Long(const char *terminators, long unsigned int timeout) {
   char S[25];
@@ -372,14 +373,14 @@ long Serial_Input_Long(const char *terminators, long unsigned int timeout) {
 String Serial_Input_String(const char *terminators, long unsigned int timeout)
 {
   static String serial_string;
-  char str[100+1];  // caution - fixed size buffer
+  char str[100 + 1]; // caution - fixed size buffer
 
-  Serial_Input_Chars(str, terminators,timeout, sizeof(str) - 1);
-  
+  Serial_Input_Chars(str, terminators, timeout, sizeof(str) - 1);
+
   serial_string = str;
 
-//  assert(strlen(str) < 100);
-  
+  //  assert(strlen(str) < 100);
+
   return serial_string;
 
 }  // user_enter_str()

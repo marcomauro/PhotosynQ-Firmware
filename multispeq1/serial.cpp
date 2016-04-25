@@ -210,7 +210,7 @@ Serial_Print(const float x, int places)
 void
 Serial_Print(const double xx, int places)
 {
-  char str[20 + 1];
+  char str[100 + 1];
   sprintf(str, "%.*f", places, xx);
   //    assert(strlen(str) < 20);
   // output to both ports

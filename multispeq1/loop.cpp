@@ -198,7 +198,8 @@ void loop() {
           months =  Serial_Input_Long("+");
           years =  Serial_Input_Long("+");
           setTime(hours, minutes, seconds, days, months, years);
-          //Serial_Printf("current time is %d:%d:%d on %d/%d/%d\n", hour(), minute(), second(), month(), day(), year());
+          delay(2000);
+          Serial_Printf("current time is %d:%d:%d on %d/%d/%d\n", hour(), minute(), second(), month(), day(), year());
           // TODO output current time in output jsons
         }
         break;
@@ -209,10 +210,10 @@ void loop() {
 
       case 1008:
           Serial_Print_Line("a");
-          pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 low
+          pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
           digitalWrite(POWERDOWN_REQUEST,LOW);
           Serial_Print_Line("b");
-          delay(11000);                  // device should power off here - P0.5 should go low
+          delay(11000);                  // device should power off here - P0.5 (third pin) should go low
           Serial_Print_Line("c");        // shouldn't get here
           digitalWrite(POWERDOWN_REQUEST,HIGH);  // put it back
           break;

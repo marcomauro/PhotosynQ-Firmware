@@ -207,6 +207,15 @@ void loop() {
         get_set_device_info(0);
         break;
 
+      case 1008:
+          Serial_Print_Line("a");
+          pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 low
+          digitalWrite(POWERDOWN_REQUEST,LOW);
+          Serial_Print_Line("b");
+          delay(11000);                  // device should power off here - P0.5 should go low
+          Serial_Print_Line("c");        // shouldn't get here
+          digitalWrite(POWERDOWN_REQUEST,HIGH);  // put it back
+          break;
       case 1011:
         Serial_Print_Line("PULSE1");
         DAC_set(1, 50);

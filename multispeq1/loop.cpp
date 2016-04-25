@@ -206,6 +206,7 @@ void loop() {
       case 1007:
         get_set_device_info(0);
         break;
+
       case 1011:
         Serial_Print_Line("PULSE1");
         DAC_set(1, 50);

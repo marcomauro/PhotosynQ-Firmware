@@ -221,7 +221,7 @@ Adafruit_BME280 bme2;       // I2C sensor
 
 void setup() {
 
-  delay(500);
+  delay(600);
 
   // set up serial ports (Serial and Serial1)
   Serial_Set(4);

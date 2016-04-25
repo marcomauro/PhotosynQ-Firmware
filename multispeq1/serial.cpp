@@ -200,9 +200,8 @@ void Serial_Flush_Output()
 void
 Serial_Print(const float x, int places)
 {
-  char str[20 + 1];
-  sprintf(str, "%.*f", places, x);
-  //  assert(strlen(str) < 20);
+  char str[50 + 1];
+  snprintf(str, 50,"%.*f", places, x);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -210,9 +209,8 @@ Serial_Print(const float x, int places)
 void
 Serial_Print(const double xx, int places)
 {
-  char str[20 + 1];
-  sprintf(str, "%.*f", places, xx);
-  //    assert(strlen(str) < 20);
+  char str[50 + 1];
+  snprintf(str, 50,"%.*f", places, xx);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -221,8 +219,8 @@ Serial_Print(const double xx, int places)
 void
 Serial_Print(const int i)
 {
-  char str[20];
-  sprintf(str, "%d", i);
+  char str[50+1];
+  snprintf(str, 50,"%d", i);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -230,8 +228,8 @@ Serial_Print(const int i)
 void
 Serial_Print(const unsigned u)
 {
-  char str[20];
-  sprintf(str, "%u", u);
+  char str[50+1];
+  snprintf(str, 50,"%u", u);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -264,8 +262,8 @@ Serial_Print_Line(String string)
 void
 Serial_Print_Line (const int i)
 {
-  char str[20];
-  sprintf(str, "%d", i);
+  char str[50+1];
+  snprintf(str, 50, "%d", i);
   // output to both ports
   Serial_Print_Line ((char *)str);
 }
@@ -273,8 +271,8 @@ Serial_Print_Line (const int i)
 void
 Serial_Print_Line (const long i)
 {
-  char str[20];
-  sprintf(str, "%ld", i);
+  char str[50+1];
+  snprintf(str, 50, "%ld", i);
   // output to both ports
   Serial_Print_Line ((char *)str);
 }
@@ -282,8 +280,18 @@ Serial_Print_Line (const long i)
 void
 Serial_Print_Line (const float x, const int places)
 {
-  char str[20 + 1];
-  sprintf(str, "%.*f", places, x);
+  char str[50 + 1];
+  snprintf(str, 50, "%.*f", places, x);
+  //  assert(strlen(str) < 20);
+  // output to both ports
+  Serial_Print_Line ((char *)str);
+}
+
+void
+Serial_Print_Line (const double xx, const int places)
+{
+  char str[50 + 1];
+  snprintf(str, 50, "%.*f", places, xx);
   //  assert(strlen(str) < 20);
   // output to both ports
   Serial_Print_Line ((char *)str);

@@ -215,7 +215,6 @@ Serial_Print(const double xx, int places)
   Serial_Print ((char *)str);
 }
 
-
 void
 Serial_Print(const int i)
 {

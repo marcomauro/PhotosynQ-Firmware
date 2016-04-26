@@ -24,7 +24,7 @@
 
   Discuss meringing other eeprom floats into userdef[] with #define
   Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
-  Using bluetooth ID as ID -  
+  Using bluetooth ID as ID -
   Firmware needs api call to write code to eeprom (unique ID).
   Get rid of user_enter… and replace with new user enter, then delete main function
   Pull out the alert/confirm/prompt into a subroutine.
@@ -250,8 +250,8 @@ void setup() {
   //  digitalWriteFast(BLERESET, HIGH);
   //  delay(100);
   //  digitalWriteFast(BLERESET, LOW);                                                // set BLE reset low for the bluetooth to be active
-//  pinMode(ISET, OUTPUT);                                                          // set USB charge level - deprecated
-//  digitalWriteFast(ISET, HIGH);
+  //  pinMode(ISET, OUTPUT);                                                          // set USB charge level - deprecated
+  //  digitalWriteFast(ISET, HIGH);
   //  pinMode(ACTINICLIGHT_INTENSITY_SWITCH, OUTPUT);
   //  digitalWriteFast(ACTINICLIGHT_INTENSITY_SWITCH, HIGH);                     // preset the switch to the actinic (high) preset position, DAC channel 0
 
@@ -289,12 +289,12 @@ void setup() {
     //uint32_t mv = (178 * x * x + 2688757565 - 1184375 * x) / 372346; // milli-volts input to MCU, clips at ~3500
     //assert(mv > 3400);      // voltage is too low for proper operation
   }
-  analogReference(INTERNAL);
+  analogReference(INTERNAL);   // 2.56V
 
 #ifdef BME280
   // pressure/humidity/temp sensors
   // note: will need 0x76 or 0x77 to support two chips
-//  assert (bme.begin(0x76) && bme2.begin(0x77));
+  //  assert (bme.begin(0x76) && bme2.begin(0x77));
 
 #ifdef DEBUGSIMPLE
   Serial_Print("BME280 Temperature = ");
@@ -311,7 +311,7 @@ void setup() {
   //double expr(const char s[]);
   //Serial_Printf("expr = %f\n",expr("userdef1/2"));  // userdef1 is from eeprom
 
-//  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
+  //  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
   Serial_Print(DEVICE_NAME);
   Serial_Print_Line(" Ready");
@@ -624,11 +624,50 @@ void activity() {
 
 // Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.
 // This should run just before any new protocol - if it’s too low, report to the user
+// return 1 if too low, otherwise 0
 
-int battery_check()
+#define MIN_BAT_LEVEL (((4.0/2)/2.56) * 65536)   // 4V on battery, 2x voltage divider, 2.56V reference, 16 bit ADC
+
+int battery_low()
 {
+  // pull batt_me line low
+  pinMode(BATT_ME, OUTPUT);               // battery measurement enable (active low)
+  digitalWriteFast(BATT_ME, LOW);                 
+
+  // set DAC values to 1/4 of full output
+  DAC_set(PULSE1, 1024 / 4);
+  DAC_set(PULSE2, 1024 / 4);
+  DAC_set(PULSE5, 1024 / 4);
+  DAC_set(PULSE6, 1024 / 4);
+  DAC_change();
+  delay(10);       // stabilize
+
+  // turn on 4 LEDs
+  digitalWriteFast(PULSE1,1);
+  digitalWriteFast(PULSE2,1);
+  digitalWriteFast(PULSE5,1);
+  digitalWriteFast(PULSE6,1);
+
+  delayMicroseconds(10);          // TODO?  How long to drain power supply capacitance?
+
+  int value = 0;
+  for (int i = 0 ; i < 100; ++i)
+      value += analogRead(BATT_TEST);  // test A10 analog input (should have a 50% voltage divider and the ADC uses 2.56V reference)
+  value /= 100;
+
+  // turn off 4 LEDs
+  digitalWriteFast(PULSE1,0);
+  digitalWriteFast(PULSE2,0);
+  digitalWriteFast(PULSE5,0);
+  digitalWriteFast(PULSE6,0);
+
+  // turn off BATT_ME (let float)
+  pinMode(BATT_ME, INPUT);
+
+  // if (value  < MIN_BATT_LEVEL) ...
   return 0;
-}
+  
+} // battery_low()
 
 
 

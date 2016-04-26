@@ -84,6 +84,7 @@ const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PUL
 // to check battery level, pull batt_me low and then measure batt_test
 // check data sheet for ISET... pull high or low?
 #define ISET     28          // controls charge rate (deprecated)
+#define POWERDOWN_REQUEST 28   // request that BLE module turn off MCU power
 #define BATT_ME  33
 #define BATT_TEST 34
 

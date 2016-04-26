@@ -221,7 +221,7 @@ Adafruit_BME280 bme2;       // I2C sensor
 
 void setup() {
 
-  delay(500);
+  delay(600);
 
   // set up serial ports (Serial and Serial1)
   Serial_Set(4);
@@ -255,8 +255,8 @@ void setup() {
   //  digitalWriteFast(BLERESET, HIGH);
   //  delay(100);
   //  digitalWriteFast(BLERESET, LOW);                                                // set BLE reset low for the bluetooth to be active
-  pinMode(ISET, OUTPUT);                                                          // set USB charge level - deprecated
-  digitalWriteFast(ISET, HIGH);
+//  pinMode(ISET, OUTPUT);                                                          // set USB charge level - deprecated
+//  digitalWriteFast(ISET, HIGH);
   //  pinMode(ACTINICLIGHT_INTENSITY_SWITCH, OUTPUT);
   //  digitalWriteFast(ACTINICLIGHT_INTENSITY_SWITCH, HIGH);                     // preset the switch to the actinic (high) preset position, DAC channel 0
 

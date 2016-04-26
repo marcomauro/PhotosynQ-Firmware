@@ -10,7 +10,7 @@
 
 /*
 
-  test get_device_info - WORKS!  But set to a string (currently it's a long)
+  X test get_device_info - WORKS!  But set to a string (currently it's a long)
   test sensors in "environmental" make sure averages works as it should - WORKS!
   test par_to_dac an light_intensity_raw_to_par
   so the rule is whatever the last value you took (could have been this protocol, or two protocols ago...) that's the one you get when you call an expression variable (light_intensity for example)... values do not get deleted between protocols.
@@ -32,7 +32,7 @@
   Reimplement Actinic background light… make sure to update (currently set to 13)
   reimplement print_offset and get_offset
 
-  Make the “environmental” a separate subroutine and pass the before or after 0,1 to it.
+  x Make the “environmental” a separate subroutine and pass the before or after 0,1 to it.
 
   I would like to set the micro-einstein level for the lights in my measurements rather than a raw (unitless) 12 bit value.
 
@@ -83,7 +83,7 @@
    First thing - go through eeprom.h and set all of the variables in top and bottom of file...
    expose only a portion to users via 1000+ commands
 
-   I suggest that all userdefs be a single float - JZ
+   x I suggest that all userdefs be a single float - JZ
    read_userdef - option to get a single userdef or all userdefs.  include the long arrays (like calibration_slope) as well as the offset and other variables which are not currently saved as userdefs.  All saved values are saveable in get_userdef.  This should have a print option when someone wants to also print it, and a get all option to print all userdefs (as JSON follow existing structure).
    replaces get_calibration, get_calibration_userdef, call_print_calibration, print_sensor_calibration, print_offset, set_device_info
 
@@ -189,7 +189,6 @@
 
 */
 
-
 // includes
 #include "defines.h"
 #include <i2c_t3.h>
@@ -212,10 +211,6 @@ int MAG3110_init(void);           // initialize compass
 int MMA8653FC_init(void);         // initialize accelerometer
 void MLX90615_init(void);         // initialize contactless temperature sensor
 void PAR_init(void);               // initialize PAR and RGB sensor
-
-// pressure/temp/humidity sensors
-Adafruit_BME280 bme1;        // I2C sensor
-Adafruit_BME280 bme2;       // I2C sensor
 
 // This routine is called first
 

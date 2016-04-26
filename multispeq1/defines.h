@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <stdint.h>
+#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
 
 //#define DEBUG 1         // uncomment to add full debug features
 const int DEBUGSIMPLE= 0;   // uncomment to add partial debug features
@@ -143,6 +144,10 @@ EXTERN int x_tilt_raw, y_tilt_raw, z_tilt_raw;
 EXTERN float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
 
 EXTERN float temperature, humidity, pressure;
+
+// pressure/temp/humidity sensors
+EXTERN Adafruit_BME280 bme1;        // I2C sensor
+EXTERN Adafruit_BME280 bme2;       // I2C sensor
 
 // Coral SpeQ
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////

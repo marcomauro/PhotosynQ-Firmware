@@ -2,16 +2,13 @@
 // main loop and some support routines
 
 #define EXTERN
-#include "defines.h"             // various globals
-//#include <Time.h>                                                             // enable real time clock library
+#include "defines.h"             // various globals                                                         // enable real time clock library
 //#include "utility/Adafruit_Sensor.h"
 #include "json/JsonParser.h"
-//#include "utility/mcp4728.h"              // delete this once PAR is fixed
 #include "DAC.h"
 #include "AD7689.h"               // external ADC
 //#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
 #include "eeprom.h"
-//#include <ADC.h>                  // internal ADC
 #include "serial.h"
 #include "flasher.h"
 #include "utility/crc32.h"
@@ -38,26 +35,14 @@ float light_intensity_raw_to_par (float _light_intensity_raw, float _r, float _g
 static void print_all (void);
 static void print_userdef (void);
 double expr(const char str[]);
+void do_protocol(void);
+void do_command(void);
 
 
-// Globals (try to avoid), see defines.h for non-statics
-
-static int averages = 1;                        // ??
+// globals - try to avoid
 static uint8_t _meas_light;                    // measuring light to be used during the interrupt
-static uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
-static volatile uint8_t led_off = 0;    // status of LED set by ISR
 static uint16_t _pulsesize = 0;         // pulse width in usec
-static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
-static const int max_jsons = 15;                                                   // max number of protocols per measurement
-//static int analogresolutionvalue;
-static IntervalTimer timer0;
-static float data = 0;
-static float data_ref = 0;
-static int act_background_light = 0;
-//static float freqtimer0;
-//static float freqtimer1;
-//static float freqtimer2;
-
+static volatile uint8_t led_off = 0;    // status of LED set by ISR
 
 //////////////////////// MAIN LOOP /////////////////////////
 
@@ -66,43 +51,6 @@ static int act_background_light = 0;
 // [...] (a json protocol to be executed)
 
 void loop() {
-
-  delay(50);  // ??
-
-  int measurements = 1;                                      // the number of times to repeat the entire measurement (all protocols)
-  unsigned long measurements_delay = 0;                      // number of seconds to wait between measurements
-  unsigned long measurements_delay_ms = 0;                   // number of milliseconds to wait between measurements
-  unsigned long meas_number = 0;                    // counter to cycle through measurement lights 1 - 4 during the run
-  //unsigned long end1;
-  //unsigned long start1 = millis();
-
-  // these variables could be pulled from the JSON at the time of use... however, because pulling from JSON is slow, it's better to create a int to save them into at the beginning of a protocol run and use the int instead of the raw hashTable.getLong type call
-  int _a_lights [NUM_LEDS] = {};
-  int _a_intensities [NUM_LEDS] = {};
-  int _a_lights_prev [NUM_LEDS] = {};
-  int act_background_light_prev = 0;
-  int cycle = 0;                                                                // current cycle number (start counting at 0!)
-  int pulse = 0;                                                                // current pulse number
-  //int total_cycles;                                                           // Total number of cycles - note first cycle is cycle 0
-  int meas_array_size = 0;                                                      // measures the number of measurement lights in the current cycle (example: for meas_lights = [[15,15,16],[15],[16,16,20]], the meas_array_size's are [3,1,3].
-
-  char* json = (char*)malloc(1);
-  JsonHashTable hashTable;
-  JsonParser<600> root;
-  String json2 [max_jsons];
-
-  //int end_flag = 0;
-  unsigned long* data_raw_average = 0;                                          // buffer for ADC output data
-  char serial_buffer [serial_buffer_size];                                      // large buffer for reading in a json protocol from serial port
-
-  memset(serial_buffer, 0, serial_buffer_size);                                  // reset buffer to zero
-  for (int i = 0; i < max_jsons; i++) {
-    json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
-  }
-
-  /*NOTES*/  // REINSTATE THIS ONCE WE HAVE NEW CALIBRATIONS
-  //  call_print_calibration(0);                                                                  // recall all data saved in eeprom
-
 
   // read and process n+ commands from the serial port until we see the start of a json
 
@@ -121,21 +69,41 @@ void loop() {
 
     // received a non '[' char - processs n+ command
 
+    do_command();
+
+  } // for
+
+  // here if not a + command
+
+  // read in and process a protocol (starts with '[', ends with '!' or timeout)
+  // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]<newline>
+
+  do_protocol();
+
+  return;
+
+} // loop()
+
+
+// process a numeric + command
+
+void do_command()
+{ 
     char choose[50];
     Serial_Input_Chars(choose, "+", 500, sizeof(choose) - 1);
 
     if (strlen(choose) < 3) {        // short or null command, quietly ignore it
-      continue;
+      return;
     }
 
     if (isprint(choose[0]) && !isdigit(choose[0])) {
       Serial_Print("{\"error\":\"commands must be numbers or json\"}\n");
-      continue;                     // go read another command
+      return;                     // go read another command
     }
-
+    
     Serial_Start();                   // new packet, reset recording buffer and CRC
-
-    // process + commands
+ 
+    // process + command
 
     switch (atoi(choose)) {
       case 1000:                                                                    // print "Ready" to USB and Bluetooth
@@ -189,7 +157,7 @@ void loop() {
         break;
 
       case 1004: {
-          Serial_Print_Line("enter hours+min+sec+day+month+year+");
+          Serial_Print_Line("enter GMT hours+min+sec+day+month+year+");
           int hours, minutes, seconds, days, months, years;
           hours =  Serial_Input_Long("+");
           minutes =  Serial_Input_Long("+");
@@ -199,24 +167,29 @@ void loop() {
           years =  Serial_Input_Long("+");
           setTime(hours, minutes, seconds, days, months, years);
           delay(2000);
-          Serial_Printf("current time is %d:%d:%d on %d/%d/%d\n", hour(), minute(), second(), month(), day(), year());
-          // TODO output current time in output jsons
+        // fall through to print
+        case 1005:
+          // example: 2004-02-12T15:19:21.000Z
+          if (year() >= 2016)
+            Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}", year(), month(), day(), hour(), minute(), second());
+          // JZ TODO output current time in output jsons
         }
         break;
 
       case 1007:
+        // TODO - what needs to be added
         get_set_device_info(0);
         break;
 
       case 1008:
-          Serial_Print_Line("a");
-          pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
-          digitalWrite(POWERDOWN_REQUEST,LOW);
-          Serial_Print_Line("b");
-          delay(11000);                  // device should power off here - P0.5 (third pin) should go low
-          Serial_Print_Line("c");        // shouldn't get here
-          digitalWrite(POWERDOWN_REQUEST,HIGH);  // put it back
-          break;
+        Serial_Print_Line("a");
+        pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
+        digitalWrite(POWERDOWN_REQUEST, LOW);
+        Serial_Print_Line("b");
+        delay(11000);                  // device should power off here - P0.5 (third pin) should go low
+        Serial_Print_Line("c");        // shouldn't get here
+        digitalWrite(POWERDOWN_REQUEST, HIGH); // put it back
+        break;
       case 1011:
         Serial_Print_Line("PULSE1");
         DAC_set(1, 50);
@@ -630,22 +603,66 @@ void loop() {
 
     Serial_Flush_Output();     // force all output to go out
 
-  } // for
+} // do_command()
 
-  // here if not a + command
 
-  // read in a protocol (starts with '[', ends with '!' or timeout)
+// Globals for protcols (try to avoid), see defines.h for non-statics, see eeprom.h for stored
 
-  // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]<newline>
+static int averages = 1;                        // ??
+static uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
+static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
+static const int max_jsons = 15;                                                   // max number of protocols per measurement
+//static int analogresolutionvalue;
+static IntervalTimer timer0;
+static float data = 0;
+static float data_ref = 0;
+static int act_background_light = 0;
+//static float freqtimer0;
+//static float freqtimer1;
+//static float freqtimer2;
+
+// read in and execute a protocol
+// example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]<newline>
+
+void do_protocol()
+{
+  char serial_buffer[serial_buffer_size];   // large buffer for reading in a json protocol from serial port
 
   Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);
 
   if (!check_protocol(serial_buffer)) {         // sanity check
-    Serial_Print("bad json protocol\n");
+    Serial_Print("{\"error\":\"bad json protocol\"}\n");
     return;
   }
 
   // break up the protocol into individual jsons
+
+  int measurements = 1;                                      // the number of times to repeat the entire measurement (all protocols)
+  unsigned long measurements_delay = 0;                      // number of seconds to wait between measurements
+  unsigned long measurements_delay_ms = 0;                   // number of milliseconds to wait between measurements
+  unsigned long meas_number = 0;                    // counter to cycle through measurement lights 1 - 4 during the run
+  //unsigned long end1;
+  //unsigned long start1 = millis();
+
+  // these variables could be pulled from the JSON at the time of use... however, because pulling from JSON is slow, it's better to create a int to save them into at the beginning of a protocol run and use the int instead of the raw hashTable.getLong type call
+  int _a_lights [NUM_LEDS] = {};
+  int _a_intensities [NUM_LEDS] = {};
+  int _a_lights_prev [NUM_LEDS] = {};
+  int act_background_light_prev = 0;
+  int cycle = 0;                                                                // current cycle number (start counting at 0!)
+  int pulse = 0;                                                                // current pulse number
+  //int total_cycles;                                                           // Total number of cycles - note first cycle is cycle 0
+  int meas_array_size = 0;                                                      // measures the number of measurement lights in the current cycle (example: for meas_lights = [[15,15,16],[15],[16,16,20]], the meas_array_size's are [3,1,3].
+ //int end_flag = 0;
+  unsigned long* data_raw_average = 0;                                          // buffer for ADC output data
+
+  char* json = (char*)malloc(1);
+  JsonHashTable hashTable;
+  JsonParser<600> root;
+  String json2 [max_jsons];
+  for (int i = 0; i < max_jsons; i++) {
+    json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
+  }
 
   int number_of_protocols = 0;                                   // number of protocols
 
@@ -659,13 +676,13 @@ void loop() {
       number_of_protocols++;
     }
   }
-
-  //  Serial_Printf("got %d protocols\n", number_of_protocols);
-
+ 
   if (DEBUGSIMPLE) {
+     Serial_Printf("got %d protocols\n", number_of_protocols);
+
     // print each json
     for (int i = 0; i < number_of_protocols; i++) {
-      //Serial_Printf("Incoming JSON % d as received by Teensy : % s", i, json2[i]);
+      Serial_Printf("Incoming JSON %d as received by Teensy : %s\n", i, json2[i].c_str());
     } // for
   } // DEBUGSIMPLE
 
@@ -688,7 +705,7 @@ void loop() {
 
     for (int q = 0; q < number_of_protocols; q++) {                                           // loop through all of the protocols to create a measurement
 
-      free(json);                                                                             // free initial json malloc, make sure this is here! Free before resetting the size according to the serial input
+      if (json) free(json);                                                                             // free initial json malloc, make sure this is here! Free before resetting the size according to the serial input
       json = (char*)malloc((json2[q].length() + 1) * sizeof(char));
       strncpy(json, json2[q].c_str(), json2[q].length());
       json[json2[q].length()] = '\0';                                                         // Add closing character to char*
@@ -870,38 +887,27 @@ void loop() {
 
         //        print_sensor_calibration(1);                                               // print sensor calibration data
 
-        // this should be a structure, so I can reset it all......
+        // clear variables (probably not needed)
 
-        light_intensity = 0;
-        light_intensity_averaged = 0;
-        light_intensity_raw = 0;
-        light_intensity_raw_averaged = 0;
-        r = 0;
-        r_averaged = 0;
-        g = 0;
-        g_averaged = 0;
-        b = 0;
-        b_averaged = 0;
+        light_intensity = light_intensity_averaged = 0;
+        light_intensity_raw = light_intensity_raw_averaged = 0;
+        r = r_averaged =  g = g_averaged = b = b_averaged = 0;
 
-        thickness = 0;
-        thickness_averaged = 0;
-        thickness_raw = 0;
-        thickness_raw_averaged = 0;
+        thickness = thickness_averaged = 0;
+        thickness_raw = thickness_raw_averaged = 0;
 
-        contactless_temp = 0;
-        contactless_temp_averaged = 0;
+        contactless_temp = contactless_temp_averaged = 0;
 
-        cardinal = 0;
-        cardinal_averaged = 0;
+        cardinal = cardinal_averaged = 0;
         x_cardinal_raw = 0, y_cardinal_raw = 0, z_cardinal_raw = 0;
         x_cardinal_raw_averaged = 0, y_cardinal_raw_averaged = 0, z_cardinal_raw_averaged = 0;
 
-        x_tilt = 0, y_tilt = 0, z_tilt = 0;
+        x_tilt = y_tilt = z_tilt = 0;
         x_tilt_averaged = 0, y_tilt_averaged = 0, z_tilt_averaged = 0;
         x_tilt_raw = 0, y_tilt_raw = 0, z_tilt_raw = 0;
         x_tilt_raw_averaged = 0, y_tilt_raw_averaged = 0, z_tilt_raw_averaged = 0;
 
-        temperature = 0, humidity = 0, pressure = 0;
+        temperature = humidity = pressure = 0;
 
         //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
         //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
@@ -1451,7 +1457,7 @@ void loop() {
 
 abort:
 
-  Serial_Print("]}");                // terminate json
+  Serial_Print("]}");                // terminate output json
   Serial_Print_CRC();
 
   act_background_light = 0;          // ??
@@ -1461,9 +1467,12 @@ abort:
 
   if (data_raw_average)
     free(data_raw_average);            // free the calloc() of data_raw_average
-  free(json);                        // free second json malloc
+  if (json)
+    free(json);                        // free second json malloc
 
-} // loop()
+  return;
+  
+} // do_protocol()
 
 
 //  routines for LED pulsing

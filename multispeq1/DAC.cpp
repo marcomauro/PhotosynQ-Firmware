@@ -56,19 +56,19 @@ void DAC_set(unsigned int led, unsigned int value)
   if (led ==  0)                                            // if you get a zero, quietly skip it
     return;
 
-//  assert(led > 0 && led <= NUM_LEDS);                       // any other wrong value is a fatal error
-  
+  assert(led > 0 && led <= NUM_LEDS);                       // any other wrong value is a fatal error
+
   led -= 1;   // convert to 0-x numbering
 
-//  assert(value >= 0 && value <= 4095);
-  
+  assert(value <= 4095);
+
   // for readability, break these out
   int dac_number = LED_to_dac[led];
   int dac_channel = LED_to_channel[led];
-  
-//    Serial.print(dac_number);
-//    Serial.print(",");
-//    Serial.println(dac_channel);
+
+  //    Serial.print(dac_number);
+  //    Serial.print(",");
+  //    Serial.println(dac_channel);
 
   // set value on DAC
   dac[dac_number]->analogWrite(dac_channel, value);
@@ -81,14 +81,14 @@ void DAC_set(unsigned int led, unsigned int value)
 
 void DAC_change(void)
 {
-      // toggle all ldac lines for 1 usecond
-      digitalWriteFast(LDAC1, LOW);
-      digitalWriteFast(LDAC2, LOW);
-      digitalWriteFast(LDAC3, LOW);
-      delayMicroseconds(1);
-      digitalWriteFast(LDAC1, HIGH);
-      digitalWriteFast(LDAC2, HIGH);
-      digitalWriteFast(LDAC3, HIGH);
+  // toggle all ldac lines for 1 usecond
+  digitalWriteFast(LDAC1, LOW);
+  digitalWriteFast(LDAC2, LOW);
+  digitalWriteFast(LDAC3, LOW);
+  delayMicroseconds(1);
+  digitalWriteFast(LDAC1, HIGH);
+  digitalWriteFast(LDAC2, HIGH);
+  digitalWriteFast(LDAC3, HIGH);
 } // DAC_change()
 
 
@@ -167,7 +167,7 @@ int DAC_set_address(int ldac_pin, unsigned oldAddress, unsigned newAddress)     
   ret = Wire.finish();
   if (ret != 1)
     Serial.println("re-address failed");
-  else 
+  else
     Serial.println("re-address looked ok");
 
 
@@ -185,10 +185,10 @@ int DAC_set_address(int ldac_pin, unsigned oldAddress, unsigned newAddress)     
   int ret2 = Wire.endTransmission();
 
   if (ret2 == 0)
-     Serial.printf("Success, a device is on new address %d\n",newAddress);
+    Serial.printf("Success, a device is on new address %d\n", newAddress);
 
 #endif
-  
+
   Wire.setRate(I2C_RATE_400);     // back to normal speed
 
   return ret;

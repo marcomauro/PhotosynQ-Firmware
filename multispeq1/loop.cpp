@@ -37,6 +37,7 @@ static void print_userdef (void);
 double expr(const char str[]);
 void do_protocol(void);
 void do_command(void);
+int battery_low(void);
 
 
 //////////////////////// MAIN LOOP /////////////////////////
@@ -101,7 +102,7 @@ void do_command()
     return;                     // go read another command
   }
 
-  Serial_Start();                   // new packet, reset recording buffer and CRC
+  Serial_Start_Recording();                   // new packet, reset recording buffer and CRC
 
   // process + command
 
@@ -456,6 +457,7 @@ void do_command()
         eeprom->colorcal_intensity2_yint[led] = Serial_Input_Double("+", 0);
       }
       break;
+      
     case 1045:
       Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: ");
       for (;;) {
@@ -467,10 +469,15 @@ void do_command()
         eeprom->colorcal_intensity3_yint[led] = Serial_Input_Double("+", 0);
       }
       break;
+      
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
       break;
 
+    case 1200:
+      battery_low();  // test battery
+      break;
+      
     case 1100:     // resend last packet
       Serial_Resend();
       break;
@@ -628,7 +635,13 @@ static int act_background_light = 0;
 
 void do_protocol()
 {
-  char serial_buffer[serial_buffer_size];   // large buffer for reading in a json protocol from serial port
+  char *serial_buffer;
+
+  Serial_Stop_Recording();                    // release some memory
+  
+  serial_buffer = (char *)malloc(serial_buffer_size);   // large buffer for reading in a json protocol from serial port
+
+  assert(serial_buffer);
 
   Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);
 
@@ -679,6 +692,9 @@ void do_protocol()
     }
   }
 
+  // no more need for the serial input buffer
+  free(serial_buffer);
+  
   if (DEBUGSIMPLE) {
     Serial_Printf("got %d protocols\n", number_of_protocols);
 
@@ -688,8 +704,7 @@ void do_protocol()
     } // for
   } // DEBUGSIMPLE
 
-
-  Serial_Start();          // new packet
+  Serial_Start_Recording();          // new packet
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);

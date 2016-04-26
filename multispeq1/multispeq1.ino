@@ -604,17 +604,21 @@ int check_protocol(char *str)
 
 const unsigned long SHUTDOWN = 10000;   // power down after X ms of inactivity
 static unsigned long last_activity = millis();
-// if there hasn't been any activity for x seconds, then power down
-// also power down if the battery is too low
+
+// if there hasn't been any activity for x seconds, then attempt power down 
+// note: if USB power is connected, power down is not possible
+
 void powerdown() {
   // send command to BLE module by setting XX low
-  // only the BLE module can power up/down the MCU
 #if 0
   if (millis() - last_activity > SHUTDOWN) {
-    Serial_Print_Line("powerdown");
+    //Serial_Print_Line("powerdown"); delay(10000);
     // send request to BLE module to power down this MCU
-    for (;;) {}
-  } // if
+    pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
+    digitalWriteFast(POWERDOWN_REQUEST, LOW); 
+  } else {
+    pinMode(POWERDOWN_REQUEST, INPUT);                // active, let it float high
+  }
 #endif
 }
 // record that we have seen serial port activity (used with powerdown())
@@ -626,7 +630,7 @@ void activity() {
 // This should run just before any new protocol - if it’s too low, report to the user
 // return 1 if too low, otherwise 0
 
-#define MIN_BAT_LEVEL (((4.0/2)/2.56) * 65536)   // 4V on battery, 2x voltage divider, 2.56V reference, 16 bit ADC
+const float MIN_BAT_LEVEL (((3.4/2)/2.56) * 65536);   // 3.4V min battery voltage, 2x voltage divider, 2.56V reference, 16 bit ADC
 
 int battery_low()
 {
@@ -635,10 +639,10 @@ int battery_low()
   digitalWriteFast(BATT_ME, LOW);                 
 
   // set DAC values to 1/4 of full output
-  DAC_set(PULSE1, 1024 / 4);
-  DAC_set(PULSE2, 1024 / 4);
-  DAC_set(PULSE5, 1024 / 4);
-  DAC_set(PULSE6, 1024 / 4);
+  DAC_set(1, 1024 / 4);
+  DAC_set(2, 1024 / 4);
+  DAC_set(5, 1024 / 4);
+  DAC_set(6, 1024 / 4);
   DAC_change();
   delay(10);       // stabilize
 
@@ -649,8 +653,8 @@ int battery_low()
   digitalWriteFast(PULSE6,1);
 
   delayMicroseconds(10);          // TODO?  How long to drain power supply capacitance?
-
-  int value = 0;
+  
+  uint32_t value = 0;
   for (int i = 0 ; i < 100; ++i)
       value += analogRead(BATT_TEST);  // test A10 analog input (should have a 50% voltage divider and the ADC uses 2.56V reference)
   value /= 100;
@@ -664,7 +668,11 @@ int battery_low()
   // turn off BATT_ME (let float)
   pinMode(BATT_ME, INPUT);
 
-  // if (value  < MIN_BATT_LEVEL) ...
+Serial_Printf("bat = %d counts %fV\n",value, value * (2.56/65536));
+
+  if (value  < MIN_BAT_LEVEL)
+     return 1;                  // too low
+     
   return 0;
   
 } // battery_low()

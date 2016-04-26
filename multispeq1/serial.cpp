@@ -38,13 +38,14 @@ void Serial_Flush_Input(void)
 }
 
 const int MAX_RESEND_SIZE = 5000;
-static char resend_buffer[MAX_RESEND_SIZE + 1];      // allow re-transmission of previous output
-static int  resend_count = 0;                        // number of chars in the resend buffer
+static char *resend_buffer = 0;           // allow re-transmission of previous output
+static int  resend_count = 0;           // number of chars in the resend buffer
 
 // re-send everything since the last Serial_Start()
 void Serial_Resend()
 {
-  Serial_Print(resend_buffer);
+  if (resend_buffer)
+    Serial_Print(resend_buffer);
 }
 
 // specify which ports to send output to
@@ -145,11 +146,13 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
   crc32_string ((char *)str);
 
   // add to resend buffer
-  int count = min((int)strlen(str), MAX_RESEND_SIZE - resend_count);  // check for enough remaining space
-  strncpy(resend_buffer + resend_count, (char *)str, count);
-  resend_count += count;
-  resend_buffer[resend_count] = 0;    // null terminate
-}
+  if (resend_buffer) {
+    int count = min((int)strlen(str), MAX_RESEND_SIZE - resend_count);  // check for enough remaining space
+    strncpy(resend_buffer + resend_count, (char *)str, count);
+    resend_count += count;
+    resend_buffer[resend_count] = 0;    // null terminate
+  }
+}  // Serial_Print(char *)
 
 #define BLE_DELAY 20                    // milli seconds between packets
 #define BLE_PACKET_SIZE 20
@@ -201,7 +204,7 @@ void
 Serial_Print(const float x, int places)
 {
   char str[50 + 1];
-  snprintf(str, 50,"%.*f", places, x);
+  snprintf(str, 50, "%.*f", places, x);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -210,7 +213,7 @@ void
 Serial_Print(const double xx, int places)
 {
   char str[50 + 1];
-  snprintf(str, 50,"%.*f", places, xx);
+  snprintf(str, 50, "%.*f", places, xx);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -218,8 +221,8 @@ Serial_Print(const double xx, int places)
 void
 Serial_Print(const int i)
 {
-  char str[50+1];
-  snprintf(str, 50,"%d", i);
+  char str[50 + 1];
+  snprintf(str, 50, "%d", i);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -227,8 +230,8 @@ Serial_Print(const int i)
 void
 Serial_Print(const unsigned u)
 {
-  char str[50+1];
-  snprintf(str, 50,"%u", u);
+  char str[50 + 1];
+  snprintf(str, 50, "%u", u);
   // output to both ports
   Serial_Print ((char *)str);
 }
@@ -261,7 +264,7 @@ Serial_Print_Line(String string)
 void
 Serial_Print_Line (const int i)
 {
-  char str[50+1];
+  char str[50 + 1];
   snprintf(str, 50, "%d", i);
   // output to both ports
   Serial_Print_Line ((char *)str);
@@ -270,7 +273,7 @@ Serial_Print_Line (const int i)
 void
 Serial_Print_Line (const long i)
 {
-  char str[50+1];
+  char str[50 + 1];
   snprintf(str, 50, "%ld", i);
   // output to both ports
   Serial_Print_Line ((char *)str);
@@ -305,15 +308,25 @@ Serial_Print_CRC (void)
   Serial_Print_Line (p);
   Serial_Flush_Output();          // force it to go out
 
-  Serial_Start();                 // new packet
+  crc32_init();
 }
 
 // start an output packet (used to resend output)
 void
-Serial_Start(void)
+Serial_Start_Recording(void)
 {
   crc32_init ();          // reset for next time
+  if (!resend_buffer)
+    resend_buffer = (char *)malloc(MAX_RESEND_SIZE);
   resend_count = 0;       // empty resend buffer
+}
+
+// optional, releases some memory
+void Serial_Stop_Recording(void)
+{
+   if (resend_buffer)
+      free(resend_buffer);
+   resend_buffer = 0;
 }
 
 #include <string.h>
@@ -362,7 +375,7 @@ double Serial_Input_Double(const char *terminators, long unsigned int timeout) {
   Serial_Input_Chars(S, terminators, timeout, sizeof(S) - 1);
   if (strlen(S) == 0)
     return NAN;
-  return strtod(S,0);
+  return strtod(S, 0);
 }  // Serial_Input_Double()
 
 

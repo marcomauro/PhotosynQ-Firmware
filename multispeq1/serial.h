@@ -5,7 +5,8 @@
 
 void Serial_Set(int s);
 void Serial_Resend(void);
-void Serial_Start(void);
+void Serial_Start_Recording(void);
+void Serial_Stop_Recording(void);
 void Serial_Printf(const char * format, ... );
 int Serial_Read(void);
 unsigned Serial_Available(void);
@@ -13,7 +14,6 @@ int Serial_Peek(void);
 void Serial_Begin(int i = 57600);
 void Serial_Flush_Input(void);
 void Serial_Flush_Output(void);
-
 
 #define Serial_Input_Float(terminators,timeout)  ((float)Serial_Input_Double(terminators,timeout))
 

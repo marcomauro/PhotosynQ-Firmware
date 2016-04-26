@@ -167,14 +167,14 @@ void do_command()
         years =  Serial_Input_Long("+");
         setTime(hours, minutes, seconds, days, months, years);
         delay(2000);
-    }
-      // fall through to print
-      case 1005:
-        // example: 2004-02-12T15:19:21.000Z
-        if (year() >= 2016) {
-          Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}\n", year(), month(), day(), hour(), minute(), second());
-          Serial_Printf("{\"device_time\":%u}\n",now());  // since 1970 format
-        }
+      }
+    // fall through to print
+    case 1005:
+      // example: 2004-02-12T15:19:21.000Z
+      if (year() >= 2016) {
+        Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}\n", year(), month(), day(), hour(), minute(), second());
+        Serial_Printf("{\"device_time\":%u}\n", now()); // since 1970 format
+      }
       break;
 
     case 1007:
@@ -412,12 +412,14 @@ void do_command()
     case 1042:
       Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
       Serial_Print_Line("before:  ");
-      for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what's currently saved
-        Serial_Print(eeprom->par_to_dac_slope[i], 4);
-        Serial_Print(",");
-        Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
-      }
-      Serial_Print_Line("");
+      /*
+              for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what's currently saved
+                Serial_Print(eeprom->par_to_dac_slope[i], 4);
+                Serial_Print(",");
+                Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
+              }
+              Serial_Print_Line("");
+      */
       for (;;) {
         int led = Serial_Input_Double("+", 0);
         if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -432,7 +434,6 @@ void do_command()
         Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
       }
       break;
-
     case 1043:
       Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
       for (;;) {
@@ -1757,7 +1758,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
       int wait = environmental.getArray(i).getLong(5);
 
       // TODO sanity checks
-      
+
       if (DEBUGSIMPLE) {
         Serial_Print_Line(pin);
         Serial_Print_Line(pin);
@@ -1765,7 +1766,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
         Serial_Print_Line(setting);
         Serial_Print_Line(freq);
       } // DEBUGSIMPLE
-      
+
       pinMode(pin, OUTPUT);
       analogWriteFrequency(pin, freq);                                                           // set analog frequency
       analogWrite(pin, setting);

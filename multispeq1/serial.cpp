@@ -301,7 +301,7 @@ Serial_Print_CRC (void)
   Serial_Start();                 // new packet
 }
 
-// start an output packet
+// start an output packet (used to resend output)
 void
 Serial_Start(void)
 {

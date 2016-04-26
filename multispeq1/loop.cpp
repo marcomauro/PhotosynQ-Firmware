@@ -39,11 +39,6 @@ void do_protocol(void);
 void do_command(void);
 
 
-// globals - try to avoid
-static uint8_t _meas_light;                    // measuring light to be used during the interrupt
-static uint16_t _pulsesize = 0;         // pulse width in usec
-static volatile uint8_t led_off = 0;    // status of LED set by ISR
-
 //////////////////////// MAIN LOOP /////////////////////////
 
 // process ascii serial input commands of two forms:
@@ -85,523 +80,529 @@ void loop() {
 } // loop()
 
 
+// globals - try to avoid
+static uint8_t _meas_light;                    // measuring light to be used during the interrupt
+static uint16_t _pulsesize = 0;         // pulse width in usec
+static volatile uint8_t led_off = 0;    // status of LED set by ISR
+
 // process a numeric + command
 
 void do_command()
-{ 
-    char choose[50];
-    Serial_Input_Chars(choose, "+", 500, sizeof(choose) - 1);
+{
+  char choose[50];
+  Serial_Input_Chars(choose, "+", 500, sizeof(choose) - 1);
 
-    if (strlen(choose) < 3) {        // short or null command, quietly ignore it
-      return;
+  if (strlen(choose) < 3) {        // short or null command, quietly ignore it
+    return;
+  }
+
+  if (isprint(choose[0]) && !isdigit(choose[0])) {
+    Serial_Print("{\"error\":\"commands must be numbers or json\"}\n");
+    return;                     // go read another command
+  }
+
+  Serial_Start();                   // new packet, reset recording buffer and CRC
+
+  // process + command
+
+  switch (atoi(choose)) {
+    case 1000:                                                                    // print "Ready" to USB and Bluetooth
+      Serial_Print(DEVICE_NAME);
+      Serial_Print_Line(" Ready");
+      break;
+    case 1001:                                                                      // standard startup routine for new device
+      DAC_set_address(LDAC1, 0, 1);                                                 // Set DAC addresses to 1,2,3 assuming addresses are unset and all are factory (0,0,0)
+      DAC_set_address(LDAC2, 0, 2);
+      DAC_set_address(LDAC3, 0, 3);
+      get_set_device_info(1);                                                           //  input device info and write to eeprom
+      break;
+    case 1002:                                                                          // continuously output until user enter -1+
+      {
+        int Xcomp, Ycomp, Zcomp;
+        int Xval, Yval, Zval;
+        int leave = 0;
+        const int samples = 1000;
+        while (leave != -1) {
+          long sum = 0;
+          leave = Serial_Input_Long("+", 1000);
+          int par_raw = get_light_intensity(0, 1);
+          float contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
+          MMA8653FC_read(&Xval, &Yval, &Zval);
+          MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
+          delay(200);
+          for (int i = 0; i < samples; ++i) {
+            sum += analogRead(HALL_OUT);
+          }
+          int hall = (sum / samples);
+          delay(1);
+          Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+          Serial_Print_CRC();
+        }
+      }
+      break;
+    case 1003:
+      {
+        Serial_Print_Line("Enter led # setting followed by +: ");
+        int led =  Serial_Input_Double("+", 0);
+        Serial_Print_Line("Enter dac setting followed by +: ");
+        int setting =  Serial_Input_Double("+", 0);
+        DAC_set(led, setting);
+        DAC_change();
+        digitalWriteFast(LED_to_pin[led], HIGH);
+        delay(5000);
+        digitalWriteFast(LED_to_pin[led], LOW);
+        DAC_set(led, 0);
+        DAC_change();
+      }
+      break;
+
+    case 1004: {
+        Serial_Print_Line("enter GMT hours+min+sec+day+month+year+");
+        int hours, minutes, seconds, days, months, years;
+        hours =  Serial_Input_Long("+");
+        minutes =  Serial_Input_Long("+");
+        seconds =  Serial_Input_Long("+");
+        days =  Serial_Input_Long("+");
+        months =  Serial_Input_Long("+");
+        years =  Serial_Input_Long("+");
+        setTime(hours, minutes, seconds, days, months, years);
+        delay(2000);
     }
-
-    if (isprint(choose[0]) && !isdigit(choose[0])) {
-      Serial_Print("{\"error\":\"commands must be numbers or json\"}\n");
-      return;                     // go read another command
-    }
-    
-    Serial_Start();                   // new packet, reset recording buffer and CRC
- 
-    // process + command
-
-    switch (atoi(choose)) {
-      case 1000:                                                                    // print "Ready" to USB and Bluetooth
-        Serial_Print(DEVICE_NAME);
-        Serial_Print_Line(" Ready");
-        break;
-      case 1001:                                                                      // standard startup routine for new device
-        DAC_set_address(LDAC1, 0, 1);                                                 // Set DAC addresses to 1,2,3 assuming addresses are unset and all are factory (0,0,0)
-        DAC_set_address(LDAC2, 0, 2);
-        DAC_set_address(LDAC3, 0, 3);
-        get_set_device_info(1);                                                           //  input device info and write to eeprom
-        break;
-      case 1002:                                                                          // continuously output until user enter -1+
-        {
-          int Xcomp, Ycomp, Zcomp;
-          int Xval, Yval, Zval;
-          int leave = 0;
-          const int samples = 1000;
-          while (leave != -1) {
-            long sum = 0;
-            leave = Serial_Input_Long("+", 1000);
-            int par_raw = get_light_intensity(0, 1);
-            float contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
-            MMA8653FC_read(&Xval, &Yval, &Zval);
-            MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
-            delay(200);
-            for (int i = 0; i < samples; ++i) {
-              sum += analogRead(HALL_OUT);
-            }
-            int hall = (sum / samples);
-            delay(1);
-            Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
-            Serial_Print_CRC();
-          }
+      // fall through to print
+      case 1005:
+        // example: 2004-02-12T15:19:21.000Z
+        if (year() >= 2016) {
+          Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}\n", year(), month(), day(), hour(), minute(), second());
+          Serial_Printf("{\"device_time\":%u}\n",now());  // since 1970 format
         }
-        break;
-      case 1003:
-        {
-          Serial_Print_Line("Enter led # setting followed by +: ");
-          int led =  Serial_Input_Double("+", 0);
-          Serial_Print_Line("Enter dac setting followed by +: ");
-          int setting =  Serial_Input_Double("+", 0);
-          DAC_set(led, setting);
-          DAC_change();
-          digitalWriteFast(LED_to_pin[led], HIGH);
-          delay(5000);
-          digitalWriteFast(LED_to_pin[led], LOW);
-          DAC_set(led, 0);
-          DAC_change();
+      break;
+
+    case 1007:
+      // TODO - what needs to be added?
+      get_set_device_info(0);
+      break;
+
+    case 1008:
+      Serial_Print_Line("a");
+      pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
+      digitalWrite(POWERDOWN_REQUEST, LOW);
+      Serial_Print_Line("b");
+      delay(11000);                  // device should power off here - P0.5 (third pin) should go low
+      Serial_Print_Line("c");        // shouldn't get here
+      digitalWrite(POWERDOWN_REQUEST, HIGH); // put it back
+      break;
+    case 1011:
+      Serial_Print_Line("PULSE1");
+      DAC_set(1, 50);
+      DAC_change();
+      digitalWriteFast(PULSE1, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE1, LOW);
+      DAC_set(1, 0);
+      DAC_change();
+      break;
+    case 1012:
+      Serial_Print_Line("PULSE2");
+      DAC_set(2, 50);
+      DAC_change();
+      digitalWriteFast(PULSE2, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE2, LOW);
+      DAC_set(2, 0);
+      DAC_change();
+      break;
+    case 1013:
+      Serial_Print_Line("PULSE3");
+      DAC_set(3, 50);
+      DAC_change();
+      digitalWriteFast(PULSE3, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE3, LOW);
+      DAC_set(3, 0);
+      DAC_change();
+      break;
+    case 1014:
+      Serial_Print_Line("PULSE4");
+      DAC_set(4, 50);
+      DAC_change();
+      digitalWriteFast(PULSE4, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE4, LOW);
+      DAC_set(4, 0);
+      DAC_change();
+      break;
+    case 1015:
+      Serial_Print_Line("PULSE5");
+      DAC_set(5, 50);
+      DAC_change();
+      digitalWriteFast(PULSE5, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE5, LOW);
+      DAC_set(5, 0);
+      DAC_change();
+      break;
+    case 1016:
+      Serial_Print_Line("PULSE6");
+      DAC_set(6, 50);
+      DAC_change();
+      digitalWriteFast(PULSE6, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE6, LOW);
+      DAC_set(6, 0);
+      DAC_change();
+      break;
+    case 1017:
+      Serial_Print_Line("PULSE7");
+      DAC_set(7, 50);
+      DAC_change();
+      digitalWriteFast(PULSE7, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE7, LOW);
+      DAC_set(7, 0);
+      DAC_change();
+      break;
+    case 1018:
+      Serial_Print_Line("PULSE8");
+      DAC_set(8, 50);
+      DAC_change();
+      digitalWriteFast(PULSE8, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE8, LOW);
+      DAC_set(8, 0);
+      DAC_change();
+      break;
+    case 1019:
+      Serial_Print_Line("PULSE9");
+      DAC_set(9, 50);
+      DAC_change();
+      digitalWriteFast(PULSE9, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE9, LOW);
+      DAC_set(9, 0);
+      DAC_change();
+      break;
+    case 1020:
+      Serial_Print_Line("PULSE10");
+      DAC_set(10, 50);
+      DAC_change();
+      digitalWriteFast(PULSE10, HIGH);
+      delay(1000);
+      digitalWriteFast(PULSE10, LOW);
+      DAC_set(10, 0);
+      DAC_change();
+      break;
+
+    case 1021:                                                                            // variety of test commands used during development
+      {
+        /*
+                  char S[10];
+                  Serial_Print_Line(eeprom->userdef[0], 4);                                                                   // test the Serial_Input_Chars() command and saving values in userdef
+                  Serial_Input_Chars(S, "+", 20000, sizeof(S));
+                  Serial_Printf("output is %s \n", S);
+                  eeprom->userdef[0] = atof(S);
+        */
+        Serial_Print_Line(eeprom->userdef[1], 4);
+        store_float(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
+
+        Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
+        // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
+        /*
+                  Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");                         //  Change the baud rate of the BLE
+                  long baudrate = Serial_Input_Long();
+                  Serial_Begin((int) baudrate);
+
+                  Serial_Print("Enter 1/2/3/4+\n");
+                  long setserial = Serial_Input_Long();
+                  Serial_Printf("set serial to %d\n", (int)setserial);
+                  Serial_Set((int) setserial);
+                  Serial_Print_Line("test print");
+        */
+      }
+      break;
+
+    case 1027:                                                                                // restart teensy (keep here!)
+      _reboot_Teensyduino_();
+      break;
+    case 1028:
+      print_userdef();                                                                        // print only the userdef eeprom values
+      break;
+    case 1029:
+      print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
+      break;
+    case 1030:
+      Serial_Print("input 3 magnetometer bias values, each followed by +: ");
+      store_float(mag_bias[0], Serial_Input_Double("+", 0));
+      store_float(mag_bias[1], Serial_Input_Double("+", 0));
+      store_float(mag_bias[2], Serial_Input_Double("+", 0));
+      break;
+    case 1031:
+      Serial_Print("input 9 magnetometer calibration values, each followed by +: ");
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
+          eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
+          eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
         }
-        break;
-
-      case 1004: {
-          Serial_Print_Line("enter GMT hours+min+sec+day+month+year+");
-          int hours, minutes, seconds, days, months, years;
-          hours =  Serial_Input_Long("+");
-          minutes =  Serial_Input_Long("+");
-          seconds =  Serial_Input_Long("+");
-          days =  Serial_Input_Long("+");
-          months =  Serial_Input_Long("+");
-          years =  Serial_Input_Long("+");
-          setTime(hours, minutes, seconds, days, months, years);
-          delay(2000);
-        // fall through to print
-        case 1005:
-          // example: 2004-02-12T15:19:21.000Z
-          if (year() >= 2016)
-            Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}", year(), month(), day(), hour(), minute(), second());
-          // JZ TODO output current time in output jsons
+      }
+      break;
+    case 1032:
+      Serial_Print("input 3 accelerometer bias values, each followed by +: ");
+      eeprom->accel_bias[0] = Serial_Input_Double("+", 0);
+      eeprom->accel_bias[1] = Serial_Input_Double("+", 0);
+      eeprom->accel_bias[2] = Serial_Input_Double("+", 0);
+      break;
+    case 1033:
+      Serial_Print("input 9 accelerometer calibration values, each followed by +: ");
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
+          eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
+          eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
         }
-        break;
+      }
+      break;
+    case 1034:
+      Serial_Print_Line(eeprom->light_slope_all);
+      Serial_Print_Line("input light slope for ambient par calibration followed by +: ");
+      eeprom->light_slope_all = Serial_Input_Double("+", 0);
+      delay(10);
+      break;
+    case 1035:
+      Serial_Print_Line(eeprom->light_yint);
+      Serial_Print_Line("input y intercept for ambient par calibration followed by +: ");
+      eeprom->light_yint = Serial_Input_Double("+", 0);
+      delay(10);
+      break;
+    case 1036:
+      Serial_Print_Line(eeprom->light_slope_r);
+      Serial_Print_Line("input r slope for ambient par calibration followed by +: ");
+      eeprom->light_slope_r = Serial_Input_Double("+", 0);
+      delay(10);
+      break;
+    case 1037:
+      Serial_Print_Line(eeprom->light_slope_g);
+      Serial_Print_Line("input g slope for ambient par calibration followed by +: ");
+      eeprom->light_slope_g = Serial_Input_Double("+", 0);
+      delay(10);
+      break;
+    case 1038:
+      Serial_Print_Line(eeprom->light_slope_b);
+      Serial_Print_Line("input b slope for ambient par calibration followed by +: ");
+      eeprom->light_slope_b = Serial_Input_Double("+", 0);
+      delay(10);
+      break;
+    case 1039:
+      Serial_Print_Line(eeprom->thickness_a);
+      Serial_Print_Line("input thickness calibration value a for leaf thickness followed by +: ");
+      eeprom->thickness_a = Serial_Input_Double("+", 0);
+      delay(10);
+      break;
+    case 1040:
+      Serial_Print_Line(eeprom->thickness_b);
+      Serial_Print_Line("input thickness calibration value b for leaf thickness  followed by +: ");
+      eeprom->thickness_b = Serial_Input_Double("+", 0);
+      delay(10);
+      break;
+    case 1041:
+      Serial_Print_Line(eeprom->thickness_d);
+      Serial_Print_Line("input thickness calibration value d for leaf thickness  followed by +: ");
+      eeprom->thickness_d = Serial_Input_Double("+", 0);
+      break;
 
-      case 1007:
-        // TODO - what needs to be added
-        get_set_device_info(0);
-        break;
+    case 1042:
+      Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+      Serial_Print_Line("before:  ");
+      for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what's currently saved
+        Serial_Print(eeprom->par_to_dac_slope[i], 4);
+        Serial_Print(",");
+        Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
+      }
+      Serial_Print_Line("");
+      for (;;) {
+        int led = Serial_Input_Double("+", 0);
+        if (led == -1) {                                    // user can bail with -1+ setting as LED
+          break;
+        }
+        store_float(par_to_dac_slope[led], Serial_Input_Double("+", 0));
+        store_float(par_to_dac_yint[led], Serial_Input_Double("+", 0));
+      }
+      for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
+        Serial_Print(eeprom->par_to_dac_slope[i], 4);
+        Serial_Print(",");
+        Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
+      }
+      break;
 
-      case 1008:
-        Serial_Print_Line("a");
-        pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
-        digitalWrite(POWERDOWN_REQUEST, LOW);
-        Serial_Print_Line("b");
-        delay(11000);                  // device should power off here - P0.5 (third pin) should go low
-        Serial_Print_Line("c");        // shouldn't get here
-        digitalWrite(POWERDOWN_REQUEST, HIGH); // put it back
-        break;
-      case 1011:
-        Serial_Print_Line("PULSE1");
-        DAC_set(1, 50);
+    case 1043:
+      Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+      for (;;) {
+        int led = Serial_Input_Double("+", 0);
+        if (led == -1) {                                    // user can bail with -1+ setting as LED
+          break;
+        }
+        eeprom->colorcal_intensity1_slope[led] = Serial_Input_Double("+", 0);
+        eeprom->colorcal_intensity1_yint[led] = Serial_Input_Double("+", 0);
+      }
+      break;
+    case 1044:
+      Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+      for (;;) {
+        int led = Serial_Input_Double("+", 0);
+        if (led == -1) {                                    // user can bail with -1+ setting as LED
+          break;
+        }
+        eeprom->colorcal_intensity2_slope[led] = Serial_Input_Double("+", 0);
+        eeprom->colorcal_intensity2_yint[led] = Serial_Input_Double("+", 0);
+      }
+      break;
+    case 1045:
+      Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+      for (;;) {
+        int led = Serial_Input_Double("+", 0);
+        if (led == -1) {                                    // user can bail with -1+ setting as LED
+          break;
+        }
+        eeprom->colorcal_intensity3_slope[led] = Serial_Input_Double("+", 0);
+        eeprom->colorcal_intensity3_yint[led] = Serial_Input_Double("+", 0);
+      }
+      break;
+    case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
+      upgrade_firmware();
+      break;
+
+    case 1100:     // resend last packet
+      Serial_Resend();
+      break;
+
+    case 4044:
+      {
+        // JZ test - do not remove
+        // read and analyze noise on ADC from a single LED pulse
+        const int LED = 5;                              // 1 = green, 2 = red, 5 = IR
+        const int SAMPLES = 100;
+        uint16_t val[SAMPLES];
+        Serial_Print_Line("JZ test");
+        DAC_set(LED, 300);                             // set LED intensity
         DAC_change();
-        digitalWriteFast(PULSE1, HIGH);
+        AD7689_set(0);                                  // select ADC channel
+        digitalWriteFast(HOLDM, HIGH);                  // discharge cap
         delay(1000);
-        digitalWriteFast(PULSE1, LOW);
-        DAC_set(1, 0);
-        DAC_change();
-        break;
-      case 1012:
-        Serial_Print_Line("PULSE2");
-        DAC_set(2, 50);
-        DAC_change();
-        digitalWriteFast(PULSE2, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE2, LOW);
-        DAC_set(2, 0);
-        DAC_change();
-        break;
-      case 1013:
-        Serial_Print_Line("PULSE3");
-        DAC_set(3, 50);
-        DAC_change();
-        digitalWriteFast(PULSE3, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE3, LOW);
-        DAC_set(3, 0);
-        DAC_change();
-        break;
-      case 1014:
-        Serial_Print_Line("PULSE4");
-        DAC_set(4, 50);
-        DAC_change();
-        digitalWriteFast(PULSE4, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE4, LOW);
-        DAC_set(4, 0);
-        DAC_change();
-        break;
-      case 1015:
-        Serial_Print_Line("PULSE5");
-        DAC_set(5, 50);
-        DAC_change();
-        digitalWriteFast(PULSE5, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE5, LOW);
-        DAC_set(5, 0);
-        DAC_change();
-        break;
-      case 1016:
-        Serial_Print_Line("PULSE6");
-        DAC_set(6, 50);
-        DAC_change();
-        digitalWriteFast(PULSE6, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE6, LOW);
-        DAC_set(6, 0);
-        DAC_change();
-        break;
-      case 1017:
-        Serial_Print_Line("PULSE7");
-        DAC_set(7, 50);
-        DAC_change();
-        digitalWriteFast(PULSE7, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE7, LOW);
-        DAC_set(7, 0);
-        DAC_change();
-        break;
-      case 1018:
-        Serial_Print_Line("PULSE8");
-        DAC_set(8, 50);
-        DAC_change();
-        digitalWriteFast(PULSE8, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE8, LOW);
-        DAC_set(8, 0);
-        DAC_change();
-        break;
-      case 1019:
-        Serial_Print_Line("PULSE9");
-        DAC_set(9, 50);
-        DAC_change();
-        digitalWriteFast(PULSE9, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE9, LOW);
-        DAC_set(9, 0);
-        DAC_change();
-        break;
-      case 1020:
-        Serial_Print_Line("PULSE10");
-        DAC_set(10, 50);
-        DAC_change();
-        digitalWriteFast(PULSE10, HIGH);
-        delay(1000);
-        digitalWriteFast(PULSE10, LOW);
-        DAC_set(10, 0);
-        DAC_change();
-        break;
+        noInterrupts();
+        digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
+        delayMicroseconds(30);                          // allow slow actopulser to stabilize (longer is better)
+        digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)
+        delayMicroseconds(10);                          // measuring width
+        digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
+        delayMicroseconds(60);                          // experimental - some early samples are rising
+        uint32_t delta_time = micros();
+        AD7689_read_array(val, SAMPLES);                // read values
+        delta_time = micros() - delta_time;
+        interrupts();
+        for (int i = 0; i < SAMPLES; ++i) {
+          val[i] += i * 1.4;                                // adjust for droop (about 1 count per sample)
+          Serial_Printf(" % d\n", (int)val[i]);
+        }
+        Serial_Printf("single pulse stdev = % .2f AD counts\n", stdev16(val, SAMPLES));
+        Serial_Printf("time = % d usec for % d samples\n", delta_time, SAMPLES);
+      }
+      break;
 
-      case 1021:                                                                            // variety of test commands used during development
-        {
-          /*
-                    char S[10];
-                    Serial_Print_Line(eeprom->userdef[0], 4);                                                                   // test the Serial_Input_Chars() command and saving values in userdef
-                    Serial_Input_Chars(S, "+", 20000, sizeof(S));
-                    Serial_Printf("output is %s \n", S);
-                    eeprom->userdef[0] = atof(S);
-          */
-          Serial_Print_Line(eeprom->userdef[1], 4);
-          store_float(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
+    case 4047:
+      {
+        // JZ test - do not remove
+        // read multiple pulses with increasing intensity or pulse width for linearity test
+        // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
+        const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
+        Serial_Print_Line("using delay - wait...");
+        AD7689_set(0);                                  // 0 is main detector
+        DAC_set(LED, 700);                               // set initial LED intensity
+        DAC_change();
+        const int MAX = 100;                            // try a variety of intensities 0 up to 4095
+        int count = 0;
+        uint16_t data[100];
 
-          Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
-          // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
-          /*
-                    Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");                         //  Change the baud rate of the BLE
-                    long baudrate = Serial_Input_Long();
-                    Serial_Begin((int) baudrate);
-
-                    Serial_Print("Enter 1/2/3/4+\n");
-                    long setserial = Serial_Input_Long();
-                    Serial_Printf("set serial to %d\n", (int)setserial);
-                    Serial_Set((int) setserial);
-                    Serial_Print_Line("test print");
-          */
-        }
-        break;
-
-      case 1027:                                                                                // restart teensy (keep here!)
-        _reboot_Teensyduino_();
-        break;
-      case 1028:
-        print_userdef();                                                                        // print only the userdef eeprom values
-        break;
-      case 1029:
-        print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
-        break;
-      case 1030:
-        Serial_Print("input 3 magnetometer bias values, each followed by +: ");
-        store_float(mag_bias[0], Serial_Input_Double("+", 0));
-        store_float(mag_bias[1], Serial_Input_Double("+", 0));
-        store_float(mag_bias[2], Serial_Input_Double("+", 0));
-        break;
-      case 1031:
-        Serial_Print("input 9 magnetometer calibration values, each followed by +: ");
-        for (int i = 0; i < 3; i++) {
-          for (int j = 0; j < 3; j++) {
-            eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
-            eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
-            eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
-          }
-        }
-        break;
-      case 1032:
-        Serial_Print("input 3 accelerometer bias values, each followed by +: ");
-        eeprom->accel_bias[0] = Serial_Input_Double("+", 0);
-        eeprom->accel_bias[1] = Serial_Input_Double("+", 0);
-        eeprom->accel_bias[2] = Serial_Input_Double("+", 0);
-        break;
-      case 1033:
-        Serial_Print("input 9 accelerometer calibration values, each followed by +: ");
-        for (int i = 0; i < 3; i++) {
-          for (int j = 0; j < 3; j++) {
-            eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
-            eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
-            eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
-          }
-        }
-        break;
-      case 1034:
-        Serial_Print_Line(eeprom->light_slope_all);
-        Serial_Print_Line("input light slope for ambient par calibration followed by +: ");
-        eeprom->light_slope_all = Serial_Input_Double("+", 0);
-        delay(10);
-        break;
-      case 1035:
-        Serial_Print_Line(eeprom->light_yint);
-        Serial_Print_Line("input y intercept for ambient par calibration followed by +: ");
-        eeprom->light_yint = Serial_Input_Double("+", 0);
-        delay(10);
-        break;
-      case 1036:
-        Serial_Print_Line(eeprom->light_slope_r);
-        Serial_Print_Line("input r slope for ambient par calibration followed by +: ");
-        eeprom->light_slope_r = Serial_Input_Double("+", 0);
-        delay(10);
-        break;
-      case 1037:
-        Serial_Print_Line(eeprom->light_slope_g);
-        Serial_Print_Line("input g slope for ambient par calibration followed by +: ");
-        eeprom->light_slope_g = Serial_Input_Double("+", 0);
-        delay(10);
-        break;
-      case 1038:
-        Serial_Print_Line(eeprom->light_slope_b);
-        Serial_Print_Line("input b slope for ambient par calibration followed by +: ");
-        eeprom->light_slope_b = Serial_Input_Double("+", 0);
-        delay(10);
-        break;
-      case 1039:
-        Serial_Print_Line(eeprom->thickness_a);
-        Serial_Print_Line("input thickness calibration value a for leaf thickness followed by +: ");
-        eeprom->thickness_a = Serial_Input_Double("+", 0);
-        delay(10);
-        break;
-      case 1040:
-        Serial_Print_Line(eeprom->thickness_b);
-        Serial_Print_Line("input thickness calibration value b for leaf thickness  followed by +: ");
-        eeprom->thickness_b = Serial_Input_Double("+", 0);
-        delay(10);
-        break;
-      case 1041:
-        Serial_Print_Line(eeprom->thickness_d);
-        Serial_Print_Line("input thickness calibration value d for leaf thickness  followed by +: ");
-        eeprom->thickness_d = Serial_Input_Double("+", 0);
-        break;
-
-      case 1042:
-        Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
-        Serial_Print_Line("before:  ");
-        for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what's currently saved
-          Serial_Print(eeprom->par_to_dac_slope[i], 4);
-          Serial_Print(",");
-          Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
-        }
-        Serial_Print_Line("");
-        for (;;) {
-          int led = Serial_Input_Double("+", 0);
-          if (led == -1) {                                    // user can bail with -1+ setting as LED
-            break;
-          }
-          store_float(par_to_dac_slope[led], Serial_Input_Double("+", 0));
-          store_float(par_to_dac_yint[led], Serial_Input_Double("+", 0));
-        }
-        for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
-          Serial_Print(eeprom->par_to_dac_slope[i], 4);
-          Serial_Print(",");
-          Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
-        }
-        break;
-
-      case 1043:
-        Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
-        for (;;) {
-          int led = Serial_Input_Double("+", 0);
-          if (led == -1) {                                    // user can bail with -1+ setting as LED
-            break;
-          }
-          eeprom->colorcal_intensity1_slope[led] = Serial_Input_Double("+", 0);
-          eeprom->colorcal_intensity1_yint[led] = Serial_Input_Double("+", 0);
-        }
-        break;
-      case 1044:
-        Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: ");
-        for (;;) {
-          int led = Serial_Input_Double("+", 0);
-          if (led == -1) {                                    // user can bail with -1+ setting as LED
-            break;
-          }
-          eeprom->colorcal_intensity2_slope[led] = Serial_Input_Double("+", 0);
-          eeprom->colorcal_intensity2_yint[led] = Serial_Input_Double("+", 0);
-        }
-        break;
-      case 1045:
-        Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: ");
-        for (;;) {
-          int led = Serial_Input_Double("+", 0);
-          if (led == -1) {                                    // user can bail with -1+ setting as LED
-            break;
-          }
-          eeprom->colorcal_intensity3_slope[led] = Serial_Input_Double("+", 0);
-          eeprom->colorcal_intensity3_yint[led] = Serial_Input_Double("+", 0);
-        }
-        break;
-      case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
-        upgrade_firmware();
-        break;
-
-      case 1100:     // resend last packet
-        Serial_Resend();
-        break;
-
-      case 4044:
-        {
-          // JZ test - do not remove
-          // read and analyze noise on ADC from a single LED pulse
-          const int LED = 5;                              // 1 = green, 2 = red, 5 = IR
-          const int SAMPLES = 100;
-          uint16_t val[SAMPLES];
-          Serial_Print_Line("JZ test");
-          DAC_set(LED, 300);                             // set LED intensity
-          DAC_change();
-          AD7689_set(0);                                  // select ADC channel
+        for (int i = 0; i < MAX; i += MAX / 100) {
+          //DAC_set(LED, i);                              // change LED intensity
+          //DAC_change();
           digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-          delay(1000);
+          delay(33);                                     // also allows LED to cool and DC filter to adjust
           noInterrupts();
           digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
-          delayMicroseconds(30);                          // allow slow actopulser to stabilize (longer is better)
-          digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)
-          delayMicroseconds(10);                          // measuring width
+          delayMicroseconds(10);                          // allow slow actopulser to stabilize
+          digitalWriteFast(HOLDM, LOW);                   // start integrating
+          delayMicroseconds(i);                          // pulse width (depends on sensitivity needed)
           digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
-          delayMicroseconds(60);                          // experimental - some early samples are rising
-          uint32_t delta_time = micros();
+          const int SAMPLES = 21;                         // reduce noise with multiple reads
+          uint16_t val[SAMPLES];
           AD7689_read_array(val, SAMPLES);                // read values
-          delta_time = micros() - delta_time;
           interrupts();
-          for (int i = 0; i < SAMPLES; ++i) {
-            val[i] += i * 1.4;                                // adjust for droop (about 1 count per sample)
-            Serial_Printf(" % d\n", (int)val[i]);
-          }
-          Serial_Printf("single pulse stdev = % .2f AD counts\n", stdev16(val, SAMPLES));
-          Serial_Printf("time = % d usec for % d samples\n", delta_time, SAMPLES);
-        }
-        break;
+          data[count] = median16(val, SAMPLES);
+          if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
+          Serial_Printf(" % d, % d\n", i, data[count]);
+          ++count;
+        } // for
+        // results from each pulse are in data[]
+        Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
+      }
+      break;
 
-      case 4047:
-        {
-          // JZ test - do not remove
-          // read multiple pulses with increasing intensity or pulse width for linearity test
-          // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
-          const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
-          Serial_Print_Line("using delay - wait...");
-          AD7689_set(0);                                  // 0 is main detector
-          DAC_set(LED, 700);                               // set initial LED intensity
-          DAC_change();
-          const int MAX = 100;                            // try a variety of intensities 0 up to 4095
-          int count = 0;
-          uint16_t data[100];
+    case 4048:
+      {
+        // JZ test - do not remove
+        // read multiple pulses with increasing intensity or pulse width for linearity test
+        // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
+        const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
+        Serial_Print_Line("using 2 timers - wait...");
+        AD7689_set(0);                                  // 0 is main detector
+        DAC_set(LED, 200);                               // set initial LED intensity
+        DAC_change();
+        const int MAX = 200;                            // try a variety of intensities 0 up to 4095
+        int count = 0;
+        uint16_t data[100];
 
-          for (int i = 0; i < MAX; i += MAX / 100) {
-            //DAC_set(LED, i);                              // change LED intensity
-            //DAC_change();
-            digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-            delay(33);                                     // also allows LED to cool and DC filter to adjust
-            noInterrupts();
-            digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
-            delayMicroseconds(10);                          // allow slow actopulser to stabilize
-            digitalWriteFast(HOLDM, LOW);                   // start integrating
-            delayMicroseconds(i);                          // pulse width (depends on sensitivity needed)
-            digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
-            const int SAMPLES = 21;                         // reduce noise with multiple reads
-            uint16_t val[SAMPLES];
-            AD7689_read_array(val, SAMPLES);                // read values
-            interrupts();
-            data[count] = median16(val, SAMPLES);
-            if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-            Serial_Printf(" % d, % d\n", i, data[count]);
-            ++count;
-          } // for
-          // results from each pulse are in data[]
-          Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
-        }
-        break;
+        _meas_light = LED;
+        _pulsesize = 30 + 10;                  // account for actopulser delay
+        unsigned _pulsedistance = 2000;                 // lower has less jitter
 
-      case 4048:
-        {
-          // JZ test - do not remove
-          // read multiple pulses with increasing intensity or pulse width for linearity test
-          // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
-          const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
-          Serial_Print_Line("using 2 timers - wait...");
-          AD7689_set(0);                                  // 0 is main detector
-          DAC_set(LED, 200);                               // set initial LED intensity
-          DAC_change();
-          const int MAX = 200;                            // try a variety of intensities 0 up to 4095
-          int count = 0;
-          uint16_t data[100];
+        startTimers(_pulsedistance);        // schedule continuous LED pulses
 
-          _meas_light = LED;
-          _pulsesize = 30 + 10;                  // account for actopulser delay
-          unsigned _pulsedistance = 2000;                 // lower has less jitter
+        for (int i = 1; i < MAX; i += MAX / 100) {
+          //DAC_set(LED, i);                              // change LED intensity
+          //DAC_change();
+          digitalWriteFast(HOLDM, HIGH);                  // discharge cap
 
-          startTimers(_pulsedistance);        // schedule continuous LED pulses
+          led_off = 0;
 
-          for (int i = 1; i < MAX; i += MAX / 100) {
-            //DAC_set(LED, i);                              // change LED intensity
-            //DAC_change();
-            digitalWriteFast(HOLDM, HIGH);                  // discharge cap
+          while (led_off == 0) {}                  // wait till pulse is done
 
-            led_off = 0;
+          // a pulse completed
+          noInterrupts();
 
-            while (led_off == 0) {}                  // wait till pulse is done
+          const int SAMPLES = 19;                         // reduce noise with multiple reads
+          uint16_t val[SAMPLES];
+          AD7689_read_array(val, SAMPLES);                // read values
+          interrupts();
 
-            // a pulse completed
-            noInterrupts();
+          data[count] = median16(val, SAMPLES);
+          if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
+          //Serial_Printf(" % d, % d\n", i, data[count]);
+          ++count;
+        } // for
 
-            const int SAMPLES = 19;                         // reduce noise with multiple reads
-            uint16_t val[SAMPLES];
-            AD7689_read_array(val, SAMPLES);                // read values
-            interrupts();
+        stopTimers();
 
-            data[count] = median16(val, SAMPLES);
-            if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-            //Serial_Printf(" % d, % d\n", i, data[count]);
-            ++count;
-          } // for
+        // results from each pulse are in data[]
+        Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
+      }
+      break;
 
-          stopTimers();
+    default:
+      Serial_Printf("{\"error\":\"bad command # %s\"}\n", choose);
+      break;
 
-          // results from each pulse are in data[]
-          Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
-        }
-        break;
+  }  // switch()
 
-      default:
-        Serial_Printf("{\"error\":\"bad command # %s\"}\n", choose);
-        break;
-
-    }  // switch()
-
-    Serial_Flush_Output();     // force all output to go out
+  Serial_Flush_Output();     // force all output to go out
 
 } // do_command()
 
@@ -653,7 +654,7 @@ void do_protocol()
   int pulse = 0;                                                                // current pulse number
   //int total_cycles;                                                           // Total number of cycles - note first cycle is cycle 0
   int meas_array_size = 0;                                                      // measures the number of measurement lights in the current cycle (example: for meas_lights = [[15,15,16],[15],[16,16,20]], the meas_array_size's are [3,1,3].
- //int end_flag = 0;
+  //int end_flag = 0;
   unsigned long* data_raw_average = 0;                                          // buffer for ADC output data
 
   char* json = (char*)malloc(1);
@@ -676,9 +677,9 @@ void do_protocol()
       number_of_protocols++;
     }
   }
- 
+
   if (DEBUGSIMPLE) {
-     Serial_Printf("got %d protocols\n", number_of_protocols);
+    Serial_Printf("got %d protocols\n", number_of_protocols);
 
     // print each json
     for (int i = 0; i < number_of_protocols; i++) {
@@ -686,20 +687,23 @@ void do_protocol()
     } // for
   } // DEBUGSIMPLE
 
-  // discharge sample and hold in case the cap is currently charged (on add on and main board)
-  digitalWriteFast(HOLDM, HIGH);
-  digitalWriteFast(HOLDADD, HIGH);
-  delay(10);
 
   Serial_Start();          // new packet
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
   Serial_Printf(",\"device_firmware\":%s", DEVICE_FIRMWARE);
+  if (year() >= 2016)
+    Serial_Printf(",\"device_time\":%u", now());
   Serial_Print(",\"sample\":[");
 
+  // discharge sample and hold in case the cap is currently charged (on add on and main board)
+  digitalWriteFast(HOLDM, HIGH);
+  digitalWriteFast(HOLDADD, HIGH);
+  delay(10);
+
   // loop through the all measurements to create a measurement group
-  for (int y = 0; y < measurements; y++) {
+  for (int y = 0; y < measurements; y++) {                   // measurements is initially 1, but gets updated after the json is parsed
 
     Serial_Print("[");                                                                        // print brackets to define single measurement
 
@@ -712,14 +716,20 @@ void do_protocol()
       hashTable = root.parseHashTable(json);
       if (!hashTable.success()) {                                                             // NOTE: if the incomign JSON is too long (>~5000 bytes) this tends to be where you see failure (no response from device)
         Serial_Print("{\"error\":\"JSON not recognized, or other failure with Json Parser\"}, the data JSON we received is: ");
-        for (int i = 0; i < serial_buffer_size; i++) {
-          Serial_Print(json2[i].c_str());
-        }
+        Serial_Print(json);
         Serial_Flush_Output();
         return;
       }
 
-      int protocols = 1;
+#if 0
+      // TODO - is this the right place?
+      // wait until the jaw is closed (detected with the hall sensor)
+      if (measurements == 0 && q == 0 && hashTable.getLong("start_on_close") == 1) {
+        wait_for_closed();
+      }
+#endif
+
+      int protocols = 1;                                                                       // starts as 1 but gets updated when the json is parsed
       int quit = 0;
       for (int u = 0; u < protocols; u++) {                                                    // the number of times to repeat the current protocol
         JsonArray save_eeprom    = hashTable.getArray("save");
@@ -828,7 +838,7 @@ void do_protocol()
             size_of_data_raw += pulses.getLong(i) * non_zero_lights;
           }
 
-        } // for
+        } // for each pulse
 
         if (data_raw_average)
           free(data_raw_average);                                                            // free calloc of data_raw_average
@@ -887,7 +897,7 @@ void do_protocol()
 
         //        print_sensor_calibration(1);                                               // print sensor calibration data
 
-        // clear variables (probably not needed)
+        // clear variables (many not needed)
 
         light_intensity = light_intensity_averaged = 0;
         light_intensity_raw = light_intensity_raw_averaged = 0;
@@ -915,7 +925,7 @@ void do_protocol()
         // perform the protocol averages times
         for (int x = 0; x < averages; x++) {                                                 // Repeat the protocol this many times
 
-          if (Serial_Available() && Serial_Input_Long("+", 1) == -1) {
+          if (Serial_Available() && Serial_Input_Long("+", 1) == -1) {        // test for abort command
             q = number_of_protocols - 1;
             y = measurements - 1;
             u = protocols;
@@ -1335,7 +1345,8 @@ void do_protocol()
               Serial_Input_Long("+", averages_delay_ms);
             }
           }
-        }
+
+        }  // for each protocol repeat
 
         /*
            Recall and save values to the eeprom
@@ -1445,8 +1456,9 @@ void do_protocol()
       else if (measurements_delay_ms > 0) {
         Serial_Input_Long("+", measurements_delay_ms);
       }
-    }
-  }
+    } // if
+
+  }  // for each measurement
   /*
     // make sure one last time that all of the lights are turned off, including background light!
     for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
@@ -1463,7 +1475,9 @@ abort:
   act_background_light = 0;          // ??
 
   // turn off all lights (just in case)
-  // TODO
+  for (unsigned i = 1; i <= NUM_LEDS; i++) {
+    digitalWriteFast(LED_to_pin[i], LOW);
+  }
 
   if (data_raw_average)
     free(data_raw_average);            // free the calloc() of data_raw_average
@@ -1471,7 +1485,7 @@ abort:
     free(json);                        // free second json malloc
 
   return;
-  
+
 } // do_protocol()
 
 
@@ -1552,6 +1566,7 @@ int abort_cmd()
       As a result, for most sensors there is the base version (like x_tilt) which is available in that measurment, an averaged version (like x_tilt_averaged) which is outputted after averaging, and raw versions of each of those (x_tilt_raw and x_tilt_raw_averaged)
 */
 void get_temperature_humidity_pressure (int _averages) {
+  // TODO
   /*
     if (notRaw == 0) {                                              // save the raw values average
     }
@@ -1561,6 +1576,7 @@ void get_temperature_humidity_pressure (int _averages) {
 }
 
 // read IR temp sensor
+// TODO - so if the user aborts, the averages are incorrect?
 
 float get_contactless_temp (int _averages) {
   contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
@@ -1573,18 +1589,18 @@ float get_contactless_temp (int _averages) {
 void get_tilt (int notRaw, int _averages) {
   MMA8653FC_read(&x_tilt_raw, &y_tilt_raw, &z_tilt_raw);                      // saves x_tilt_raw, y_... and z_... values
   // consider adding a calibration with more useful outputs
-  x_tilt = x_tilt_raw * (180 / 1000);
-  y_tilt = y_tilt_raw * (180 / 1000);
-  z_tilt = z_tilt_raw * (180 / 1000);
+  x_tilt = x_tilt_raw * (180. / 1000);
+  y_tilt = y_tilt_raw * (180. / 1000);
+  z_tilt = z_tilt_raw * (180. / 1000);
   if (notRaw == 0) {                                              // save the raw values average
-    x_tilt_raw_averaged += x_tilt_raw / _averages;
-    y_tilt_raw_averaged += y_tilt_raw / _averages;
-    z_tilt_raw_averaged += z_tilt_raw / _averages;
+    x_tilt_raw_averaged += (float)x_tilt_raw / _averages;
+    y_tilt_raw_averaged += (float)y_tilt_raw / _averages;
+    z_tilt_raw_averaged += (float)z_tilt_raw / _averages;
   }
   if (notRaw == 1) {                                              // save the calibrated values and average
-    x_tilt_averaged += x_tilt / _averages;
-    y_tilt_averaged += y_tilt / _averages;
-    z_tilt_averaged += z_tilt / _averages;
+    x_tilt_averaged += (float)x_tilt / _averages;
+    y_tilt_averaged += (float)y_tilt / _averages;
+    z_tilt_averaged += (float)z_tilt / _averages;
   }
   // add better routine here to produce clearer tilt values
 }
@@ -1595,12 +1611,12 @@ void get_cardinal (int notRaw, int _averages) {
   MAG3110_read(&x_cardinal_raw, &y_cardinal_raw, &z_cardinal_raw);            // saves x_cardinal, y_ and z_ values
   // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called cardinal
   if (notRaw == 0) {                                              // save the raw values average
-    x_cardinal_raw_averaged += x_cardinal_raw / _averages;
-    y_cardinal_raw_averaged += y_cardinal_raw / _averages;
-    z_cardinal_raw_averaged += z_cardinal_raw / _averages;
+    x_cardinal_raw_averaged += (float)x_cardinal_raw / _averages;
+    y_cardinal_raw_averaged += (float)y_cardinal_raw / _averages;
+    z_cardinal_raw_averaged += (float)z_cardinal_raw / _averages;
   }
   if (notRaw == 1) {                                              // save the calibrated values and average
-    cardinal_averaged += x_cardinal_raw / _averages;
+    cardinal_averaged += (float)x_cardinal_raw / _averages;
   }
 }
 
@@ -1616,11 +1632,11 @@ float get_thickness (int notRaw, int _averages) {
   // add calibration routine here with calls to thickness_a thickness_b thickness_d;
   //  thickness += ...
   if (notRaw == 0) {                                              // save the raw values average
-    thickness_raw_averaged += thickness_raw / _averages;
+    thickness_raw_averaged += (float)thickness_raw / _averages;
     return thickness_raw;
   }
   else if (notRaw == 1) {                                              // save the calibrated values and average
-    thickness_averaged += thickness / _averages;
+    thickness_averaged += (float)thickness / _averages;
     return thickness;
   }
   else {
@@ -1629,8 +1645,9 @@ float get_thickness (int notRaw, int _averages) {
 }
 
 // check for commands to read various envirmental sensors
+// also output the value on the final call
 
-static void environmentals(JsonArray environmental, const int _averages, const int x, int beforeOrAfter)
+static void environmentals(JsonArray environmental, const int _averages, const int count, int beforeOrAfter)
 {
 
   for (int i = 0; i < environmental.getLength(); i++) {                                       // call environmental measurements after the spectroscopic measurement
@@ -1638,74 +1655,72 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if (environmental.getArray(i).getLong(1) != beforeOrAfter)
       continue;            // not the right time
 
-    /*
-        if ((String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
-          get_temperature_humidity_pressure(1,_averages);
-          if (x == _averages - 1) {
-            Serial_Print("\"temp\":%f,\"humidity\":%f,,\"pressure\":%f,",temperature, humidity, pressure);
-          }
-        }
-    */
+    if ((String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
+      get_temperature_humidity_pressure(_averages);
+      if (count == _averages - 1) {
+        Serial_Printf("\"temp\":%f,\"humidity\":%f,\"pressure\":%f,", temperature, humidity, pressure);
+      }
+    }
 
     if ((String) environmental.getArray(i).getString(0) == "light_intensity") {                   // measure light intensity with par calibration applied
       get_light_intensity(1, _averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"light_intensity\":%.2f,\"r\":%.2f,\"g\":%.2f,\"b\":%.2f,", light_intensity_averaged, r_averaged, g_averaged, b_averaged);
       }
     }
 
     if ((String) environmental.getArray(i).getString(0) == "light_intensity_raw") {              // measure raw light intensity from TCS sensor
       get_light_intensity(0, _averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"light_intensity_raw\":%.2f,\"r\":%.2f,\"g\":%.2f,\"b\":%.2f,", light_intensity_raw_averaged, r_averaged, g_averaged, b_averaged);
       }
     }
 
     if ((String) environmental.getArray(i).getString(0) == "contactless_temp") {                 // measure contactless temperature
       get_contactless_temp(_averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"contactless_temp\":%.2f,", contactless_temp_averaged);
       }
     }
 
     if ((String) environmental.getArray(i).getString(0) == "thickness") {                        // measure thickness via hall sensor, with calibration applied
       get_thickness(1, _averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"thickness\":%.2f,", thickness_averaged);
       }
     }
 
     if ((String) environmental.getArray(i).getString(0) == "thickness_raw") {                    // measure thickness via hall sensor, raw analog_read
       get_thickness(0, _averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"thickness_raw\":%.2f,", thickness_raw_averaged);
       }
     }
 
     if ((String) environmental.getArray(i).getString(0) == "tilt") {                             // measure tilt in -180 - 180 degrees
       get_tilt(1, _averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"x_tilt\":%.2f, \"y_tilt\":%.2f, \"z_tilt\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged);
       }
     }
 
     if ((String) environmental.getArray(i).getString(0) == "tilt_raw") {                         // measure tilt from -1000 - 1000
       get_tilt(0, _averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"x_tilt_raw\":%.2f, \"y_tilt_raw\":%.2f, \"z_tilt_raw\":%.2f,", x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged);
       }
     }
 
     if ((String) environmental.getArray(i).getString(0) == "cardinal") {                         // measure cardinal direction, with calibration applied
       get_cardinal(1, _averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"cardinal\":%.2f,", cardinal_averaged);
       }
     }
 
     if ((String) environmental.getArray(i).getString(0) == "cardinal_raw") {                     // measure cardinal direction, raw values
       get_cardinal(0, _averages);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"x_cardinal_raw\":%.2f,\"y_cardinal_raw\":%.2f,\"z_cardinal_raw\":%.2f,", x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged);
       }
     }
@@ -1714,7 +1729,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
       int analog_read = analogRead(pin);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"analog_read\":%f,", analog_read);
       }
     }
@@ -1723,7 +1738,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
       int pin = environmental.getArray(i).getLong(2);
       pinMode(pin, INPUT);
       int digital_read = digitalRead(pin);
-      if (x == _averages - 1) {
+      if (count == _averages - 1) {
         Serial_Printf("\"digital_read\":%f,", digital_read);
       }
     }
@@ -1740,6 +1755,9 @@ static void environmentals(JsonArray environmental, const int _averages, const i
       int setting = environmental.getArray(i).getLong(3);
       int freq = environmental.getArray(i).getLong(4);
       int wait = environmental.getArray(i).getLong(5);
+
+      // TODO sanity checks
+      
       if (DEBUGSIMPLE) {
         Serial_Print_Line(pin);
         Serial_Print_Line(pin);
@@ -1747,12 +1765,13 @@ static void environmentals(JsonArray environmental, const int _averages, const i
         Serial_Print_Line(setting);
         Serial_Print_Line(freq);
       } // DEBUGSIMPLE
+      
       pinMode(pin, OUTPUT);
       analogWriteFrequency(pin, freq);                                                           // set analog frequency
       analogWrite(pin, setting);
       delay(wait);
       analogWrite(pin, 0);
-      reset_freq();                                                                              // reset analog frequencies
+      //reset_freq();                                                                              // reset analog frequencies
     } // if
   } // for
 }  //environmentals()
@@ -1763,5 +1782,31 @@ static void print_all () {
 
 static void print_userdef () {
   // print only the userdef values which can be defined by the user
+}
+
+// ??  why
+void reset_freq() {
+  analogWriteFrequency(5, 187500);                                               // reset timer 0
+  analogWriteFrequency(3, 187500);                                               // reset timer 1
+  analogWriteFrequency(25, 488.28);                                              // reset timer 2
+  /*
+    Teensy 3.0              Ideal Freq:
+    16      0 - 65535       732 Hz          366 Hz
+    15      0 - 32767       1464 Hz         732 Hz
+    14      0 - 16383       2929 Hz         1464 Hz
+    13      0 - 8191        5859 Hz         2929 Hz
+    12      0 - 4095        11718 Hz        5859 Hz
+    11      0 - 2047        23437 Hz        11718 Hz
+    10      0 - 1023        46875 Hz        23437 Hz
+    9       0 - 511         93750 Hz        46875 Hz
+    8       0 - 255         187500 Hz       93750 Hz
+    7       0 - 127         375000 Hz       187500 Hz
+    6       0 - 63          750000 Hz       375000 Hz
+    5       0 - 31          1500000 Hz      750000 Hz
+    4       0 - 15          3000000 Hz      1500000 Hz
+    3       0 - 7           6000000 Hz      3000000 Hz
+    2       0 - 3           12000000 Hz     6000000 Hz
+
+  */
 }
 

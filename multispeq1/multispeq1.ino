@@ -320,31 +320,7 @@ void setup() {
 }  // setup()
 
 
-// ??
-void reset_freq() {
-  analogWriteFrequency(5, 187500);                                               // reset timer 0
-  analogWriteFrequency(3, 187500);                                               // reset timer 1
-  analogWriteFrequency(25, 488.28);                                              // reset timer 2
-  /*
-    Teensy 3.0              Ideal Freq:
-    16      0 - 65535       732 Hz          366 Hz
-    15      0 - 32767       1464 Hz         732 Hz
-    14      0 - 16383       2929 Hz         1464 Hz
-    13      0 - 8191        5859 Hz         2929 Hz
-    12      0 - 4095        11718 Hz        5859 Hz
-    11      0 - 2047        23437 Hz        11718 Hz
-    10      0 - 1023        46875 Hz        23437 Hz
-    9       0 - 511         93750 Hz        46875 Hz
-    8       0 - 255         187500 Hz       93750 Hz
-    7       0 - 127         375000 Hz       187500 Hz
-    6       0 - 63          750000 Hz       375000 Hz
-    5       0 - 31          1500000 Hz      750000 Hz
-    4       0 - 15          3000000 Hz      1500000 Hz
-    3       0 - 7           6000000 Hz      3000000 Hz
-    2       0 - 3           12000000 Hz     6000000 Hz
 
-  */
-}
 
 
 // read/write device_id and manufacture_date to eeprom

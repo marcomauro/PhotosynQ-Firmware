@@ -16,6 +16,7 @@ static int flash_block(uint32_t address, uint32_t *bytes, int count);
 // you probably need these, customized for your serial port (ie, Serial, Serial1, etc)
 //#define Serial_Available()  Serial.available()
 //#define Serial_Read()       Serial.read()
+//#define Serial_Printf()     Serial.printf()
 
 //const int ledPin = 13;
 

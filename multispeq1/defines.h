@@ -160,7 +160,11 @@ EXTERN Adafruit_BME280 bme2;       // I2C sensor
 //#define LED2200k       16
 //#define LED470         20
 //#define LED2200K       2
+#if CORAL_SPEQ
 #define SPEC_CHANNELS    256
+#else
+#define SPEC_CHANNELS 1                  // save memory
+#endif
 EXTERN uint16_t spec_data[SPEC_CHANNELS];
 EXTERN unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
 EXTERN int idx;

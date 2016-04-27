@@ -457,7 +457,7 @@ void do_command()
         eeprom->colorcal_intensity2_yint[led] = Serial_Input_Double("+", 0);
       }
       break;
-      
+
     case 1045:
       Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: ");
       for (;;) {
@@ -469,7 +469,7 @@ void do_command()
         eeprom->colorcal_intensity3_yint[led] = Serial_Input_Double("+", 0);
       }
       break;
-      
+
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
       break;
@@ -477,9 +477,13 @@ void do_command()
     case 1200:
       battery_low();  // test battery
       break;
-      
-    case 1100:     // resend last packet
+
+    case 1100:        // resend last packet
       Serial_Resend();
+      break;
+
+    case 2000:
+      Serial_Printf("Compiled on: %s %s\n", __DATE__,__TIME__);
       break;
 
     case 4044:
@@ -621,6 +625,7 @@ static int averages = 1;                        // ??
 static uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
 static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
 static const int max_jsons = 15;                                                   // max number of protocols per measurement
+static const int MAX_JSON_ELEMENTS = 600;      //
 //static int analogresolutionvalue;
 static IntervalTimer timer0;
 static float data = 0;
@@ -638,7 +643,7 @@ void do_protocol()
   char *serial_buffer;
 
   Serial_Stop_Recording();                    // release some memory
-  
+
   serial_buffer = (char *)malloc(serial_buffer_size);   // large buffer for reading in a json protocol from serial port
 
   assert(serial_buffer);
@@ -671,9 +676,6 @@ void do_protocol()
   //int end_flag = 0;
   unsigned long* data_raw_average = 0;                                          // buffer for ADC output data
 
-  char* json = (char*)malloc(1);
-  JsonHashTable hashTable;
-  JsonParser<600> root;
   String json2 [max_jsons];
   for (int i = 0; i < max_jsons; i++) {
     json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
@@ -681,6 +683,7 @@ void do_protocol()
 
   int number_of_protocols = 0;                                   // number of protocols
 
+  // TODO improve this by not using Strings
   for (unsigned i = 1; i < strlen(serial_buffer); i++) {         // increments through each char in incoming transmission - if it's open curly, it saves all chars until closed curly.  Any other char is ignored.
     if (serial_buffer[i] == '{') {                               // wait until you see a open curly bracket
       while (serial_buffer[i] != '}') {                          // once you see it, save incoming data to json2 until you see closed curly bracket
@@ -694,7 +697,7 @@ void do_protocol()
 
   // no more need for the serial input buffer
   free(serial_buffer);
-  
+
   if (DEBUGSIMPLE) {
     Serial_Printf("got %d protocols\n", number_of_protocols);
 
@@ -725,12 +728,20 @@ void do_protocol()
 
     for (int q = 0; q < number_of_protocols; q++) {                                           // loop through all of the protocols to create a measurement
 
-      if (json) free(json);                                                                             // free initial json malloc, make sure this is here! Free before resetting the size according to the serial input
-      json = (char*)malloc((json2[q].length() + 1) * sizeof(char));
+      JsonHashTable hashTable;
+      JsonParser<MAX_JSON_ELEMENTS> root;
+#if 0
+      static char* json = 0;
+      if (json) free(json);                                                 // free initial json malloc, make sure this is here! Free before resetting the size according to the serial input
+      json = (char*)malloc((json2[q].length() + 1) * sizeof(char));         // we need a writeable C string
+#else
+      char json[json2[q].length() + 1];                                     // we need a writeable C string
+#endif     
       strncpy(json, json2[q].c_str(), json2[q].length());
-      json[json2[q].length()] = '\0';                                                         // Add closing character to char*
-      hashTable = root.parseHashTable(json);
-      if (!hashTable.success()) {                                                             // NOTE: if the incomign JSON is too long (>~5000 bytes) this tends to be where you see failure (no response from device)
+      json[json2[q].length()] = '\0';                                       // Add closing character to char*
+      json2[q] = "";                                                        // attempt to release the String memory
+      hashTable = root.parseHashTable(json);                                // parse it
+      if (!hashTable.success()) {                                           // NOTE: if the incomign JSON is too long (>~5000 bytes) this tends to be where you see failure (no response from device)
         Serial_Print("{\"error\":\"JSON not recognized, or other failure with Json Parser\"}, the data JSON we received is: ");
         Serial_Print(json);
         Serial_Flush_Output();
@@ -747,6 +758,7 @@ void do_protocol()
 
       int protocols = 1;                                                                       // starts as 1 but gets updated when the json is parsed
       int quit = 0;
+      
       for (int u = 0; u < protocols; u++) {                                                    // the number of times to repeat the current protocol
         JsonArray save_eeprom    = hashTable.getArray("save");
         JsonArray recall_eeprom  = hashTable.getArray("recall");
@@ -857,7 +869,7 @@ void do_protocol()
         } // for each pulse
 
         if (data_raw_average)
-          free(data_raw_average);                                                            // free calloc of data_raw_average
+          free(data_raw_average);                                                             // free previous calloc of data_raw_average
         data_raw_average = (unsigned long*)calloc(size_of_data_raw, sizeof(unsigned long));   // get some memory space for data_raw_average, initialize all at zero.
 
         if (DEBUGSIMPLE) {
@@ -1372,13 +1384,12 @@ void do_protocol()
 
         if (spec_on == 1) {                                                                    // if the spec is being used, then read it and print data_raw as spec values.  Otherwise, print data_raw as multispeq detector values as per normal
           Serial_Print("\"data_raw\":[");
-          for (int i = 0; i < SPEC_CHANNELS; i++)
-          {
+          for (int i = 0; i < SPEC_CHANNELS; i++) {
             Serial_Print((unsigned)(spec_data_average[i] / averages));
             if (i != SPEC_CHANNELS - 1) {                                                     // if it's the last one in printed array, don't print comma
               Serial_Print(",");
             }
-          }
+          } // for
           Serial_Print("]}");
         }
 
@@ -1475,6 +1486,7 @@ void do_protocol()
     } // if
 
   }  // for each measurement
+  
   /*
     // make sure one last time that all of the lights are turned off, including background light!
     for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
@@ -1497,9 +1509,7 @@ abort:
 
   if (data_raw_average)
     free(data_raw_average);            // free the calloc() of data_raw_average
-  if (json)
-    free(json);                        // free second json malloc
-
+ 
   return;
 
 } // do_protocol()

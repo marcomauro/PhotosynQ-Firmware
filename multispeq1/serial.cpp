@@ -1,6 +1,8 @@
 
 // Serial routines that can read/write to either or both Serial devices (Serial (USB) and Serial1 (BLE)) based on a setting
 // It also maintains and prints a CRC value
+// Optionally allows recording and playback
+
 // Jon Zeeff 2016
 
 // WARNING: Serial_Printf() is limited to 200 characters per call
@@ -327,6 +329,7 @@ void Serial_Stop_Recording(void)
    if (resend_buffer)
       free(resend_buffer);
    resend_buffer = 0;
+   resend_count = 0;
 }
 
 #include <string.h>
@@ -367,7 +370,7 @@ char *Serial_Input_Chars(char *string, const char *terminators, long unsigned in
 }  // Serial_Input_Chars()
 
 
-// read a float value (see above)
+// read a double value (see above)
 // empty string returns NAN
 
 double Serial_Input_Double(const char *terminators, long unsigned int timeout) {
@@ -389,7 +392,6 @@ long Serial_Input_Long(const char *terminators, long unsigned int timeout) {
 }  // Serial_Input_Long()
 
 
-
 String Serial_Input_String(const char *terminators, long unsigned int timeout)
 {
   static String serial_string;
@@ -404,5 +406,4 @@ String Serial_Input_String(const char *terminators, long unsigned int timeout)
   return serial_string;
 
 }  // user_enter_str()
-
 

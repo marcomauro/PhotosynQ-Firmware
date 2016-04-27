@@ -243,10 +243,10 @@ int parser_round(double x){
 #endif
 
 double parser_read_builtin( parser_data *pd ){
-	double v0=0.0, v1=0.0, args[PARSER_MAX_ARGUMENT_COUNT];
+	double v0=0.0, v1=0.0;
 	unsigned char c;
         char token[PARSER_MAX_TOKEN_SIZE];
-	int num_args, pos=0;
+	int pos=0;
 	
 	c = parser_peek( pd );
 	if( isalpha(c) || c == '_' ){
@@ -257,12 +257,15 @@ double parser_read_builtin( parser_data *pd ){
 			c = parser_peek( pd );
 		}
 		token[pos] = '\0';
-		
+
+#ifdef LOTS_OF_MEM			
+	        int num_args;
+                double args[PARSER_MAX_ARGUMENT_COUNT];
+
 		// check for an opening bracket, which indicates a function call
 		if( parser_peek(pd) == '(' ){
 			// eat the bracket
 			parser_eat(pd);
-			
 			// start handling the specific built-in functions
 			if( strcmp( token, "pow" ) == 0 ){
 				v0 = parser_read_argument( pd );
@@ -340,7 +343,9 @@ double parser_read_builtin( parser_data *pd ){
 			// eat closing bracket of function call
 			if( parser_eat( pd ) != ')' )
 				parser_error( pd, "Expected ')' in built-in call!" );
-		} else {
+		        } else 
+#endif
+                        {
 			// no opening bracket, indicates a variable lookup
 			if( pd->variable_cb != NULL && pd->variable_cb( pd->user_data, token, &v1 ) ){
 				v0 = v1;

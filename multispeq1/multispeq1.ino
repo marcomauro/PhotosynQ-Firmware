@@ -305,6 +305,8 @@ void setup() {
 
   PAR_init();               // color sensor
 
+  eeprom_initialize();      // eeprom
+
 #undef DEBUGSIMPLE
 
   // test expressions - works! pass it a string and it is evaluated
@@ -337,24 +339,19 @@ void get_set_device_info(const int _set) {
   if (_set == 0) {                                                                      // if you're not trying to set the values, then just print this and bail
     return;
   }
+
   if (_set == 1) { // jon! again here we need 6 bytes in character format to be saved
     long val;
 
     // please enter new device ID (lower 6 bytes of BLE MAC address) followed by '+'
-    Serial_Print_Line("\"message\": \"Please enter device mac address (12 characters) followed by +: \"}");
+    Serial_Print_Line("{\"message\": \"Please enter device mac address (long int) followed by +: \"}\n");
     val =  Serial_Input_Long("+", 0);              // save to eeprom
-    if (eeprom->device_id != val) {
-      store_float(device_id, val);              // save to eeprom
-      delay(1);
-    }
+    store(device_id, val);              // save to eeprom
 
     // please enter new date of manufacture (yyyymm) followed by '+'
-    Serial_Print_Line("\"message\": \"Please enter device manufacture date followed by + (example 052016): \"}");
+    Serial_Print_Line("{\"message\": \"Please enter device manufacture date followed by + (example 052016): \"}\n");
     val = Serial_Input_Long("+", 0);
-    if (eeprom->device_manufacture != val) {
-      store_float(device_manufacture, val);
-      delay(1);
-    }
+    store(device_manufacture, val);
 
     // print again for verification
     Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
@@ -605,7 +602,7 @@ int check_protocol(char *str)
 const unsigned long SHUTDOWN = 10000;   // power down after X ms of inactivity
 static unsigned long last_activity = millis();
 
-// if there hasn't been any activity for x seconds, then attempt power down 
+// if there hasn't been any activity for x seconds, then attempt power down
 // note: if USB power is connected, power down is not possible
 
 void powerdown() {
@@ -615,7 +612,7 @@ void powerdown() {
     //Serial_Print_Line("powerdown"); delay(10000);
     // send request to BLE module to power down this MCU
     pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
-    digitalWriteFast(POWERDOWN_REQUEST, LOW); 
+    digitalWriteFast(POWERDOWN_REQUEST, LOW);
   } else {
     pinMode(POWERDOWN_REQUEST, INPUT);                // active, let it float high
   }
@@ -630,13 +627,13 @@ void activity() {
 // This should run just before any new protocol - if it’s too low, report to the user
 // return 1 if too low, otherwise 0
 
-const float MIN_BAT_LEVEL (((3.4/2)/2.56) * 65536);   // 3.4V min battery voltage, 2x voltage divider, 2.56V reference, 16 bit ADC
+const float MIN_BAT_LEVEL (((3.4 / 2) / 2.56) * 65536); // 3.4V min battery voltage, 2x voltage divider, 2.56V reference, 16 bit ADC
 
 int battery_low()
 {
   // pull batt_me line low
   pinMode(BATT_ME, OUTPUT);               // battery measurement enable (active low)
-  digitalWriteFast(BATT_ME, LOW);                 
+  digitalWriteFast(BATT_ME, LOW);
 
   // set DAC values to 1/4 of full output
   DAC_set(1, 1024 / 4);
@@ -647,35 +644,36 @@ int battery_low()
   delay(10);       // stabilize
 
   // turn on 4 LEDs
-  digitalWriteFast(PULSE1,1);
-  digitalWriteFast(PULSE2,1);
-  digitalWriteFast(PULSE5,1);
-  digitalWriteFast(PULSE6,1);
+  digitalWriteFast(PULSE1, 1);
+  digitalWriteFast(PULSE2, 1);
+  digitalWriteFast(PULSE5, 1);
+  digitalWriteFast(PULSE6, 1);
 
   delayMicroseconds(10);          // TODO?  How long to drain power supply capacitance?
-  
+
   uint32_t value = 0;
   for (int i = 0 ; i < 100; ++i)
-      value += analogRead(BATT_TEST);  // test A10 analog input (should have a 50% voltage divider and the ADC uses 2.56V reference)
+    value += analogRead(BATT_TEST);  // test A10 analog input (should have a 50% voltage divider and the ADC uses 2.56V reference)
   value /= 100;
 
   // turn off 4 LEDs
-  digitalWriteFast(PULSE1,0);
-  digitalWriteFast(PULSE2,0);
-  digitalWriteFast(PULSE5,0);
-  digitalWriteFast(PULSE6,0);
+  digitalWriteFast(PULSE1, 0);
+  digitalWriteFast(PULSE2, 0);
+  digitalWriteFast(PULSE5, 0);
+  digitalWriteFast(PULSE6, 0);
 
   // turn off BATT_ME (let float)
   pinMode(BATT_ME, INPUT);
 
-Serial_Printf("bat = %d counts %fV\n",value, value * (2.56/65536));
+  Serial_Printf("bat = %d counts %fV\n", value, value * (2.56 / 65536));
 
   if (value  < MIN_BAT_LEVEL)
-     return 1;                  // too low
-     
+    return 1;                  // too low
+
   return 0;
-  
+
 } // battery_low()
+
 
 
 

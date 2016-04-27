@@ -57,10 +57,10 @@ const int PULSERDEBUG=0;   // uncomment to debug the pulser and detector
 
 
 // use this to store values to eeprom 
-#define store_float(location, value)   { float f = value;  if (eeprom->location != f) eeprom->location = f; delay(1); }
+#define store(location, value)   { typeof(value) f = value;  if (eeprom->location != f) eeprom->location = f;  while (!(FTFL_FCNFG & FTFL_FCNFG_EEERDY)) {} }
 
 
-const unsigned NUM_LEDS=10;
+const int NUM_LEDS=10;
 // map LED (1-10 not 0-9) to MCU pin
 const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
 
@@ -103,8 +103,6 @@ float stdev16(uint16_t array[], const int n);
 int check_protocol(char *str);
 
 
-// use this to store values to eeprom 
-#define store_float(location, value)   { float f = value;  if (eeprom->location != f) eeprom->location = f; delay(1); }
 
 /*
  * Sensor-related variables which are accessed in loop

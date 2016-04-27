@@ -40,8 +40,8 @@ void Serial_Flush_Input(void)
 }
 
 const int MAX_RESEND_SIZE = 5000;
-static char *resend_buffer = 0;           // allow re-transmission of previous output
-static int  resend_count = 0;           // number of chars in the resend buffer
+static char *resend_buffer = 0;         // allow re-transmission of previous output
+static int  resend_count = 0;           // number of chars in the resend buffer (not including null)
 
 // re-send everything since the last Serial_Start()
 void Serial_Resend()
@@ -319,7 +319,7 @@ Serial_Start_Recording(void)
 {
   crc32_init ();          // reset for next time
   if (!resend_buffer)
-    resend_buffer = (char *)malloc(MAX_RESEND_SIZE);
+    resend_buffer = (char *)malloc(MAX_RESEND_SIZE + 1);
   resend_count = 0;       // empty resend buffer
 }
 

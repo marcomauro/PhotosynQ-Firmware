@@ -483,7 +483,7 @@ void do_command()
       break;
 
     case 2000:
-      Serial_Printf("Compiled on: %s %s\n", __DATE__,__TIME__);
+      Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
       break;
 
     case 4044:
@@ -618,49 +618,27 @@ void do_command()
 
 } // do_command()
 
-
-// Globals for protcols (try to avoid), see defines.h for non-statics, see eeprom.h for stored
-
-static int averages = 1;                        // ??
-static uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
-static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
-static const int max_jsons = 15;                                                   // max number of protocols per measurement
-static const int MAX_JSON_ELEMENTS = 600;      //
-//static int analogresolutionvalue;
-static IntervalTimer timer0;
-static float data = 0;
-static float data_ref = 0;
-static int act_background_light = 0;
-//static float freqtimer0;
-//static float freqtimer1;
-//static float freqtimer2;
-
 // read in and execute a protocol
 // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]<newline>
 
 void do_protocol()
 {
-  char *serial_buffer;
+  static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
+  static const int max_jsons = 15;                                                   // max number of protocols per measurement
+  static const int MAX_JSON_ELEMENTS = 600;      //
 
-  Serial_Stop_Recording();                    // release some memory
-
-  serial_buffer = (char *)malloc(serial_buffer_size);   // large buffer for reading in a json protocol from serial port
-
-  assert(serial_buffer);
-
-  Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);
-
-  if (!check_protocol(serial_buffer)) {         // sanity check
-    Serial_Print("{\"error\":\"bad json protocol\"}\n");
-    return;
-  }
-
-  // break up the protocol into individual jsons
-
-  int measurements = 1;                                      // the number of times to repeat the entire measurement (all protocols)
-  unsigned long measurements_delay = 0;                      // number of seconds to wait between measurements
-  unsigned long measurements_delay_ms = 0;                   // number of milliseconds to wait between measurements
-  unsigned long meas_number = 0;                    // counter to cycle through measurement lights 1 - 4 during the run
+  static int averages = 1;                        // ??
+  static uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
+  static float data = 0;
+  static float data_ref = 0;
+  static int act_background_light = 0;
+  //static float freqtimer0;
+  //static float freqtimer1;
+  //static float freqtimer2;
+  int measurements = 1;                                     // the number of times to repeat the entire measurement (all protocols)
+  unsigned long measurements_delay = 0;                     // number of seconds to wait between measurements
+  unsigned long measurements_delay_ms = 0;                  // number of milliseconds to wait between measurements
+  unsigned long meas_number = 0;                            // counter to cycle through measurement lights 1 - 4 during the run
   //unsigned long end1;
   //unsigned long start1 = millis();
 
@@ -674,29 +652,44 @@ void do_protocol()
   //int total_cycles;                                                           // Total number of cycles - note first cycle is cycle 0
   int meas_array_size = 0;                                                      // measures the number of measurement lights in the current cycle (example: for meas_lights = [[15,15,16],[15],[16,16,20]], the meas_array_size's are [3,1,3].
   //int end_flag = 0;
-  unsigned long* data_raw_average = 0;                                          // buffer for ADC output data
 
-  String json2 [max_jsons];
+ int number_of_protocols = 0;                      
+
+  String json2 [max_jsons];                                                     // will contain each json
   for (int i = 0; i < max_jsons; i++) {
     json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
   }
 
-  int number_of_protocols = 0;                                   // number of protocols
+  Serial_Stop_Recording();                          // release some memory - not sure if this helps
 
-  // TODO improve this by not using Strings
-  for (unsigned i = 1; i < strlen(serial_buffer); i++) {         // increments through each char in incoming transmission - if it's open curly, it saves all chars until closed curly.  Any other char is ignored.
-    if (serial_buffer[i] == '{') {                               // wait until you see a open curly bracket
-      while (serial_buffer[i] != '}') {                          // once you see it, save incoming data to json2 until you see closed curly bracket
-        json2[number_of_protocols] += serial_buffer[i];          // add single char to json
-        i++;
-      }
-      json2[number_of_protocols] += serial_buffer[i];           // catch the last closed curly
-      number_of_protocols++;
+  {                                                 // create limited scope for serial_buffer
+    char serial_buffer[serial_buffer_size + 1];     // large buffer for reading in a json protocol from serial port
+
+    Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);       // input the protocol
+
+    if (!check_protocol(serial_buffer)) {         // sanity check
+      Serial_Print("{[{\"error\":\"bad json protocol\"}");
+      goto abort;
     }
-  }
 
-  // no more need for the serial input buffer
-  free(serial_buffer);
+    // break up the protocol into individual jsons
+
+    // TODO improve this - use in place, stretch it out in place or copy to new C strings?
+    // make json2 an array of pointers to each protocol
+    for (unsigned i = 1; i < strlen(serial_buffer); i++) {         // increments through each char in incoming transmission - if it's open curly, it saves all chars until closed curly.  Any other char is ignored.
+      if (serial_buffer[i] == '{') {                               // wait until you see a open curly bracket
+        while (serial_buffer[i] != '}') {                          // once you see it, save incoming data to json2 until you see closed curly bracket
+          json2[number_of_protocols] += serial_buffer[i];          // add single char to json
+          i++;
+        }
+        json2[number_of_protocols] += serial_buffer[i];           // catch the last closed curly
+        number_of_protocols++;
+      }
+    }  // for
+
+  } // no more need for the serial input buffer
+
+  Serial_Start_Recording();          // prepare for resend (also allocates memory)
 
   if (DEBUGSIMPLE) {
     Serial_Printf("got %d protocols\n", number_of_protocols);
@@ -706,8 +699,6 @@ void do_protocol()
       Serial_Printf("Incoming JSON %d as received by Teensy : %s\n", i, json2[i].c_str());
     } // for
   } // DEBUGSIMPLE
-
-  Serial_Start_Recording();          // new packet
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
@@ -730,13 +721,8 @@ void do_protocol()
 
       JsonHashTable hashTable;
       JsonParser<MAX_JSON_ELEMENTS> root;
-#if 0
-      static char* json = 0;
-      if (json) free(json);                                                 // free initial json malloc, make sure this is here! Free before resetting the size according to the serial input
-      json = (char*)malloc((json2[q].length() + 1) * sizeof(char));         // we need a writeable C string
-#else
       char json[json2[q].length() + 1];                                     // we need a writeable C string
-#endif     
+
       strncpy(json, json2[q].c_str(), json2[q].length());
       json[json2[q].length()] = '\0';                                       // Add closing character to char*
       json2[q] = "";                                                        // attempt to release the String memory
@@ -745,7 +731,7 @@ void do_protocol()
         Serial_Print("{\"error\":\"JSON not recognized, or other failure with Json Parser\"}, the data JSON we received is: ");
         Serial_Print(json);
         Serial_Flush_Output();
-        return;
+        goto abort;
       }
 
 #if 0
@@ -758,7 +744,7 @@ void do_protocol()
 
       int protocols = 1;                                                                       // starts as 1 but gets updated when the json is parsed
       int quit = 0;
-      
+
       for (int u = 0; u < protocols; u++) {                                                    // the number of times to repeat the current protocol
         JsonArray save_eeprom    = hashTable.getArray("save");
         JsonArray recall_eeprom  = hashTable.getArray("recall");
@@ -841,9 +827,9 @@ void do_protocol()
 
         // ********************INPUT DATA FOR CORALSPEQ*******************
         JsonArray spec =          hashTable.getArray("spec");                                // defines whether the spec will be called during each array.  note for each single plus, the spec will call and add 256 values to data_raw!
-        JsonArray delay_time =    hashTable.getArray("delay_time");                                         // delay per half clock (in microseconds).  This ultimately conrols the integration time.
-        JsonArray read_time =     hashTable.getArray("read_time");                                        // Amount of time that the analogRead() procedure takes (in microseconds)
-        JsonArray intTime =       hashTable.getArray("intTime");                                         // delay per half clock (in microseconds).  This ultimately conrols the integration time.
+        JsonArray delay_time =    hashTable.getArray("delay_time");                          // delay per half clock (in microseconds).  This ultimately conrols the integration time.
+        JsonArray read_time =     hashTable.getArray("read_time");                           // Amount of time that the analogRead() procedure takes (in microseconds)
+        JsonArray intTime =       hashTable.getArray("intTime");                             // delay per half clock (in microseconds).  This ultimately conrols the integration time.
         JsonArray accumulateMode = hashTable.getArray("accumulateMode");
 
         long size_of_data_raw = 0;
@@ -868,10 +854,10 @@ void do_protocol()
 
         } // for each pulse
 
-        if (data_raw_average)
-          free(data_raw_average);                                                             // free previous calloc of data_raw_average
-        data_raw_average = (unsigned long*)calloc(size_of_data_raw, sizeof(unsigned long));   // get some memory space for data_raw_average, initialize all at zero.
-
+        unsigned long data_raw_average[size_of_data_raw];                                          // buffer for ADC output data
+        for (int i = 0; i < size_of_data_raw; ++i)                                                 // zero it
+            data_raw_average[i] = 0;
+ 
         if (DEBUGSIMPLE) {
           Serial_Print_Line("");
           Serial_Print("size of data raw:  ");
@@ -1486,7 +1472,7 @@ void do_protocol()
     } // if
 
   }  // for each measurement
-  
+
   /*
     // make sure one last time that all of the lights are turned off, including background light!
     for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
@@ -1507,18 +1493,16 @@ abort:
     digitalWriteFast(LED_to_pin[i], LOW);
   }
 
-  if (data_raw_average)
-    free(data_raw_average);            // free the calloc() of data_raw_average
- 
   return;
 
 } // do_protocol()
 
 
 //  routines for LED pulsing
-const unsigned  STABILIZE = 10;                    // this delay gives the LED current controller op amp the time needed to stabilize
 
 static void pulse3() {                           // ISR to turn on/off LED pulse - also controls integration switch
+  const unsigned  STABILIZE = 10;                // this delay gives the LED current controller op amp the time needed to stabilize
+
   register int pin = LED_to_pin[_meas_light];
   register int pulse_size = _pulsesize;
   noInterrupts();
@@ -1536,6 +1520,8 @@ static void pulse3() {                           // ISR to turn on/off LED pulse
 
 // schedule the turn on and off of the LED(s) via a single ISR
 
+static IntervalTimer timer0;
+
 inline static void startTimers(unsigned _pulsedistance) {
   timer0.begin(pulse3, _pulsedistance);             // schedule pulses
 }
@@ -1543,7 +1529,6 @@ inline static void startTimers(unsigned _pulsedistance) {
 inline static void stopTimers() {
   timer0.end();                         // if it's the last cycle and last pulse, then... stop the timers
 }
-
 
 // read/write userdef[] values from/to eeprom
 // example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545

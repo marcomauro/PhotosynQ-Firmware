@@ -1,9 +1,9 @@
 
 datum - entire response from device
 
-measurement - only one, except can be repeated, includes protocols
+measurement - only one, except can be repeated, consists of protocols
 
-protocol, can be multiple and/or each one be repeated
+protocol, can be multiple and/or each one be repeated N times
 
 averages - a single protocol, repeated N times with the average reported
 protocol_repeats - a single protocol, repeated N times with each one reported
@@ -11,6 +11,17 @@ protocol_repeats - a single protocol, repeated N times with each one reported
 pulse set/cycle
 
 pulses
+
+// notes about packet protocol
+
+up to 236 byte packets plus a 16 bit crc at the end?
+null terminated with COBS
+or use ascii only with a ctrl characters
+Ascii ^F is ACK, NAK is ^U, STX/ETX to frame packet
+no sequence number, resend until success or timeout
+this will slow things down a little
+also do compression (requires binary)?
+https://www.embeddedrelated.com/showarticle/113.php
 
 
 // available in stock config

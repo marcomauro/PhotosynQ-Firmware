@@ -486,6 +486,10 @@ void do_command()
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
       break;
 
+    case 2200:
+      // switch to ascii packet mode - sends a CRC16 and EOT every n bytes (max 250) and waits for ACK/NAK/timeout
+      break;
+      
     case 4044:
       {
         // JZ test - do not remove
@@ -653,7 +657,7 @@ void do_protocol()
   int meas_array_size = 0;                                                      // measures the number of measurement lights in the current cycle (example: for meas_lights = [[15,15,16],[15],[16,16,20]], the meas_array_size's are [3,1,3].
   //int end_flag = 0;
 
- int number_of_protocols = 0;                      
+  int number_of_protocols = 0;
 
   String json2 [max_jsons];     // TODO - don't use String   // will contain each json
   for (int i = 0; i < max_jsons; i++) {
@@ -662,7 +666,7 @@ void do_protocol()
 
   Serial_Stop_Recording();                          // release some memory - not sure if this helps
 
-  {                                                 // create limited scope for serial_buffer
+  { // create limited scope for serial_buffer
     char serial_buffer[serial_buffer_size + 1];     // large buffer for reading in a json protocol from serial port
 
     Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);       // input the protocol
@@ -700,7 +704,11 @@ void do_protocol()
     } // for
   } // DEBUGSIMPLE
 
-  Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
+  Serial_Printf("{\"device_id\":\"d4:f5:%x:%x:%x:%x\"",
+                (unsigned)eeprom->device_id >> 24,
+                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
+                ((unsigned)eeprom->device_id & 0xff00) >> 8,
+                (unsigned)eeprom->device_id & 0xff);
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
   Serial_Printf(",\"device_firmware\":%s", DEVICE_FIRMWARE);
   if (year() >= 2016)
@@ -856,8 +864,8 @@ void do_protocol()
 
         unsigned long data_raw_average[size_of_data_raw];                                          // buffer for ADC output data
         for (int i = 0; i < size_of_data_raw; ++i)                                                 // zero it
-            data_raw_average[i] = 0;
- 
+          data_raw_average[i] = 0;
+
         if (DEBUGSIMPLE) {
           Serial_Print_Line("");
           Serial_Print("size of data raw:  ");

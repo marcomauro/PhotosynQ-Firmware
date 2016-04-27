@@ -38,7 +38,7 @@ double expr(const char str[]);
 void do_protocol(void);
 void do_command(void);
 int battery_low(void);
-
+void print_calibrations(void);
 
 //////////////////////// MAIN LOOP /////////////////////////
 
@@ -143,9 +143,9 @@ void do_command()
       break;
     case 1003:
       {
-        Serial_Print_Line("Enter led # setting followed by +: ");
+        Serial_Print_Line("\"message\": \"Enter led # setting followed by +: \"}");
         int led =  Serial_Input_Double("+", 0);
-        Serial_Print_Line("Enter dac setting followed by +: ");
+        Serial_Print_Line("\"message\": \"Enter dac setting followed by +:  \"}");
         int setting =  Serial_Input_Double("+", 0);
         DAC_set(led, setting);
         DAC_change();
@@ -178,8 +178,10 @@ void do_command()
       }
       break;
 
+    case 1006:
+      print_calibrations();
+      break;
     case 1007:
-      // TODO - what needs to be added?
       get_set_device_info(0);
       break;
 
@@ -331,13 +333,13 @@ void do_command()
       print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
       break;
     case 1030:
-      Serial_Print("input 3 magnetometer bias values, each followed by +: ");
+      Serial_Print("{\"message\": \"input 3 magnetometer bias values, each followed by +: \"}");
       store_float(mag_bias[0], Serial_Input_Double("+", 0));
       store_float(mag_bias[1], Serial_Input_Double("+", 0));
       store_float(mag_bias[2], Serial_Input_Double("+", 0));
       break;
     case 1031:
-      Serial_Print("input 9 magnetometer calibration values, each followed by +: ");
+      Serial_Print("{\"message\": \"input 9 magnetometer calibration values, each followed by +: \"}");
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
           eeprom->mag_cal[i][j] = Serial_Input_Double("+", 0);
@@ -347,13 +349,13 @@ void do_command()
       }
       break;
     case 1032:
-      Serial_Print("input 3 accelerometer bias values, each followed by +: ");
+      Serial_Print("{\"message\": \"input 3 accelerometer bias values, each followed by +: \"}");
       eeprom->accel_bias[0] = Serial_Input_Double("+", 0);
       eeprom->accel_bias[1] = Serial_Input_Double("+", 0);
       eeprom->accel_bias[2] = Serial_Input_Double("+", 0);
       break;
     case 1033:
-      Serial_Print("input 9 accelerometer calibration values, each followed by +: ");
+      Serial_Print("{\"message\": \"input 9 accelerometer calibration values, each followed by +: \"}");
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
           eeprom->accel_cal[i][j] = Serial_Input_Double("+", 0);
@@ -364,63 +366,54 @@ void do_command()
       break;
     case 1034:
       Serial_Print_Line(eeprom->light_slope_all);
-      Serial_Print_Line("input light slope for ambient par calibration followed by +: ");
+      Serial_Print_Line("{\"message\": \"input light slope for ambient par calibration followed by +: \"}");
       eeprom->light_slope_all = Serial_Input_Double("+", 0);
       delay(10);
       break;
     case 1035:
       Serial_Print_Line(eeprom->light_yint);
-      Serial_Print_Line("input y intercept for ambient par calibration followed by +: ");
+      Serial_Print_Line("{\"message\": \"input y intercept for ambient par calibration followed by +: \"}");
       eeprom->light_yint = Serial_Input_Double("+", 0);
       delay(10);
       break;
     case 1036:
       Serial_Print_Line(eeprom->light_slope_r);
-      Serial_Print_Line("input r slope for ambient par calibration followed by +: ");
+      Serial_Print_Line("{\"message\": \"input r slope for ambient par calibration followed by +: \"}");
       eeprom->light_slope_r = Serial_Input_Double("+", 0);
       delay(10);
       break;
     case 1037:
       Serial_Print_Line(eeprom->light_slope_g);
-      Serial_Print_Line("input g slope for ambient par calibration followed by +: ");
+      Serial_Print_Line("{\"message\": \"input g slope for ambient par calibration followed by +: \"}");
       eeprom->light_slope_g = Serial_Input_Double("+", 0);
       delay(10);
       break;
     case 1038:
       Serial_Print_Line(eeprom->light_slope_b);
-      Serial_Print_Line("input b slope for ambient par calibration followed by +: ");
+      Serial_Print_Line("{\"message\": \"input b slope for ambient par calibration followed by +: \"}");
       eeprom->light_slope_b = Serial_Input_Double("+", 0);
       delay(10);
       break;
     case 1039:
       Serial_Print_Line(eeprom->thickness_a);
-      Serial_Print_Line("input thickness calibration value a for leaf thickness followed by +: ");
+      Serial_Print_Line("{\"message\": \"input thickness calibration value a for leaf thickness followed by +: \"}");
       eeprom->thickness_a = Serial_Input_Double("+", 0);
       delay(10);
       break;
     case 1040:
       Serial_Print_Line(eeprom->thickness_b);
-      Serial_Print_Line("input thickness calibration value b for leaf thickness  followed by +: ");
+      Serial_Print_Line("{\"message\": \"input thickness calibration value b for leaf thickness  followed by +: \"}");
       eeprom->thickness_b = Serial_Input_Double("+", 0);
       delay(10);
       break;
     case 1041:
       Serial_Print_Line(eeprom->thickness_d);
-      Serial_Print_Line("input thickness calibration value d for leaf thickness  followed by +: ");
+      Serial_Print_Line("{\"message\": \"input thickness calibration value d for leaf thickness  followed by +: \"}");
       eeprom->thickness_d = Serial_Input_Double("+", 0);
       break;
 
     case 1042:
-      Serial_Print_Line("input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: ");
-      Serial_Print_Line("before:  ");
-      /*
-              for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what's currently saved
-                Serial_Print(eeprom->par_to_dac_slope[i], 4);
-                Serial_Print(",");
-                Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
-              }
-              Serial_Print_Line("");
-      */
+      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
         int led = Serial_Input_Double("+", 0);
         if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -429,14 +422,9 @@ void do_command()
         store_float(par_to_dac_slope[led], Serial_Input_Double("+", 0));
         store_float(par_to_dac_yint[led], Serial_Input_Double("+", 0));
       }
-      for (unsigned i = 1; i < NUM_LEDS + 1; i++) {                                        // print what is now saved
-        Serial_Print(eeprom->par_to_dac_slope[i], 4);
-        Serial_Print(",");
-        Serial_Print_Line(eeprom->par_to_dac_yint[i], 4);
-      }
       break;
     case 1043:
-      Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 1, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
         int led = Serial_Input_Double("+", 0);
         if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -447,7 +435,7 @@ void do_command()
       }
       break;
     case 1044:
-      Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
         int led = Serial_Input_Double("+", 0);
         if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -459,7 +447,7 @@ void do_command()
       break;
 
     case 1045:
-      Serial_Print_Line("input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: ");
+      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
         int led = Serial_Input_Double("+", 0);
         if (led == -1) {                                    // user can bail with -1+ setting as LED
@@ -1819,5 +1807,134 @@ void reset_freq() {
     2       0 - 3           12000000 Hz     6000000 Hz
 
   */
+}
+
+
+void print_calibrations() {
+  Serial_Printf("{\n\"device_id\":\"d4:f5:%x:%x:%x:%x\",\n",
+  (unsigned)eeprom->device_id >> 24,
+  ((unsigned)eeprom->device_id & 0xff0000) >> 16,
+  ((unsigned)eeprom->device_id & 0xff00) >> 8,
+  (unsigned)eeprom->device_id & 0xff
+  );
+  Serial_Printf("\"device_manufacture\": \"%d\",\n", eeprom->device_manufacture);
+  Serial_Printf("\"mag_bias\": [\"%f\",\"%f\",\"%f\"],\n", eeprom->mag_bias[0], eeprom->mag_bias[1], eeprom->mag_bias[2]);
+  Serial_Printf("\"mag_cal\": [[\"%f\",\"%f\",\"%f\"],[\"%f\",\"%f\",\"%f\"],[\"%f\",\"%f\",\"%f\"]],\n", eeprom->mag_cal[0][0], eeprom->mag_cal[0][1], eeprom->mag_cal[0][2], eeprom->mag_cal[1][0], eeprom->mag_cal[1][1], eeprom->mag_cal[1][2], eeprom->mag_cal[2][0], eeprom->mag_cal[2][1], eeprom->mag_cal[2][2]);
+  Serial_Printf("\"accel_bias\": [\"%f\",\"%f\",\"%f\"],\n", eeprom->mag_bias[0], eeprom->mag_bias[1], eeprom->mag_bias[2]);
+  Serial_Printf("\"accel_cal\": [[\"%f\",\"%f\",\"%f\"],[\"%f\",\"%f\",\"%f\"],[\"%f\",\"%f\",\"%f\"]],\n", eeprom->accel_cal[0][0], eeprom->accel_cal[0][1], eeprom->accel_cal[0][2], eeprom->accel_cal[1][0], eeprom->accel_cal[1][1], eeprom->accel_cal[1][2], eeprom->accel_cal[2][0], eeprom->accel_cal[2][1], eeprom->accel_cal[2][2]);
+  Serial_Printf("\"light_slope_all\": \"%f\",\n", eeprom->light_slope_all);
+  Serial_Printf("\"light_slope_r\": \"%f\",\n", eeprom->light_slope_r);
+  Serial_Printf("\"light_slope_g\": \"%f\",\n", eeprom->light_slope_g);
+  Serial_Printf("\"light_slope_b\": \"%f\",\n", eeprom->light_slope_b);
+  Serial_Printf("\"light_yint\": \"%f\",\n", eeprom->light_yint);
+  Serial_Printf("\"light_slope_all\": \"%f\",\n", eeprom->light_slope_all);
+  Serial_Printf("\"detector_offset_slope\": [\"%f\",\"%f\",\"%f\",\"%f\"],\n", eeprom->detector_offset_slope[0], eeprom->detector_offset_slope[1], eeprom->detector_offset_slope[2], eeprom->detector_offset_slope[3]);
+  Serial_Printf("\"detector_offset_yint\": [\"%f\",\"%f\",\"%f\",\"%f\"],\n", eeprom->detector_offset_yint[0], eeprom->detector_offset_yint[1], eeprom->detector_offset_yint[2], eeprom->detector_offset_yint[3]);
+  Serial_Printf("\"thickness_a\": \"%f\",\n", eeprom->thickness_a);
+  Serial_Printf("\"thickness_b\": \"%f\",\n", eeprom->thickness_b);
+  Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
+  Serial_Print("\"par_to_dac_slope\": [");
+  for (int i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->par_to_dac_slope) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
+    }
+  }
+
+  Serial_Print("\"par_to_dac_yint\": [");
+  for (int i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->par_to_dac_yint) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->par_to_dac_yint[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_yint[i]);
+    }
+  }
+
+  Serial_Print("\"ir_baseline_slope\": [");
+  for (int i = 0; i < sizeof(eeprom->ir_baseline_slope) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->ir_baseline_slope) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->ir_baseline_slope[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->ir_baseline_slope[i]);
+    }
+  }
+
+  Serial_Print("\"ir_baseline_slope\": [");
+  for (int i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->ir_baseline_yint) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->ir_baseline_yint[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->ir_baseline_yint[i]);
+    }
+  }
+
+  Serial_Print("\"colorcal_intensity1_slope\": [");
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_intensity1_slope[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity1_slope[i]);
+    }
+  }
+  Serial_Print("\"colorcal_intensity1_yint\": [");
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_intensity1_yint[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity1_yint[i]);
+    }
+  }
+  Serial_Print("\"colorcal_intensity2_slope\": [");
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_slope[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity2_slope[i]);
+    }
+  }
+  Serial_Print("\"colorcal_intensity2_yint\": [");
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_yint[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity2_yint[i]);
+    }
+  }
+  Serial_Print("\"colorcal_intensity3_slope\": [");
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_slope[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_slope[i]);
+    }
+  }
+  Serial_Print("\"colorcal_intensity3_yint\": [");
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_yint[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
+    }
+  }
+  for (int i = 0; i < NUM_USERDEFS; i++) {
+    if (i != NUM_USERDEFS - 1) {
+      Serial_Printf("\"userdef%d\": \"%f\",\n",i,eeprom->userdef[i]);
+    }
+    else {
+      Serial_Printf("\"userdef%d\": \"%f\"\n}",i,eeprom->userdef[i]);
+    }
+  }  
+  Serial_Print_CRC();
 }
 

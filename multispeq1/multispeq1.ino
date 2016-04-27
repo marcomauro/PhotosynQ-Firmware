@@ -341,7 +341,7 @@ void get_set_device_info(const int _set) {
     long val;
 
     // please enter new device ID (lower 6 bytes of BLE MAC address) followed by '+'
-    Serial_Print_Line("Please enter device mac address (12 characters) followed by +: ");
+    Serial_Print_Line("\"message\": \"Please enter device mac address (12 characters) followed by +: \"}");
     val =  Serial_Input_Long("+", 0);              // save to eeprom
     if (eeprom->device_id != val) {
       eeprom->device_id = val;              // save to eeprom
@@ -349,7 +349,7 @@ void get_set_device_info(const int _set) {
     }
 
     // please enter new date of manufacture (yyyymm) followed by '+'
-    Serial_Print_Line("Please enter device manufacture date followed by + (example 052016): ");
+    Serial_Print_Line("\"message\": \"Please enter device manufacture date followed by + (example 052016): \"}");
     val = Serial_Input_Long("+", 0);
     if (eeprom->device_manufacture != val) {
       eeprom->device_manufacture = val;

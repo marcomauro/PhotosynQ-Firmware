@@ -46,7 +46,7 @@ static int  resend_count = 0;           // number of chars in the resend buffer 
 // re-send everything since the last Serial_Start()
 void Serial_Resend()
 {
-  if (resend_buffer)
+  if (resend_buffer && resend_count < MAX_RESEND_SIZE)     // it we exceeded the size, don't bother sending a partial
     Serial_Print(resend_buffer);
 }
 

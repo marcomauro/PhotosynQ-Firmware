@@ -1,4 +1,18 @@
 
+datum - entire response from device
+
+measurement - only one, except can be repeated, includes protocols
+
+protocol, can be multiple and/or each one be repeated
+
+averages - a single protocol, repeated N times with the average reported
+protocol_repeats - a single protocol, repeated N times with each one reported
+
+pulse set/cycle
+
+pulses
+
+
 // available in stock config
 
 AccelStepper       CapacitiveSensor  i2c_t3             OSC             Time

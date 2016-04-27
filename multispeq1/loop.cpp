@@ -643,7 +643,7 @@ void do_protocol()
 
  int number_of_protocols = 0;                      
 
-  String json2 [max_jsons];                                                     // will contain each json
+  String json2 [max_jsons];     // TODO - don't use String   // will contain each json
   for (int i = 0; i < max_jsons; i++) {
     json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
   }
@@ -662,7 +662,7 @@ void do_protocol()
 
     // break up the protocol into individual jsons
 
-    // TODO improve this - use in place, stretch it out in place or copy to new C strings?
+    // TODO improve this - use in place, stretch it in place or copy to new C strings?
     // make json2 an array of pointers to each protocol
     for (unsigned i = 1; i < strlen(serial_buffer); i++) {         // increments through each char in incoming transmission - if it's open curly, it saves all chars until closed curly.  Any other char is ignored.
       if (serial_buffer[i] == '{') {                               // wait until you see a open curly bracket

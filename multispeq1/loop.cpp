@@ -131,7 +131,7 @@ void do_command()
           MMA8653FC_read(&Xval, &Yval, &Zval);
           MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
           delay(200);
-          for (unsigned i = 0; i < samples; ++i) {
+          for (int i = 0; i < samples; ++i) {
             sum += analogRead(HALL_OUT);
           }
           int hall = (sum / samples);
@@ -182,7 +182,7 @@ void do_command()
       print_calibrations();
       break;
     case 1007:
-      get_set_device_info(1);
+      get_set_device_info(0);
       break;
 
     case 1008:
@@ -305,7 +305,7 @@ void do_command()
                   eeprom->userdef[0] = atof(S);
         */
         Serial_Print_Line(eeprom->userdef[1], 4);
-        store(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
+        store_float(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
 
         Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
         // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
@@ -334,87 +334,87 @@ void do_command()
       break;
     case 1030:
       //      Serial_Print("{\"message\": \"input 3 magnetometer bias values, each followed by +: \"}");
-      store(mag_bias[0], Serial_Input_Double("+", 0));
-      store(mag_bias[1], Serial_Input_Double("+", 0));
-      store(mag_bias[2], Serial_Input_Double("+", 0));
+      store_float(mag_bias[0], Serial_Input_Double("+", 0));
+      store_float(mag_bias[1], Serial_Input_Double("+", 0));
+      store_float(mag_bias[2], Serial_Input_Double("+", 0));
       break;
     case 1031:
       //      Serial_Print("{\"message\": \"input 9 magnetometer calibration values, each followed by +: \"}");
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-          store(mag_cal[j][i], Serial_Input_Double("+", 0));
+          store_float(mag_cal[j][i], Serial_Input_Double("+", 0));
         }
       }
       break;
     case 1032:
       //      Serial_Print("{\"message\": \"input 3 accelerometer bias values, each followed by +: \"}");
-      store(accel_bias[0], Serial_Input_Double("+", 0));
-      store(accel_bias[1], Serial_Input_Double("+", 0));
-      store(accel_bias[2], Serial_Input_Double("+", 0));
+      store_float(accel_bias[0], Serial_Input_Double("+", 0));
+      store_float(accel_bias[1], Serial_Input_Double("+", 0));
+      store_float(accel_bias[2], Serial_Input_Double("+", 0));
       break;
     case 1033:
       //      Serial_Print("{\"message\": \"input 9 accelerometer calibration values, each followed by +: \"}");
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-          store(accel_cal[j][i], Serial_Input_Double("+", 0));
+          store_float(accel_cal[j][i], Serial_Input_Double("+", 0));
         }
       }
       break;
     case 1034:
       //      Serial_Print_Line(eeprom->light_slope_all);
       //      Serial_Print_Line("{\"message\": \"input light slope for ambient par calibration followed by +: \"}");
-      store(light_slope_all, Serial_Input_Double("+", 0));
+      store_float(light_slope_all, Serial_Input_Double("+", 0));
       break;
     case 1035:
       //      Serial_Print_Line(eeprom->light_yint);
       //      Serial_Print_Line("{\"message\": \"input y intercept for ambient par calibration followed by +: \"}");
-      store(light_yint, Serial_Input_Double("+", 0));
+      store_float(light_yint, Serial_Input_Double("+", 0));
       break;
     case 1036:
       //      Serial_Print_Line(eeprom->light_slope_r);
       //      Serial_Print_Line("{\"message\": \"input r slope for ambient par calibration followed by +: \"}");
-      store(light_slope_r, Serial_Input_Double("+", 0));
+      store_float(light_slope_r, Serial_Input_Double("+", 0));
       break;
     case 1037:
       //      Serial_Print_Line(eeprom->light_slope_g);
       //      Serial_Print_Line("{\"message\": \"input g slope for ambient par calibration followed by +: \"}");
-      store(light_slope_g, Serial_Input_Double("+", 0));
+      store_float(light_slope_g, Serial_Input_Double("+", 0));
       break;
     case 1038:
       //      Serial_Print_Line(eeprom->light_slope_b);
       //      Serial_Print_Line("{\"message\": \"input b slope for ambient par calibration followed by +: \"}");
-      store(light_slope_b, Serial_Input_Double("+", 0));
+      store_float(light_slope_b, Serial_Input_Double("+", 0));
       break;
     case 1039:
       //      Serial_Print_Linef("%f, %f, %f",eeprom->thickness_a,eeprom->thickness_a,eeprom->thickness_a);
       //      Serial_Print_Line("{\"message\": \"input thickness calibration values (a, b, d) a for leaf thickness followed by +: \"}");
-      store(thickness_a, Serial_Input_Double("+", 0));
-      store(thickness_b, Serial_Input_Double("+", 0));
-      store(thickness_d, Serial_Input_Double("+", 0));
+      store_float(thickness_a, Serial_Input_Double("+", 0));
+      store_float(thickness_b, Serial_Input_Double("+", 0));
+      store_float(thickness_d, Serial_Input_Double("+", 0));
       break;
     case 1040:
       //      Serial_Print_Linef("%f, %f",eeprom->detector_offset_slope[0],eeprom->detector_offset_yint[0]);
       //      Serial_Print_Line("{\"message\": \"input detector offset for detector 1 (main detector) followed by +: \"}");
-      store(detector_offset_slope[0], Serial_Input_Double("+", 0));
-      store(detector_offset_yint[0], Serial_Input_Double("+", 0));
+      store_float(detector_offset_slope[0], Serial_Input_Double("+", 0));
+      store_float(detector_offset_yint[0], Serial_Input_Double("+", 0));
       break;
     case 1041:
       //      Serial_Print_Linef("%f, %f",eeprom->detector_offset_slope[1],eeprom->detector_offset_yint[1]);
       //      Serial_Print_Line("{\"message\": \"input detector offset for detector 2 (reference on main) followed by +: \"}");
-      store(detector_offset_slope[1], Serial_Input_Double("+", 0));
-      store(detector_offset_yint[1], Serial_Input_Double("+", 0));
+      store_float(detector_offset_slope[1], Serial_Input_Double("+", 0));
+      store_float(detector_offset_yint[1], Serial_Input_Double("+", 0));
       break;
     case 1042:
       //      Serial_Print_Linef("%f, %f",eeprom->detector_offset_slope[2],eeprom->detector_offset_yint[2]);
       //      Serial_Print_Line("{\"message\": \"input detector offset for detector 3 (clamp detector) followed by +: \"}");
-      store(detector_offset_slope[2], Serial_Input_Double("+", 0));
-      store(detector_offset_yint[2], Serial_Input_Double("+", 0));
+      store_float(detector_offset_slope[2], Serial_Input_Double("+", 0));
+      store_float(detector_offset_yint[2], Serial_Input_Double("+", 0));
       break;
     case 1043:
       //      Serial_Print_Linef("%f, %f",eeprom->detector_offset_slope[3],eeprom->detector_offset_yint[3]);
       //      Serial_Print_Line("{\"message\": \"input detector offset for detector 4 (reference on clamp) followed by +: \"}");
-      store(detector_offset_slope[3], Serial_Input_Double("+", 0));
-      store(detector_offset_yint[3], Serial_Input_Double("+", 0));
+      store_float(detector_offset_slope[3], Serial_Input_Double("+", 0));
+      store_float(detector_offset_yint[3], Serial_Input_Double("+", 0));
       break;
     case 1044:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
@@ -424,8 +424,8 @@ void do_command()
           break;
         }
         else if (led > 0 || led < NUM_LEDS + 1) {
-          store(par_to_dac_slope[led], Serial_Input_Double("+", 0));
-          store(par_to_dac_yint[led], Serial_Input_Double("+", 0));
+          store_float(par_to_dac_slope[led], Serial_Input_Double("+", 0));
+          store_float(par_to_dac_yint[led], Serial_Input_Double("+", 0));
         }
         else {
           Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
@@ -441,8 +441,8 @@ void do_command()
         }
         else if (led > 0 || led < NUM_LEDS + 1) {
 
-          store(ir_baseline_slope[led], Serial_Input_Double("+", 0));
-          store(ir_baseline_yint[led], Serial_Input_Double("+", 0));
+          store_float(ir_baseline_slope[led], Serial_Input_Double("+", 0));
+          store_float(ir_baseline_yint[led], Serial_Input_Double("+", 0));
         }
         else {
           Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
@@ -458,8 +458,8 @@ void do_command()
         }
         else if (led > 0 || led < NUM_LEDS + 1) {
 
-          store(colorcal_intensity1_slope[led], Serial_Input_Double("+", 0));
-          store(colorcal_intensity1_yint[led], Serial_Input_Double("+", 0));
+          store_float(colorcal_intensity1_slope[led], Serial_Input_Double("+", 0));
+          store_float(colorcal_intensity1_yint[led], Serial_Input_Double("+", 0));
         }
         else {
           Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
@@ -474,8 +474,8 @@ void do_command()
           break;
         }
         else if (led > 0 || led < NUM_LEDS + 1) {
-          store(colorcal_intensity2_slope[led], Serial_Input_Double("+", 0));
-          store(colorcal_intensity2_yint[led], Serial_Input_Double("+", 0));
+          store_float(colorcal_intensity2_slope[led], Serial_Input_Double("+", 0));
+          store_float(colorcal_intensity2_yint[led], Serial_Input_Double("+", 0));
         }
         else {
           Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
@@ -490,8 +490,8 @@ void do_command()
           break;
         }
         else if (led > 0 || led < NUM_LEDS + 1) {
-          store(colorcal_intensity3_slope[led], Serial_Input_Double("+", 0));
-          store(colorcal_intensity3_yint[led], Serial_Input_Double("+", 0));
+          store_float(colorcal_intensity3_slope[led], Serial_Input_Double("+", 0));
+          store_float(colorcal_intensity3_yint[led], Serial_Input_Double("+", 0));
         }
         else {
           Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
@@ -499,6 +499,23 @@ void do_command()
       }
       break;
     case 1049:
+      //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for blank at thickness 1 (true blank), thickness 2 (1 piece of white paper), and thickness 3 (3 pieces of white paper), each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
+      for (;;) {
+        int led = Serial_Input_Double("+", 0);
+        if (led == -1) {                                    // user can bail with -1+ setting as LED
+          break;
+        }
+        else if (led > 0 || led < NUM_LEDS + 1) {
+          store_float(colorcal_blank1[led], Serial_Input_Double("+", 0));
+          store_float(colorcal_blank2[led], Serial_Input_Double("+", 0));
+          store_float(colorcal_blank3[led], Serial_Input_Double("+", 0));
+        }
+        else {
+          Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
+        }
+      }
+      break;
+    case 1050:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
         int userdefID = Serial_Input_Double("+", 0);
@@ -506,14 +523,14 @@ void do_command()
           break;
         }
         else if (userdefID > 0 || userdefID < 50) {
-          store(userdef[userdefID], Serial_Input_Double("+", 0));
+          store_float(userdef[userdefID], Serial_Input_Double("+", 0));
         }
         else {
-          Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", (sizeof(eeprom->userdef)/sizeof(float)));
+          Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", (sizeof(eeprom->userdef) / sizeof(float)));
         }
       }
       break;
-
+      
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
       break;
@@ -530,10 +547,6 @@ void do_command()
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
       break;
 
-    case 2200:
-      // switch to ascii packet mode - sends a CRC16 and EOT every n bytes (max 250) and waits for ACK/NAK/timeout
-      break;
-      
     case 4044:
       {
         // JZ test - do not remove
@@ -748,11 +761,7 @@ void do_protocol()
     } // for
   } // DEBUGSIMPLE
 
-  Serial_Printf("{\"device_id\":\"d4:f5:%x:%x:%x:%x\"",
-                (unsigned)eeprom->device_id >> 24,
-                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
-                ((unsigned)eeprom->device_id & 0xff00) >> 8,
-                (unsigned)eeprom->device_id & 0xff);
+  Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
   Serial_Printf(",\"device_firmware\":%s", DEVICE_FIRMWARE);
   if (year() >= 2016)
@@ -799,7 +808,7 @@ void do_protocol()
 
       for (int u = 0; u < protocols; u++) {                                                    // the number of times to repeat the current protocol
         JsonArray save_eeprom    = hashTable.getArray("save");
-        JsonArray recall_eeprom  = hashTable.getArray("recall");
+        JsonArray recall_eeprom  = hashTable.getArray("recall");                                // userdef values to recall
         JsonArray number_samples = hashTable.getArray("number_samples");                       // number of samples on the cap during sample + hold phase (default is 40);
         JsonArray reference =     hashTable.getArray("reference");                              // subtract reference value if set to 1 (also causes 1/2 the sample rate per detector) due to time constraints.  Default is no reference (== 0)
         uint16_t adc_show =       hashTable.getLong("adc_show");                                // this tells the MultispeQ to print the ADC values only instead of the normal data_raw (for signal quality debugging)
@@ -1584,6 +1593,7 @@ inline static void stopTimers() {
 
 // read/write userdef[] values from/to eeprom
 // example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
+// also be able to read other values defined in eeprom, like [{"recall":["light_slope_all","light_yint"]}]... this requires some interpretation akin to what's done in expressions
 
 static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
   int number_saves = _save_eeprom.getLength();                                // define these explicitly to make it easier to understand the logic
@@ -1594,7 +1604,7 @@ static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
       double value_to_save = _save_eeprom.getArray(i).getDouble(1);
       if (location >= 0 && location < (long)NUM_USERDEFS)
         if (eeprom->userdef[location] != value_to_save)                       // prevent re-write if already there (wears out the eeprom)
-          store(userdef[location], value_to_save);                         // save new value in the defined eeprom location
+          store_float(userdef[location], value_to_save);                         // save new value in the defined eeprom location
       delay(1);                                                               // delay to make sure it has time to save (min 1ms)
     }
   }
@@ -1898,7 +1908,7 @@ void print_calibrations() {
   Serial_Printf("\"thickness_b\": \"%f\",\n", eeprom->thickness_b);
   Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
   Serial_Print("\"par_to_dac_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
     }
@@ -1908,7 +1918,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"par_to_dac_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_yint[i]);
     }
@@ -1918,7 +1928,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"ir_baseline_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->ir_baseline_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_slope[i]);
     }
@@ -1928,7 +1938,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"ir_baseline_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_yint[i]);
     }
@@ -1938,7 +1948,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"colorcal_intensity1_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity1_slope[i]);
     }
@@ -1947,7 +1957,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity1_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity1_yint[i]);
     }
@@ -1956,7 +1966,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity2_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_slope[i]);
     }
@@ -1965,7 +1975,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity2_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_yint[i]);
     }
@@ -1974,7 +1984,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity3_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_slope[i]);
     }
@@ -1983,7 +1993,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity3_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_yint[i]);
     }
@@ -1991,7 +2001,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
     }
   }
-  for (unsigned i = 0; i < NUM_USERDEFS; i++) {
+  for (int i = 0; i < NUM_USERDEFS; i++) {
     if (i != NUM_USERDEFS - 1) {
       Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
     }

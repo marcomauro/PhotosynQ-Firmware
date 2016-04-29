@@ -221,7 +221,7 @@ void setup() {
   // set up serial ports (Serial and Serial1)
   Serial_Set(4);
   Serial_Begin(57600);
-
+   
 #ifdef DEBUGSIMPLE
   Serial_Print_Line("serial works");
 #endif
@@ -607,6 +607,7 @@ static unsigned long last_activity = millis();
 
 void powerdown() {
   // send command to BLE module by setting XX low
+  // has no effect if USB is plugged in
 #if 0
   if (millis() - last_activity > SHUTDOWN) {
     //Serial_Print_Line("powerdown"); delay(10000);
@@ -635,11 +636,11 @@ int battery_low()
   pinMode(BATT_ME, OUTPUT);               // battery measurement enable (active low)
   digitalWriteFast(BATT_ME, LOW);
 
-  // set DAC values to 1/4 of full output
-  DAC_set(1, 1024 / 4);
-  DAC_set(2, 1024 / 4);
-  DAC_set(5, 1024 / 4);
-  DAC_set(6, 1024 / 4);
+  // set DAC values to 1/4 of full output to create load
+  DAC_set(1, 4096 / 4);
+  DAC_set(2, 4096 / 4);
+  DAC_set(5, 4906 / 4);
+  DAC_set(6, 4906 / 4);
   DAC_change();
   delay(10);       // stabilize
 
@@ -649,7 +650,7 @@ int battery_low()
   digitalWriteFast(PULSE5, 1);
   digitalWriteFast(PULSE6, 1);
 
-  delayMicroseconds(10);          // TODO?  How long to drain power supply capacitance?
+  delayMicroseconds(20);          // TODO?  How long to drain power supply capacitance?
 
   uint32_t value = 0;
   for (int i = 0 ; i < 100; ++i)
@@ -667,9 +668,11 @@ int battery_low()
 
   Serial_Printf("bat = %d counts %fV\n", value, value * (2.56 / 65536));
 
-  if (value  < MIN_BAT_LEVEL)
+  if (value  < MIN_BAT_LEVEL) {
+    pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
+    digitalWriteFast(POWERDOWN_REQUEST, LOW);
     return 1;                  // too low
-
+  }
   return 0;
 
 } // battery_low()

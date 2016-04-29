@@ -102,8 +102,6 @@ void do_command()
     return;                     // go read another command
   }
 
-  Serial_Start_Recording();                   // new packet, reset recording buffer and CRC
-
   // process + command
 
   switch (atoi(choose)) {
@@ -522,8 +520,7 @@ void do_command()
       battery_low();  // test battery
       break;
 
-    case 1100:        // resend last packet
-      Serial_Resend();
+    case 1100:       
       break;
 
     case 2000:
@@ -708,8 +705,6 @@ void do_protocol()
     json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
   }
 
-  Serial_Stop_Recording();                          // release some memory - not sure if this helps
-
   { // create limited scope for serial_buffer
     char serial_buffer[serial_buffer_size + 1];     // large buffer for reading in a json protocol from serial port
 
@@ -736,8 +731,6 @@ void do_protocol()
     }  // for
 
   } // no more need for the serial input buffer
-
-  Serial_Start_Recording();          // prepare for resend (also allocates memory)
 
   if (DEBUGSIMPLE) {
     Serial_Printf("got %d protocols\n", number_of_protocols);
@@ -1884,7 +1877,7 @@ void print_calibrations() {
   Serial_Printf("\"device_manufacture\": \"%d\",\n", eeprom->device_manufacture);
   Serial_Printf("\"mag_bias\": [\"%f\",\"%f\",\"%f\"],\n", eeprom->mag_bias[0], eeprom->mag_bias[1], eeprom->mag_bias[2]);
   Serial_Printf("\"mag_cal\": [[\"%f\",\"%f\",\"%f\"],[\"%f\",\"%f\",\"%f\"],[\"%f\",\"%f\",\"%f\"]],\n", eeprom->mag_cal[0][0], eeprom->mag_cal[0][1], eeprom->mag_cal[0][2], eeprom->mag_cal[1][0], eeprom->mag_cal[1][1], eeprom->mag_cal[1][2], eeprom->mag_cal[2][0], eeprom->mag_cal[2][1], eeprom->mag_cal[2][2]);
-  Serial_Printf("\"accel_bias\": [\"%f\",\"%f\",\"%f\"],\n", eeprom->mag_bias[0], eeprom->mag_bias[1], eeprom->mag_bias[2]);
+  Serial_Printf("\"accel_bias\": [\"%f\",\"%f\",\"%f\"],\n", eeprom->accel_bias[0], eeprom->accel_bias[1], eeprom->accel_bias[2]);
   Serial_Printf("\"accel_cal\": [[\"%f\",\"%f\",\"%f\"],[\"%f\",\"%f\",\"%f\"],[\"%f\",\"%f\",\"%f\"]],\n", eeprom->accel_cal[0][0], eeprom->accel_cal[0][1], eeprom->accel_cal[0][2], eeprom->accel_cal[1][0], eeprom->accel_cal[1][1], eeprom->accel_cal[1][2], eeprom->accel_cal[2][0], eeprom->accel_cal[2][1], eeprom->accel_cal[2][2]);
   Serial_Printf("\"light_slope_all\": \"%f\",\n", eeprom->light_slope_all);
   Serial_Printf("\"light_slope_r\": \"%f\",\n", eeprom->light_slope_r);

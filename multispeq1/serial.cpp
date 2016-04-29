@@ -1,7 +1,7 @@
 
 // Serial routines that can read/write to either or both Serial devices (Serial (USB) and Serial1 (BLE)) based on a setting
 // It also maintains and prints a CRC value
-// Optionally allows recording and playback
+// Can use a packet mode that resends
 
 // Jon Zeeff 2016
 
@@ -15,14 +15,15 @@
 #include "utility/crc32.h"
 
 static void Serial_Print_BLE(const char *str);
+static void print_packet(const char *str);
+static void flush_BLE();
 
-// select which serial port to print to
-static int Serial_Port = 3;   // 1 == Serial, 2 == Serial1, 3 = both  (ignored during automatic mode)
+static int Serial_Port = 3;   // which port to print to: 1 == Serial, 2 == Serial1, 3 = both  (ignored during automatic mode)
 static int automatic = 0;     // automatic means that writes will only go to the serial port that last had a byte read (Serial_Port is ignored)
 static int last_read = 0;     // where last incoming byte was from, 0 = Serial, 1 = Serial1
+int packet_mode = 0;          // wait for ACK every n characters, resend if needed
 
 // set baud rates
-// TODO - verify that multiple calls are OK
 
 void Serial_Begin(int rate)
 {
@@ -37,17 +38,6 @@ void Serial_Flush_Input(void)
 {
   while (Serial_Available())
     Serial_Read();
-}
-
-const int MAX_RESEND_SIZE = 5000;
-static char *resend_buffer = 0;         // allow re-transmission of previous output
-static int  resend_count = 0;           // number of chars in the resend buffer (not including null)
-
-// re-send everything since the last Serial_Start()
-void Serial_Resend()
-{
-  if (resend_buffer && resend_count < MAX_RESEND_SIZE)     // it we exceeded the size, don't bother sending a partial
-    Serial_Print(resend_buffer);
 }
 
 // specify which ports to send output to
@@ -133,30 +123,113 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
     if (last_read == 0) {
       if (Serial)
         Serial.print(str);
-    } else
+    } else if (packet_mode)
+      print_packet(str);
+    else
       Serial_Print_BLE(str);
   } else {
     // non-automatic mode
     if (Serial && (Serial_Port & 1))
       Serial.print(str);
 
-    if (Serial_Port & 2)
-      Serial_Print_BLE(str);      // send with time delays to rate limit
+    if (Serial_Port & 2) {
+      if (packet_mode)
+        print_packet(str);
+      else
+        Serial_Print_BLE(str);
+    }
   } // if
 
   // add to crc value
   crc32_string ((char *)str);
 
-  // add to resend buffer
-  if (resend_buffer) {
-    int count = min((int)strlen(str), MAX_RESEND_SIZE - resend_count);  // check for enough remaining space
-    strncpy(resend_buffer + resend_count, (char *)str, count);
-    resend_count += count;
-    resend_buffer[resend_count] = 0;    // null terminate
-  }
 }  // Serial_Print(char *)
 
-#define BLE_DELAY 20                    // milli seconds between packets
+
+uint16_t crc16(const char* data_p, unsigned char length){
+    unsigned char x;
+    uint16_t crc = 0xFFFF;
+
+    while (length--){
+        x = crc >> 8 ^ *data_p++;
+        x ^= x>>4;
+        crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x <<5)) ^ ((uint16_t)x);
+    }
+    return crc;
+}
+
+// output to the BLE serial port, but buffer it up into packets with a retry protocol
+
+#define PACKET_SIZE 34
+#define STX 02
+//#define ETX 04
+#define ETX 'X'
+#define ACK 06
+
+static char packet_buffer[PACKET_SIZE + 4 + 1 + 1] = {STX};  // extra room for CRC then ETX then null
+static int packet_count = 0;                                 // how many bytes in the above buffer
+const int RETRIES=4;
+
+// push a full or partial packet out
+// retry until ACK
+
+static void flush_packet()
+{
+  if (packet_count == 0)
+    return;
+
+  // calc and add ascii CRC (exactly 4 chars)
+  uint16_t crc = crc16(packet_buffer,packet_count);
+  const char nybble_chars[] = "0123456789ABCDEF";
+  packet_buffer[packet_count++] = nybble_chars[(crc >> 12) & 0xf];
+  packet_buffer[packet_count++] = nybble_chars[(crc >> 8) & 0xf];;
+  packet_buffer[packet_count++] = nybble_chars[(crc >> 4) & 0xf];;
+  packet_buffer[packet_count++] = nybble_chars[(crc >> 0) & 0xf];;
+
+  // add end of packet marker
+  packet_buffer[packet_count++] = ETX;
+
+  // add null
+  packet_buffer[packet_count] = '\0';
+
+  Serial.setTimeout(100);
+
+  // keep sending it until we get an ACK or we give up
+  for (int i = 0; i < RETRIES; ++i) {
+     while (Serial.available())            // flush input
+        Serial.read();
+    //Serial_Print_BLE(packet_buffer);     // send it
+    Serial.print(packet_buffer);     // send it
+    //flush_BLE();                         // force all of it out
+    // look for ACK or timeout
+    char c=0;
+    Serial.readBytesUntil(ACK,&c,1);
+    if (c == ACK)
+       break;
+  } // for
+
+  packet_count = 0;      // start new packet
+}  // flush_packet()
+
+
+// add to output packet, send as needed
+
+static void print_packet(const char *str)
+{
+  // copy to buffer, sending whenever it reaches n bytes
+  while (*str != 0) {                  // until end of string
+
+    packet_buffer[packet_count] = *str;
+    ++packet_count;
+    ++str;
+
+    if (packet_count == PACKET_SIZE)  // full buffer - send it
+      flush_packet();
+
+  } // while
+}  // print_packet()
+
+#define BLE_DELAY 20                    // milli seconds between packets, 20 or 10
 #define BLE_PACKET_SIZE 20
 
 static char buffer[BLE_PACKET_SIZE + 1];
@@ -174,31 +247,35 @@ static void Serial_Print_BLE(const char *str)
     ++count;
     ++str;
 
-    if (count == BLE_PACKET_SIZE) { // full buffer - send it
-      buffer[count] = 0;            // null terminate the string
-      Serial1.print(buffer);        // send it
-      Serial1.flush();              // make sure it goes out
-      delay(BLE_DELAY);             // wait for transmission to avoid overrunning buffers
-      count = 0;
+    if (count == BLE_PACKET_SIZE) {   // full buffer - send it
+      flush_BLE();
     }
   } // while
+}
+
+// push a full or partial BLE packet out
+
+static void flush_BLE()
+{
+  if (count == 0)
+    return;
+
+  buffer[count] = 0;            // null terminate the string
+  Serial1.print(buffer);        // send it
+  Serial1.flush();              // make sure it goes out
+  delay(BLE_DELAY);             // wait for transmission to avoid overrunning buffers
+  count = 0;
 }
 
 // send any buffered characters
 void Serial_Flush_Output()
 {
-  // for BLE, where we have a buffer
-  if (count > 0) {
-    buffer[count] = 0;            // null terminate the string
-    Serial1.print(buffer);        // send it
-    Serial1.flush();              // make sure it goes out
-    delay(BLE_DELAY);             // wait for transmission to avoid overrunning buffers
-    count = 0;
-  }
+  // for packet buffer
+  if (packet_mode)
+    flush_packet();
 
-  // for normal serial (not sure what this does)
-  //if (Serial)
-  //   Serial.flush();
+  // for BLE, where we have another buffer
+  flush_BLE();
 }
 
 
@@ -311,25 +388,6 @@ Serial_Print_CRC (void)
   Serial_Flush_Output();          // force it to go out
 
   crc32_init();
-}
-
-// start an output packet (used to resend output)
-void
-Serial_Start_Recording(void)
-{
-  crc32_init ();          // reset for next time
-  if (!resend_buffer)
-    resend_buffer = (char *)malloc(MAX_RESEND_SIZE + 1);
-  resend_count = 0;       // empty resend buffer
-}
-
-// optional, releases some memory
-void Serial_Stop_Recording(void)
-{
-   if (resend_buffer)
-      free(resend_buffer);
-   resend_buffer = 0;
-   resend_count = 0;
 }
 
 #include <string.h>

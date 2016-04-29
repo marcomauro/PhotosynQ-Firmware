@@ -10,6 +10,9 @@
 
 /*
 
+  change 0,1 to before/after for environmentals
+  consider adding _raw option as "raw" option in json
+
   X test get_device_info - WORKS!  But set to a string (currently it's a long)
   test sensors in "environmental" make sure averages works as it should - WORKS!
   test par_to_dac an light_intensity_raw_to_par

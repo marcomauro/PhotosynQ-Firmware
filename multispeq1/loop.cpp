@@ -129,7 +129,7 @@ void do_command()
           MMA8653FC_read(&Xval, &Yval, &Zval);
           MAG3110_read(&Xcomp, &Ycomp, &Zcomp);
           delay(200);
-          for (unsigned i = 0; i < samples; ++i) {
+          for (int i = 0; i < samples; ++i) {
             sum += analogRead(HALL_OUT);
           }
           int hall = (sum / samples);
@@ -180,7 +180,7 @@ void do_command()
       print_calibrations();
       break;
     case 1007:
-      get_set_device_info(1);
+      get_set_device_info(0);
       break;
 
     case 1008:
@@ -497,6 +497,23 @@ void do_command()
       }
       break;
     case 1049:
+      //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for blank at thickness 1 (true blank), thickness 2 (1 piece of white paper), and thickness 3 (3 pieces of white paper), each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
+      for (;;) {
+        int led = Serial_Input_Double("+", 0);
+        if (led == -1) {                                    // user can bail with -1+ setting as LED
+          break;
+        }
+        else if (led > 0 || led < NUM_LEDS + 1) {
+          store(colorcal_blank1[led], Serial_Input_Double("+", 0));
+          store(colorcal_blank2[led], Serial_Input_Double("+", 0));
+          store(colorcal_blank3[led], Serial_Input_Double("+", 0));
+        }
+        else {
+          Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
+        }
+      }
+      break;
+    case 1050:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
         int userdefID = Serial_Input_Double("+", 0);
@@ -507,11 +524,11 @@ void do_command()
           store(userdef[userdefID], Serial_Input_Double("+", 0));
         }
         else {
-          Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", (sizeof(eeprom->userdef)/sizeof(float)));
+          Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", (sizeof(eeprom->userdef) / sizeof(float)));
         }
       }
       break;
-
+      
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
       break;
@@ -527,10 +544,6 @@ void do_command()
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
       break;
 
-    case 2200:
-      // switch to ascii packet mode - sends a CRC16 and EOT every n bytes (max 250) and waits for ACK/NAK/timeout
-      break;
-      
     case 4044:
       {
         // JZ test - do not remove
@@ -741,11 +754,7 @@ void do_protocol()
     } // for
   } // DEBUGSIMPLE
 
-  Serial_Printf("{\"device_id\":\"d4:f5:%x:%x:%x:%x\"",
-                (unsigned)eeprom->device_id >> 24,
-                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
-                ((unsigned)eeprom->device_id & 0xff00) >> 8,
-                (unsigned)eeprom->device_id & 0xff);
+  Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
   Serial_Printf(",\"device_firmware\":%s", DEVICE_FIRMWARE);
   if (year() >= 2016)
@@ -792,7 +801,7 @@ void do_protocol()
 
       for (int u = 0; u < protocols; u++) {                                                    // the number of times to repeat the current protocol
         JsonArray save_eeprom    = hashTable.getArray("save");
-        JsonArray recall_eeprom  = hashTable.getArray("recall");
+        JsonArray recall_eeprom  = hashTable.getArray("recall");                                // userdef values to recall
         JsonArray number_samples = hashTable.getArray("number_samples");                       // number of samples on the cap during sample + hold phase (default is 40);
         JsonArray reference =     hashTable.getArray("reference");                              // subtract reference value if set to 1 (also causes 1/2 the sample rate per detector) due to time constraints.  Default is no reference (== 0)
         uint16_t adc_show =       hashTable.getLong("adc_show");                                // this tells the MultispeQ to print the ADC values only instead of the normal data_raw (for signal quality debugging)
@@ -1577,6 +1586,7 @@ inline static void stopTimers() {
 
 // read/write userdef[] values from/to eeprom
 // example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
+// also be able to read other values defined in eeprom, like [{"recall":["light_slope_all","light_yint"]}]... this requires some interpretation akin to what's done in expressions
 
 static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
   int number_saves = _save_eeprom.getLength();                                // define these explicitly to make it easier to understand the logic
@@ -1891,7 +1901,7 @@ void print_calibrations() {
   Serial_Printf("\"thickness_b\": \"%f\",\n", eeprom->thickness_b);
   Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
   Serial_Print("\"par_to_dac_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
     }
@@ -1901,7 +1911,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"par_to_dac_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_yint[i]);
     }
@@ -1911,7 +1921,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"ir_baseline_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->ir_baseline_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_slope[i]);
     }
@@ -1921,7 +1931,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"ir_baseline_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_yint[i]);
     }
@@ -1931,7 +1941,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"colorcal_intensity1_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity1_slope[i]);
     }
@@ -1940,7 +1950,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity1_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity1_yint[i]);
     }
@@ -1949,7 +1959,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity2_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_slope[i]);
     }
@@ -1958,7 +1968,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity2_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_yint[i]);
     }
@@ -1967,7 +1977,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity3_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_slope[i]);
     }
@@ -1976,7 +1986,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity3_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
+  for (int i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_yint[i]);
     }
@@ -1984,7 +1994,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
     }
   }
-  for (unsigned i = 0; i < NUM_USERDEFS; i++) {
+  for (int i = 0; i < NUM_USERDEFS; i++) {
     if (i != NUM_USERDEFS - 1) {
       Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
     }

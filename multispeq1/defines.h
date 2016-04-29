@@ -55,10 +55,8 @@ const int PULSERDEBUG=0;   // uncomment to debug the pulser and detector
 #define PULSE9   25
 #define PULSE10  23
 
-
 // use this to store values to eeprom 
 #define store(location, value)   { typeof(value) f = value;  if (eeprom->location != f) eeprom->location = f;  while (!(FTFL_FCNFG & FTFL_FCNFG_EEERDY)) {} }
-
 
 const int NUM_LEDS=10;
 // map LED (1-10 not 0-9) to MCU pin

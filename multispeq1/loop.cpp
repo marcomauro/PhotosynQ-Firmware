@@ -1901,7 +1901,7 @@ void print_calibrations() {
   Serial_Printf("\"thickness_b\": \"%f\",\n", eeprom->thickness_b);
   Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
   Serial_Print("\"par_to_dac_slope\": [");
-  for (int i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
     }
@@ -1911,7 +1911,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"par_to_dac_yint\": [");
-  for (int i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_yint[i]);
     }
@@ -1921,7 +1921,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"ir_baseline_slope\": [");
-  for (int i = 0; i < sizeof(eeprom->ir_baseline_slope) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_slope[i]);
     }
@@ -1931,7 +1931,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"ir_baseline_slope\": [");
-  for (int i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_yint[i]);
     }
@@ -1941,7 +1941,7 @@ void print_calibrations() {
   }
 
   Serial_Print("\"colorcal_intensity1_slope\": [");
-  for (int i = 0; i < sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity1_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity1_slope[i]);
     }
@@ -1950,7 +1950,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity1_yint\": [");
-  for (int i = 0; i < sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity1_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity1_yint[i]);
     }
@@ -1959,7 +1959,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity2_slope\": [");
-  for (int i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_slope[i]);
     }
@@ -1968,7 +1968,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity2_yint\": [");
-  for (int i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_yint[i]);
     }
@@ -1977,7 +1977,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity3_slope\": [");
-  for (int i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_slope[i]);
     }
@@ -1986,7 +1986,7 @@ void print_calibrations() {
     }
   }
   Serial_Print("\"colorcal_intensity3_yint\": [");
-  for (int i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_yint[i]);
     }
@@ -1994,7 +1994,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
     }
   }
-  for (int i = 0; i < NUM_USERDEFS; i++) {
+  for (unsigned i = 0; i < NUM_USERDEFS; i++) {
     if (i != NUM_USERDEFS - 1) {
       Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
     }

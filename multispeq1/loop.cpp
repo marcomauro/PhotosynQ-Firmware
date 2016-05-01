@@ -59,7 +59,9 @@ void loop() {
       continue;             // nothing available, try again
 
     activity();             // record fact that we have seen activity (used with powerdown())
-
+    crc32_init();
+    Serial_Flush_Output();
+  
     if (c == '[')
       break;                // start of json, exit this for loop to process it
 
@@ -80,6 +82,7 @@ void loop() {
 
 } // loop()
 
+// =========================================
 
 // globals - try to avoid
 static uint8_t _meas_light;                    // measuring light to be used during the interrupt
@@ -672,8 +675,6 @@ void do_command()
 
   }  // switch()
 
-  Serial_Flush_Output();     // force all output to go out
-
 } // do_command()
 
 // read in and execute a protocol
@@ -718,20 +719,22 @@ void do_protocol()
     json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
   }
 
+
   { // create limited scope for serial_buffer
     char serial_buffer[serial_buffer_size + 1];     // large buffer for reading in a json protocol from serial port
 
     Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);       // input the protocol
 
     if (!check_protocol(serial_buffer)) {         // sanity check
-      Serial_Print("{[{\"error\":\"bad json protocol\"}");
-      goto abort;
+      Serial_Print("{\"error\":\"bad json protocol (braces or CRC) got:\"}");
+      Serial_Print(serial_buffer);
+      return;
     }
 
     // break up the protocol into individual jsons
 
     // TODO improve this - use in place, stretch it in place or copy to new C strings?
-    // make json2 an array of pointers to each protocol
+    // make json2 an array of char pointers to each protocol
     for (unsigned i = 1; i < strlen(serial_buffer); i++) {         // increments through each char in incoming transmission - if it's open curly, it saves all chars until closed curly.  Any other char is ignored.
       if (serial_buffer[i] == '{') {                               // wait until you see a open curly bracket
         while (serial_buffer[i] != '}') {                          // once you see it, save incoming data to json2 until you see closed curly bracket
@@ -754,7 +757,7 @@ void do_protocol()
     } // for
   } // DEBUGSIMPLE
 
-  Serial_Printf("{\"device_id\":%ld", eeprom->device_id);
+  Serial_Printf("{\"device_id\":%ld", eeprom->device_id);   // change to : format?
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
   Serial_Printf(",\"device_firmware\":%s", DEVICE_FIRMWARE);
   if (year() >= 2016)
@@ -776,15 +779,13 @@ void do_protocol()
       JsonHashTable hashTable;
       JsonParser<MAX_JSON_ELEMENTS> root;
       char json[json2[q].length() + 1];                                     // we need a writeable C string
-
       strncpy(json, json2[q].c_str(), json2[q].length());
       json[json2[q].length()] = '\0';                                       // Add closing character to char*
       json2[q] = "";                                                        // attempt to release the String memory
       hashTable = root.parseHashTable(json);                                // parse it
       if (!hashTable.success()) {                                           // NOTE: if the incomign JSON is too long (>~5000 bytes) this tends to be where you see failure (no response from device)
-        Serial_Print("{\"error\":\"JSON not recognized, or other failure with Json Parser\"}, the data JSON we received is: ");
+        Serial_Print("{\"error\":\"JSON failure with:\"}");
         Serial_Print(json);
-        Serial_Flush_Output();
         goto abort;
       }
 
@@ -1539,6 +1540,7 @@ abort:
 
   Serial_Print("]}");                // terminate output json
   Serial_Print_CRC();
+  Serial_Flush_Output();
 
   act_background_light = 0;          // ??
 

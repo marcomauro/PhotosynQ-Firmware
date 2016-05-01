@@ -223,8 +223,9 @@ static void print_packet(const char *str)
     ++packet_count;
     ++str;
 
-    if (packet_count == PACKET_SIZE)  // full buffer - send it
+    if (packet_count == PACKET_SIZE) {  // full buffer - send it
       flush_packet();
+    }
 
   } // while
 }  // print_packet()
@@ -261,7 +262,7 @@ static void flush_BLE()
     return;
 
   buffer[count] = 0;            // null terminate the string
-  Serial1.print(buffer);        // send it
+  Serial1.print(buffer);        // send it  FIXME
   Serial1.flush();              // make sure it goes out
   delay(BLE_DELAY);             // wait for transmission to avoid overrunning buffers
   count = 0;
@@ -408,13 +409,13 @@ char *Serial_Input_Chars(char *string, const char *terminators, long unsigned in
     if (timeout > 0 && (millis() - start) > timeout)  // timeout
       break;                                          // done
 
-    if (c == -1) continue;    // nothing available
+    if (c == -1) continue;                            // nothing available
 
     char b = Serial_Read();
-    if (strchr(terminators, b))                     // terminator char seen - throw it away
+    if (strchr(terminators, b))                       // terminator char seen - throw it away
       break;
 
-    string[count++] = b;                            // add to string
+    string[count++] = b;                              // add to string
 
     if (max_length > 0 && count >= max_length)        // too long
       break;

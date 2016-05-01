@@ -305,7 +305,7 @@ void setup() {
   Serial_Print_Line(" *C");
 #endif
 #endif
-
+  
   PAR_init();               // color sensor
 
   eeprom_initialize();      // eeprom
@@ -321,12 +321,10 @@ void setup() {
   Serial_Print(DEVICE_NAME);
   Serial_Print_Line(" Ready");
 
-
 }  // setup()
 
 
-
-
+//======================================
 
 // read/write device_id and manufacture_date to eeprom
 
@@ -598,9 +596,10 @@ int check_protocol(char *str)
     return 0;                 // bad CRC
   }
 
+  *ptr = 0;                   // remove the CRC
+
   return 1;                   // CRC is OK
 } // check_protocol()
-
 
 const unsigned long SHUTDOWN = 10000;   // power down after X ms of inactivity
 static unsigned long last_activity = millis();

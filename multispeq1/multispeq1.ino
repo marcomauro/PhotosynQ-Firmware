@@ -224,7 +224,7 @@ void setup() {
   // set up serial ports (Serial and Serial1)
   Serial_Set(4);
   Serial_Begin(57600);
-   
+
 #ifdef DEBUGSIMPLE
   Serial_Print_Line("serial works");
 #endif
@@ -305,7 +305,7 @@ void setup() {
   Serial_Print_Line(" *C");
 #endif
 #endif
-  
+
   PAR_init();               // color sensor
 
   eeprom_initialize();      // eeprom
@@ -317,6 +317,16 @@ void setup() {
   //Serial_Printf("expr = %f\n",expr("userdef1/2"));  // userdef1 is from eeprom
 
   //  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
+
+#ifdef PACKET_TEST
+  extern int packet_mode;
+  packet_mode = 1;
+  Serial_Set(2);
+  Serial_Print_Line("This is a long test.  Does it work?  We may never know.  There are always hidden bugs.");
+  Serial_Flush_Output();
+  packet_mode = 0;
+  Serial_Set(4);
+#endif
 
   Serial_Print(DEVICE_NAME);
   Serial_Print_Line(" Ready");

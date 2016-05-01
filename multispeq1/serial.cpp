@@ -146,29 +146,30 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
 }  // Serial_Print(char *)
 
 
-uint16_t crc16(const char* data_p, unsigned char length){
-    unsigned char x;
-    uint16_t crc = 0xFFFF;
+uint16_t crc16(const char* data_p, unsigned char length) {
+  unsigned char x;
+  uint16_t crc = 0xFFFF;
 
-    while (length--){
-        x = crc >> 8 ^ *data_p++;
-        x ^= x>>4;
-        crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x <<5)) ^ ((uint16_t)x);
-    }
-    return crc;
+  while (length--) {
+    x = crc >> 8 ^ *data_p++;
+    x ^= x >> 4;
+    crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x << 5)) ^ ((uint16_t)x);
+  }
+  return crc;
 }
 
 // output to the BLE serial port, but buffer it up into packets with a retry protocol
 
 #define PACKET_SIZE 34
 #define STX 02
-//#define ETX 04
-#define ETX 'X'
+#define ETX 04
+//#define ETX 'X'  
 #define ACK 06
+//#define ACK 'Z'   
 
 static char packet_buffer[PACKET_SIZE + 4 + 1 + 1] = {STX};  // extra room for CRC then ETX then null
 static int packet_count = 0;                                 // how many bytes in the above buffer
-const int RETRIES=4;
+const int RETRIES = 4;
 
 // push a full or partial packet out
 // retry until ACK
@@ -179,7 +180,7 @@ static void flush_packet()
     return;
 
   // calc and add ascii CRC (exactly 4 chars)
-  uint16_t crc = crc16(packet_buffer,packet_count);
+  uint16_t crc = crc16(packet_buffer, packet_count);
   const char nybble_chars[] = "0123456789ABCDEF";
   packet_buffer[packet_count++] = nybble_chars[(crc >> 12) & 0xf];
   packet_buffer[packet_count++] = nybble_chars[(crc >> 8) & 0xf];;
@@ -192,25 +193,30 @@ static void flush_packet()
   // add null
   packet_buffer[packet_count] = '\0';
 
-  Serial.setTimeout(100);
-
   // keep sending it until we get an ACK or we give up
   for (int i = 0; i < RETRIES; ++i) {
-     while (Serial.available())            // flush input
-        Serial.read();
-    //Serial_Print_BLE(packet_buffer);     // send it
-    Serial.print(packet_buffer);     // send it
-    //flush_BLE();                         // force all of it out
+    while (Serial.available())            // flush input
+      Serial.read();
+    Serial_Print_BLE(packet_buffer);     // send it
+    //Serial.print(packet_buffer);     // send it
+    flush_BLE();                         // force all of it out
+    
     // look for ACK or timeout
-    char c=0;
-    Serial.readBytesUntil(ACK,&c,1);
+    unsigned char c = 0;
+    unsigned t = millis();
+    while (millis() - t < 500) {
+      if (Serial.peek() != -1) {
+        c = Serial.read();
+        break;
+      }
+    } // while
+    //Serial.printf("got %c %d\n", c, c);
     if (c == ACK)
-       break;
+      break;
   } // for
 
   packet_count = 0;      // start new packet
 }  // flush_packet()
-
 
 // add to output packet, send as needed
 

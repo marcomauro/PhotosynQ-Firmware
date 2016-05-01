@@ -59,15 +59,17 @@ void loop() {
       continue;             // nothing available, try again
 
     activity();             // record fact that we have seen activity (used with powerdown())
+
     crc32_init();
-    Serial_Flush_Output();
-  
+        
     if (c == '[')
       break;                // start of json, exit this for loop to process it
 
     // received a non '[' char - processs n+ command
 
     do_command();
+
+    Serial_Flush_Output();
 
   } // for
 
@@ -77,6 +79,8 @@ void loop() {
   // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]<newline>
 
   do_protocol();
+
+  Serial_Flush_Output();
 
   return;
 
@@ -542,7 +546,25 @@ void do_command()
 
     case 1100:       
       break;
-
+    case 1101:
+        {
+        Serial_Print("let's start with a test, this is more than 20 chars long.\n");
+        Serial_Flush_Output();
+        char c[2];
+        int count = 0;
+        c[1] = 0;
+        for (;;)  {
+            c[0] = Serial_Read();
+            Serial_Print(c);
+            if (c[0] < ' ') continue;
+            ++count;
+            if (c[0] == 'X')
+               break;
+        } // for
+        Serial_Printf("%d chars\n",count);
+        Serial_Flush_Output();
+                }
+        break;
     case 2000:
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
       break;

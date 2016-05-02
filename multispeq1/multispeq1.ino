@@ -292,17 +292,19 @@ void setup() {
     //uint32_t mv = (178 * x * x + 2688757565 - 1184375 * x) / 372346; // milli-volts input to MCU, clips at ~3500
     //assert(mv > 3400);      // voltage is too low for proper operation
   }
-  analogReference(INTERNAL);   // 1.10V
+  analogReference(INTERNAL);   // 1.20V
 
+Serial.print("hello\n");
+
+#define BME280
 #ifdef BME280
+Adafruit_BME280 bme;
   // pressure/humidity/temp sensors
   // note: will need 0x76 or 0x77 to support two chips
-  //  assert (bme.begin(0x76) && bme2.begin(0x77));
-
-#ifdef DEBUGSIMPLE
-  Serial_Print("BME280 Temperature = ");
-  Serial_Print(bme.readTemperature());
-  Serial_Print_Line(" *C");
+  assert (bme.begin(0x77));
+  //assert (bme2.begin(0x77));
+#if 1
+  Serial_Printf("BME280 Temperature = %fC and %fC",bme.readTemperature(),bme.readTemperature());
 #endif
 #endif
 
@@ -640,7 +642,7 @@ void activity() {
 // This should run just before any new protocol - if it’s too low, report to the user
 // return 1 if too low, otherwise 0
 
-const float MIN_BAT_LEVEL (((3.4 / 2) / 2.56) * 65536); // 3.4V min battery voltage, 2x voltage divider, 2.56V reference, 16 bit ADC
+const float MIN_BAT_LEVEL (3.4 * (16./(16+47)) * (65536/1.2)); // 3.4V min battery voltage, voltage divider, 1.2V reference, 16 bit ADC
 
 int battery_low()
 {
@@ -678,7 +680,7 @@ int battery_low()
   // turn off BATT_ME (let float)
   pinMode(BATT_ME, INPUT);
 
-  Serial_Printf("bat = %d counts %fV\n", value, value * (2.56 / 65536));
+  Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
 
   if (value  < MIN_BAT_LEVEL) {
     pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)

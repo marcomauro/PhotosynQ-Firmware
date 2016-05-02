@@ -161,13 +161,12 @@ uint16_t crc16(const char* data_p, unsigned char length) {
 // output to the BLE serial port, but buffer it up into packets with a retry protocol
 
 #define PACKET_SIZE 34
-#define STX 02
 #define ETX 04
 //#define ETX 'X'  
 #define ACK 06
 //#define ACK 'Z'   
 
-static char packet_buffer[PACKET_SIZE + 4 + 1 + 1] = {STX};  // extra room for CRC then ETX then null
+static char packet_buffer[PACKET_SIZE + 4 + 1 + 1];  // extra room for CRC then ETX then null
 static int packet_count = 0;                                 // how many bytes in the above buffer
 const int RETRIES = 4;
 
@@ -400,7 +399,7 @@ Serial_Print_CRC (void)
 #include <string.h>
 
 // read a string, terminating on any of:
-//   1) time (in ms) runs out
+//   1) time (in ms) runs out (since last char received)
 //   2) a terminating character is received
 //   3) input length = max_length (string should be one larger to hold the terminating null)
 
@@ -420,6 +419,8 @@ char *Serial_Input_Chars(char *string, const char *terminators, long unsigned in
     char b = Serial_Read();
     if (strchr(terminators, b))                       // terminator char seen - throw it away
       break;
+
+    start = millis();                                 // restart interval
 
     string[count++] = b;                              // add to string
 

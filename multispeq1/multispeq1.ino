@@ -296,7 +296,7 @@ void setup() {
 
 Serial.print("hello\n");
 
-#define BME280
+//#define BME280
 #ifdef BME280
 Adafruit_BME280 bme;
   // pressure/humidity/temp sensors
@@ -622,7 +622,7 @@ static unsigned long last_activity = millis();
 void powerdown() {
   // send command to BLE module by setting XX low
   // has no effect if USB is plugged in
-#if 0
+
   if (millis() - last_activity > SHUTDOWN) {
     //Serial_Print_Line("powerdown"); delay(10000);
     // send request to BLE module to power down this MCU
@@ -631,8 +631,8 @@ void powerdown() {
   } else {
     pinMode(POWERDOWN_REQUEST, INPUT);                // active, let it float high
   }
-#endif
-}
+}  // powerdown()
+
 // record that we have seen serial port activity (used with powerdown())
 void activity() {
   last_activity = millis();

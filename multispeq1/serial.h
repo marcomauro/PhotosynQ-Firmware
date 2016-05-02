@@ -43,7 +43,7 @@ void Serial_Print_CRC (void);
 // useful for error checking
 #define assert(condition) \
  if (!(condition)) { \
-    Serial_Printf("\"error\": \"in %s, line %d\"", __FILE__, __LINE__); \
+    Serial_Printf("\"error\":\"in %s, line %d\"", __FILE__, __LINE__); \
  }
 
 // could be useful with assert()

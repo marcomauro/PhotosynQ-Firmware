@@ -238,7 +238,7 @@ void setup() {
   //  Serial_Print_Line("SPI works");
 
   // initialize DACs
-  DAC_init();
+//  DAC_init();
 
   // set up MCU pins
 
@@ -294,22 +294,21 @@ void setup() {
   }
   analogReference(INTERNAL);   // 1.20V
 
-Serial.print("hello\n");
+//Serial.print("hello\n");
 
-//#define BME280
+#define BME280
 #ifdef BME280
-Adafruit_BME280 bme;
-  // pressure/humidity/temp sensors
-  // note: will need 0x76 or 0x77 to support two chips
-  assert (bme.begin(0x77));
-  //assert (bme2.begin(0x77));
-#if 1
-  Serial_Printf("BME280 Temperature = %fC and %fC",bme.readTemperature(),bme.readTemperature());
-#endif
+// pressure/humidity/temp sensors
+// note: will need 0x76 or 0x77 to support two chips
+bme1.begin(0x77);
+Serial_Printf("BME2801 Temperature = %fC, Humidity = %fC\n",bme1.readTemperature(),bme1.readHumidity());
+bme2.begin(0x76);
+Serial_Printf("BME2802 Temperature = %fC, Humidity = %fC\n",bme2.readTemperature(),bme2.readHumidity());
+//  assert (bme2.begin(0x77));
+//  assert (bme.begin(0x76));
 #endif
 
   PAR_init();               // color sensor
-
   eeprom_initialize();      // eeprom
 
 #undef DEBUGSIMPLE

@@ -140,6 +140,10 @@ EXTERN int x_tilt_raw, y_tilt_raw, z_tilt_raw;
 EXTERN float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
 
 EXTERN float temperature, humidity, pressure;
+EXTERN float temperature_averaged, humidity_averaged, pressure_averaged;
+
+EXTERN float temperature2, humidity2, pressure2;
+EXTERN float temperature2_averaged, humidity2_averaged, pressure2_averaged;
 
 // pressure/temp/humidity sensors
 EXTERN Adafruit_BME280 bme1;        // I2C sensor

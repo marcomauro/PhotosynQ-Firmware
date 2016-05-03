@@ -141,7 +141,16 @@ void do_command()
           }
           int hall = (sum / samples);
           delay(1);
-          Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+          bme1.begin(0x77);
+          bme2.begin(0x76);
+          float temperature1 = bme1.readTemperature();
+          float temperature2 = bme2.readTemperature();
+          float relative_humidity1= bme1.readHumidity();
+          float relative_humidity2= bme2.readHumidity();
+          float pressure1= bme1.readPressure() / 100;
+          float pressure2= bme2.readPressure() / 100;
+          Serial_Printf("{\"par_raw\":%d,\"temperature\":%f,\"relative_humidity\":%f,\"pressure\":%f,\"temperature2\":%f,\"relative_humidity2\":%f,\"pressure2\":%f,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw,temperature1, relative_humidity1,pressure1,temperature2, relative_humidity2,pressure2,contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+//          Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
           Serial_Print_CRC();
         }
       }
@@ -1009,7 +1018,11 @@ void do_protocol()
         x_tilt_raw_averaged = 0, y_tilt_raw_averaged = 0, z_tilt_raw_averaged = 0;
 
         temperature = humidity = pressure = 0;
+        temperature_averaged = humidity_averaged = pressure_averaged = 0;
 
+        temperature2 = humidity2 = pressure2 = 0;
+        temperature2_averaged = humidity2_averaged = pressure2_averaged = 0;
+        
         //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
         //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
 
@@ -1655,18 +1668,33 @@ int abort_cmd()
       In addition, there are often raw and calibrated versions of sensors, like raw tcs value versus the PAR value, or raw hall sensor versus calibrated thickness.
       As a result, for most sensors there is the base version (like x_tilt) which is available in that measurment, an averaged version (like x_tilt_averaged) which is outputted after averaging, and raw versions of each of those (x_tilt_raw and x_tilt_raw_averaged)
 */
-void get_temperature_humidity_pressure (int _averages) {
-  // TODO
-  /*
-    if (notRaw == 0) {                                              // save the raw values average
-    }
-    if (notRaw == 1) {                                              // save the calibrated values and average
-    }
-  */
+void get_temperature_humidity_pressure (int _averages) {    // read temperature, relative humidity, and pressure BME280 module
+
+  bme1.begin(0x77);                                     // initialize BME1
+
+  temperature = bme1.readTemperature();                // temperature in C
+  humidity= bme1.readHumidity();                       // humidity in %
+  pressure = bme1.readPressure()/100;                 // pressure in millibar
+
+  temperature_averaged += temperature / _averages;                // same as above, but averaged if API requests averaging
+  humidity_averaged += humidity / _averages;
+  pressure_averaged += pressure / _averages;
+
 }
 
-// read IR temp sensor
-// TODO - so if the user aborts, the averages are incorrect?
+void get_temperature_humidity_pressure2 (int _averages) {    // read temperature, relative humidity, and pressure BME280 module
+
+  bme2.begin(0x76);                                     // initialize BME2
+
+  temperature2 = bme2.readTemperature();
+  humidity2 = bme2.readHumidity();
+  pressure2 = bme2.readPressure()/100;
+
+  temperature2_averaged += temperature2 / _averages;                // collect temp, rh, and humidity data (averaged if API requests averaging)
+  humidity2_averaged += humidity2 / _averages;
+  pressure2_averaged += pressure2 / _averages;
+
+}
 
 float get_contactless_temp (int _averages) {
   contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
@@ -1748,7 +1776,13 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
       get_temperature_humidity_pressure(_averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"temp\":%f,\"humidity\":%f,\"pressure\":%f,", temperature, humidity, pressure);
+        Serial_Printf("\"temperature\":%f,\"humidity\":%f,\"pressure\":%f,", temperature_averaged, humidity_averaged, pressure_averaged);
+      }
+    }
+    if ((String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure2") {                   // measure light intensity with par calibration applied
+      get_temperature_humidity_pressure2(_averages);
+      if (count == _averages - 1) {
+        Serial_Printf("\"temperature2\":%f,\"humidity2\":%f,\"pressure2\":%f,", temperature2_averaged, humidity2_averaged, pressure2_averaged);
       }
     }
 

@@ -54,8 +54,7 @@
 
   Android to check for empty ID (if all 0s, or all 1s, then set api call to make unique ID == BLE mac address.
   Check protocol routines (produce error codes if fail):
-   Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  This should run just before any new protocol - if it’s too low, report to the user
-   What's a reasonable value for minimum voltage while pulsing?
+  X Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.  This should run just before any new protocol - if it’s too low, report to the user
    (greg) Overheat LED check: adds up time + intensity + pulsesize and length of pulses, and calculates any overages.  Report overages - do not proceed if over.  Also needs a shutoff which is available through a 1000 call.
    Syntax check: make sure that the structure of the JSON is correct, report corrupted
    x Jon - CRC check: so we expect CRC on end of protocol JSON, and check to make sure it’s valid.  Report corrupted
@@ -71,8 +70,8 @@
   Attach par sensor to USB-C breakout, make calibration routine.
   Look up and see why iOS doesn’t connect to BLE.
   Test the power down feature from the bluetooth.  Determine how long it takes when powered down to come back to life (from bluetooth).  Include auto power off in the main while loop - auto-off after 10 seconds.
+  Test BLE packet mode 
   Troubleshoot issues with bluetooth between protocols.
-
 
   Start documenting the commands + parameters to pass…
   And the eeprom commands
@@ -98,7 +97,7 @@
 
    Note: code for each function should have some intial comments describing what it does
 
-   Note: eeprom writing needs refactoring - eliminate all EEPROMxAnything()
+   X Note: eeprom writing needs refactoring - eliminate all EEPROMxAnything()
 
    Here's the remaining commands in this file which should be moved.  I've organized them by function.  Actually this will be nice as some of them need to be renamed and cleaned up anyway.
 
@@ -140,8 +139,6 @@
 
   // Device info command
   set_device_info
-
-  // EEPROMxAnything - delete this and use new eeprom.h
 
   NEXT STEPS:
 
@@ -318,7 +315,7 @@ Adafruit_BME280 bme;
   //double expr(const char s[]);
   //Serial_Printf("expr = %f\n",expr("userdef1/2"));  // userdef1 is from eeprom
 
-  //  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
+  assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
 #ifdef PACKET_TEST
   extern int packet_mode;
@@ -353,10 +350,10 @@ void get_set_device_info(const int _set) {
     return;
   }
 
-  if (_set == 1) { // jon! again here we need 6 bytes in character format to be saved
+  if (_set == 1) { 
     long val;
 
-    // please enter new device ID (lower 6 bytes of BLE MAC address) followed by '+'
+    // please enter new device ID (lower 4 bytes of BLE MAC address as a long int) followed by '+'
     Serial_Print_Line("{\"message\": \"Please enter device mac address (long int) followed by +: \"}\n");
     val =  Serial_Input_Long("+", 0);              // save to eeprom
     store(device_id, val);              // save to eeprom
@@ -620,7 +617,7 @@ static unsigned long last_activity = millis();
 // note: if USB power is connected, power down is not possible
 
 void powerdown() {
-  // send command to BLE module by setting XX low
+  // send command to BLE module by setting pin low
   // has no effect if USB is plugged in
 
   if (millis() - last_activity > SHUTDOWN) {
@@ -649,6 +646,13 @@ int battery_low()
   // pull batt_me line low
   pinMode(BATT_ME, OUTPUT);               // battery measurement enable (active low)
   digitalWriteFast(BATT_ME, LOW);
+  delay(20);
+
+  // find voltage before high load
+  uint32_t intial_value = 0;
+  for (int i = 0 ; i < 100; ++i)
+    initial_value += analogRead(BATT_TEST);  // test A10 analog input
+  initial_value /= 100;
 
   // set DAC values to 1/4 of full output to create load
   DAC_set(1, 4096 / 4);
@@ -664,11 +668,11 @@ int battery_low()
   digitalWriteFast(PULSE5, 1);
   digitalWriteFast(PULSE6, 1);
 
-  delayMicroseconds(20);          // TODO?  How long to drain power supply capacitance?
+  delay(20);          // there a slow filter on the circuit
 
   uint32_t value = 0;
   for (int i = 0 ; i < 100; ++i)
-    value += analogRead(BATT_TEST);  // test A10 analog input (should have a 50% voltage divider and the ADC uses 2.56V reference)
+    value += analogRead(BATT_TEST);  // test A10 analog input 
   value /= 100;
 
   // turn off 4 LEDs
@@ -680,18 +684,14 @@ int battery_low()
   // turn off BATT_ME (let float)
   pinMode(BATT_ME, INPUT);
 
-  Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
+  //Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
 
   if (value  < MIN_BAT_LEVEL) {
     pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
-    digitalWriteFast(POWERDOWN_REQUEST, LOW);
+    digitalWrite(POWERDOWN_REQUEST, LOW);
     return 1;                  // too low
   }
-  return 0;
+  return 0;  // OK
 
 } // battery_low()
-
-
-
-
 

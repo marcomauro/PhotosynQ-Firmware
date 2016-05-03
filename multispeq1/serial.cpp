@@ -160,7 +160,7 @@ uint16_t crc16(const char* data_p, unsigned char length) {
 
 // output to the BLE serial port, but buffer it up into packets with a retry protocol
 
-#define PACKET_SIZE 34
+#define PACKET_SIZE 35
 #define ETX 04
 //#define ETX 'X'  
 #define ACK 06

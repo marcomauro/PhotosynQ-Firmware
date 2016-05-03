@@ -62,7 +62,7 @@ Begin I2C, get current values (input register and eeprom) of mcp4728
 */
 void mcp4728::begin()
 {
-  Wire.begin();
+  // Wire.begin();  // JZ - already done
   getStatus();
 }
 /*

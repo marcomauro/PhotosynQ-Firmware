@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <stdint.h>
-#include "utility/SparkFunBME280.h"      // temp/humidity/pressure sensor
+#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
 
 //#define DEBUG 1         // uncomment to add full debug features
 const int DEBUGSIMPLE= 0;   // uncomment to add partial debug features
@@ -55,11 +55,13 @@ const int PULSERDEBUG=0;   // uncomment to debug the pulser and detector
 #define PULSE9   25
 #define PULSE10  23
 
-// use this to store values to eeprom 
-#define store(location, value)   { typeof(value) f = value;  if (eeprom->location != f) eeprom->location = f;  while (!(FTFL_FCNFG & FTFL_FCNFG_EEERDY)) {} }
 
-const int NUM_LEDS=10;
-// map LED (1-10 not 0-9) to MCU pin
+// use this to store values to eeprom 
+#define store_float(location, value)   { float f = value;  if (eeprom->location != f) eeprom->location = f; delay(1); }
+
+
+const unsigned NUM_LEDS=10;
+// map LED (1-10) to MCU pin
 const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
 
 // bluetooth
@@ -84,7 +86,7 @@ const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PUL
 // check data sheet for ISET... pull high or low?
 #define ISET     28          // controls charge rate (deprecated)
 #define POWERDOWN_REQUEST 28   // request that BLE module turn off MCU power
-#define BATT_ME  33           // to activate battery voltage sampling
+#define BATT_ME  33
 #define BATT_TEST 34
 
 /*NOTES*/// blank pin (used when no other pin is selected - probably should change this later
@@ -101,6 +103,8 @@ float stdev16(uint16_t array[], const int n);
 int check_protocol(char *str);
 
 
+// use this to store values to eeprom 
+#define store_float(location, value)   { float f = value;  if (eeprom->location != f) eeprom->location = f; delay(1); }
 
 /*
  * Sensor-related variables which are accessed in loop
@@ -140,14 +144,10 @@ EXTERN int x_tilt_raw, y_tilt_raw, z_tilt_raw;
 EXTERN float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
 
 EXTERN float temperature, humidity, pressure;
-EXTERN float temperature_averaged, humidity_averaged, pressure_averaged;
-
-EXTERN float temperature2, humidity2, pressure2;
-EXTERN float temperature2_averaged, humidity2_averaged, pressure2_averaged;
 
 // pressure/temp/humidity sensors
-EXTERN BME280 bme1;        // I2C sensor
-EXTERN BME280 bme2;
+EXTERN Adafruit_BME280 bme1;        // I2C sensor
+EXTERN Adafruit_BME280 bme2;       // I2C sensor
 
 // Coral SpeQ
 //////////////////////PIN DEFINITIONS FOR CORALSPEQ////////////////////////
@@ -160,11 +160,7 @@ EXTERN BME280 bme2;
 //#define LED2200k       16
 //#define LED470         20
 //#define LED2200K       2
-#if CORAL_SPEQ
 #define SPEC_CHANNELS    256
-#else
-#define SPEC_CHANNELS 1                  // save memory
-#endif
 EXTERN uint16_t spec_data[SPEC_CHANNELS];
 EXTERN unsigned long spec_data_average[SPEC_CHANNELS];            // saves the averages of each spec measurement
 EXTERN int idx;

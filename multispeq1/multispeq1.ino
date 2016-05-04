@@ -232,7 +232,7 @@ void setup() {
   //  Serial_Print_Line("SPI works");
 
   // initialize DACs
-  //  DAC_init();
+  DAC_init();
 
   // set up MCU pins
 
@@ -289,16 +289,13 @@ void setup() {
   analogReference(INTERNAL);   // 1.20V
 
   // pressure/humidity/temp sensors
-  // note: will need 0x76 or 0x77 to support two chips
   bme1.begin(0x77);
-  Serial_Printf("BME2801 Temperature = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
+  //Serial_Printf("BME2801 Temperature = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
   bme2.begin(0x76);
-  Serial_Printf("BME2802 Temperature = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
+  //Serial_Printf("BME2802 Temperature = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
 
   PAR_init();               // color sensor
   eeprom_initialize();      // eeprom
-
-#undef DEBUGSIMPLE
 
   // test expressions - works! pass it a string and it is evaluated
   //double expr(const char s[]);
@@ -632,8 +629,8 @@ const float MIN_BAT_LEVEL (3.4 * (16. / (16 + 47)) * (65536 / 1.2)); // 3.4V min
 
 int battery_low()
 {
-  // pull batt_me line low
-  pinMode(BATT_ME, OUTPUT);               // battery measurement enable (active low)
+  // enable bat measurement 
+  pinMode(BATT_ME, OUTPUT);               
   digitalWriteFast(BATT_ME, LOW);
   delay(20);
 
@@ -659,6 +656,7 @@ int battery_low()
 
   delay(20);          // there a slow filter on the circuit
 
+  // value after load
   uint32_t value = 0;
   for (int i = 0 ; i < 100; ++i)
     value += analogRead(BATT_TEST);  // test A10 analog input
@@ -675,6 +673,8 @@ int battery_low()
 
   //Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
 
+  // TODO - make use of intial value?
+  
   if (value  < MIN_BAT_LEVEL) {
     pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
     digitalWrite(POWERDOWN_REQUEST, LOW);

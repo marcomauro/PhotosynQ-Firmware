@@ -6,7 +6,7 @@
 // Jon Zeeff 2016
 
 // WARNING: Serial_Printf() is limited to 200 characters per call
-// Zero is used as a string terminator - it can't be sent/received
+// Zero is used as a string terminator - it can't be sent. Nor can ETX.
 
 // Should change this to C++ and a class
 
@@ -38,6 +38,13 @@ void Serial_Flush_Input(void)
 {
   while (Serial_Available())
     Serial_Read();
+}
+
+// TODO send a SYN/keepalive, but only if 10 seconds have passed
+void Serial_SYN(void)
+{
+
+  
 }
 
 // specify which ports to send output to
@@ -146,6 +153,8 @@ Serial_Print (const char *str)    // other Serial_Print() routines call this one
 }  // Serial_Print(char *)
 
 
+// CCIT CRC16
+
 uint16_t crc16(const char* data_p, unsigned char length) {
   unsigned char x;
   uint16_t crc = 0xFFFF;
@@ -166,16 +175,17 @@ uint16_t crc16(const char* data_p, unsigned char length) {
 #define ACK 06
 //#define ACK 'Z'   
 
-static char packet_buffer[PACKET_SIZE + 4 + 1 + 1];  // extra room for CRC then ETX then null
-static int packet_count = 0;                                 // how many bytes in the above buffer
+static char packet_buffer[PACKET_SIZE + 4 + 1 + 1];  // extra room for CRC then ETX then null - multiple of 20 + 1
+static int packet_count = 0;                         // how many bytes currently in the above buffer
 const int RETRIES = 4;
+const int RETRY_DELAY=200;       // ms
 
 // push a full or partial packet out
-// retry until ACK
+// retry until ACK, give up eventually
 
 static void flush_packet()
 {
-  if (packet_count == 0)
+  if (packet_count == 0)     // we have nothing buffered, don't send an empty packet
     return;
 
   // calc and add ascii CRC (exactly 4 chars)
@@ -194,28 +204,33 @@ static void flush_packet()
 
   // keep sending it until we get an ACK or we give up
   for (int i = 0; i < RETRIES; ++i) {
-    while (Serial.available())            // flush input
-      Serial.read();
-    Serial_Print_BLE(packet_buffer);     // send it
-    //Serial.print(packet_buffer);     // send it
-    flush_BLE();                         // force all of it out
+
+    while (Serial1.available())           // flush input
+      Serial1.read();
+
+    Serial_Print_BLE(packet_buffer);     // send data
+    flush_BLE();                         // force it out
     
-    // look for ACK or timeout
+    // look for ACK, NAK or timeout
     unsigned char c = 0;
     unsigned t = millis();
-    while (millis() - t < 500) {
-      if (Serial.peek() != -1) {
-        c = Serial.read();
+
+    while (millis() - t < RETRY_DELAY) {     
+      if (Serial1.peek() != -1) {
+        c = Serial1.read();           // got some character (probably ACK or NAK)
         break;
       }
     } // while
-    //Serial.printf("got %c %d\n", c, c);
+
     if (c == ACK)
-      break;
+      break;                         // note: any other character will cause a retry
+
   } // for
 
   packet_count = 0;      // start new packet
+
 }  // flush_packet()
+
 
 // add to output packet, send as needed
 

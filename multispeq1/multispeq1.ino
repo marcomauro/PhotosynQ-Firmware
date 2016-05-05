@@ -232,7 +232,7 @@ void setup() {
   //  Serial_Print_Line("SPI works");
 
   // initialize DACs
-  //  DAC_init();
+    DAC_init();
 
   // set up MCU pins
 

@@ -1,10 +1,11 @@
 // original author James Gregson (james.gregson@gmail.com)
 // includes enhancements for PhotoSynQ
 
-#include<stdio.h>
-#include<string.h>
+#include <stdio.h>
+#include <string.h>
 #include "defines.h"
 #include "eeprom.h"
+#include "serial.h"
 
 extern "C" {
 #include "expr/expression_parser.h"
@@ -18,7 +19,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
 
   // could make a function that given a variable name string, return the address
   // only useful if writes are needed
-  if (strncmp( name, "userdef", 7) == 0 ) {  // handles all userdefx references
+  if (strncmp( name, "userdef", 7) == 0) {  // handles all userdef[x] references
     unsigned index = atoi(name + 7);
     if (index < NUM_USERDEFS)
       *value = eeprom->userdef[index];
@@ -234,8 +235,10 @@ double expr(const char str[])
 {
   int num_arguments = 3;
 
-  if (str == 0 || str[0] == 0)
+  if (str == 0 || str[0] == 0 || strchr(str,'['))
      return NAN;
 
+  Serial_Flush_Output();
+  
   return parse_expression_with_callbacks( str, variable_callback, function_callback, &num_arguments );
 }  // expr()

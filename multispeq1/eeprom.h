@@ -1,12 +1,11 @@
 
-// Many variables used have to be stored/retrieved from eeprom.  All such variables are stored in a structure, with #defines for
-// historical and convenience reasons.
+// Many variables used have to be stored/retrieved from eeprom.  All such variables are defined in this structure.
 // This structure is stored directly in eeprom memory
 // Assume that there was a calibration process that initialized the eeprom.
 
 // DANGER:  do not do too many writes to eeprom variables - cycles are limited
 // WARNING: max size is 2K
-// WARNING: do a delay(1) after every write.  If not, program may freeze.
+// WARNING: Write only with the save() function.  If not, program may freeze.
 
 // Jon Zeeff 2016
 
@@ -22,13 +21,14 @@ class eeprom_class
     // each of these needs a comment
      volatile long device_id;                   // lower 4 bytes of BLE mac address
      volatile long device_manufacture;        // month and year, eg 12016
+
      volatile float mag_bias[3];       // magnetometer/compass calibration
      volatile float mag_cal[3][3];
+
      volatile float accel_bias[3];
      volatile float accel_cal[3][3];   // accelerometer calibration
-    /*
-       now we calculate par based on rgb components of the incoming light and a yintercept
-    */
+
+    //   now we calculate par based on rgb components of the incoming light and a yintercept
     //     volatile float light_slope;
      volatile float light_yint;         // y intercept for par calibration from tcs
      volatile float light_slope_all;    // slope for the total intensity value for par calibration from tcs
@@ -81,10 +81,9 @@ class eeprom_class
          volatile float calibration_blank2;
          volatile float calibration_other1;
          volatile float calibration_other2;
-         volatile float pwr_off_ms[2];               // number of milliseconds before unit auto powers down (why two values?)
     */
  
-    // add more here, also add a #define as below
+    // add more here
 };
 
 // where to store permanent data (teensy 3 specific)
@@ -97,5 +96,3 @@ class eeprom_class * eeprom = FlexRAM;
 #endif
 
 #undef EXTERN
-
-

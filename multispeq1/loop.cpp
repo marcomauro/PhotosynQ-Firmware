@@ -1661,51 +1661,31 @@ inline static void stopTimers() {
   timer0.end();                         // if it's the last cycle and last pulse, then... stop the timers
 }
 
-// read/write userdef[] values from/to eeprom
-// example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
-// also be able to read other values defined in eeprom, like [{"recall":["light_slope_all","light_yint"]}]... this requires some interpretation akin to what's done in expressions
+// write userdef values to eeprom
+// example json for save: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
+// read userdef and other values from eeprom
+// example json for read: [{"recall":["light_slope_all","userdef1",ir_baseline_slope1]}]
 
 static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
   int number_saves = _save_eeprom.getLength();                                // define these explicitly to make it easier to understand the logic
   int number_recalls = _recall_eeprom.getLength();                            // define these explicitly to make it easier to understand the logic
-  if (number_saves > 0) {                                                     // if the user is saving eeprom values, then...
-    for (int i = 0; i < number_saves; i++) {
-      long location = _save_eeprom.getArray(i).getLong(0);
-      double value_to_save = _save_eeprom.getArray(i).getDouble(1);
-      if (location >= 0 && location < (long)NUM_USERDEFS)
-        if (eeprom->userdef[location] != value_to_save)                       // prevent re-write if already there (wears out the eeprom)
-          store(userdef[location], value_to_save);                         // save new value in the defined eeprom location
-      delay(1);                                                               // delay to make sure it has time to save (min 1ms)
-    }
+
+  for (int i = 0; i < number_saves; i++) {                             // do any saves
+    long location = _save_eeprom.getArray(i).getLong(0);
+    double value_to_save = _save_eeprom.getArray(i).getDouble(1);
+    if (location >= 0 && location <= (long)NUM_USERDEFS)
+      store(userdef[location], value_to_save);                         // save new value in the defined eeprom location
   }
-  // FIXME
-  if (number_recalls > 0) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
+
+  if (number_recalls > 0) {                  // if the user is recalling any saved eeprom values then...
     Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there
+
     for (int i = 0; i < number_recalls; i++) {
-      //      long location = _recall_eeprom.getLong(i);
+
       String recall_string = _recall_eeprom.getString(i);
-/*
-      Serial_Print_Line("");
-      Serial_Print(recall_string);
-      Serial_Print(",");
-      Serial_Print(recall_string.c_str());
-      Serial_Print(",");
-      Serial_Print(expr(recall_string.c_str()));
-*/
-int isnumber = strtol(recall_string.c_str(),0,0);
-float recall_userdef = expr(recall_string.c_str());
-Serial_Print_Line(recall_userdef,4);
-Serial_Print_Line(isnumber);
-      if ((int) recall_string.c_str() >= 0 && (int) recall_string.c_str() < (long)NUM_USERDEFS) {
-        uint16_t recall_userdef = expr(recall_string.c_str());
-        Serial_Printf("\"%d\":%f", recall_userdef, eeprom->userdef[recall_userdef]);
-      }
-      /*
-      else {
-        //        float recalled = expr(recall_string.c_str());
-        Serial_Printf("\"%s\":%f", recall_string.c_str(), expr(recall_string.c_str()));
-      }
-*/
+
+      Serial_Printf("\"%s\":%f", recall_string.c_str(), expr(recall_string.c_str()));
+
       if (i != number_recalls - 1) {
         Serial_Print(",");
       }

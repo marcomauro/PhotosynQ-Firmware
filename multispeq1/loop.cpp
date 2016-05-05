@@ -59,7 +59,7 @@ void loop() {
     activity();             // record fact that we have seen activity (used with powerdown())
 
     crc32_init();
-        
+
     if (c == '[')
       break;                // start of json, exit this for loop to process it
 
@@ -143,12 +143,12 @@ void do_command()
           bme2.begin(0x76);
           float temperature1 = bme1.readTempC();
           float temperature2 = bme2.readTempC();
-          float relative_humidity1= bme1.readHumidity();
-          float relative_humidity2= bme2.readHumidity();
-          float pressure1= bme1.readPressure() / 100;
-          float pressure2= bme2.readPressure() / 100;
-          Serial_Printf("{\"par_raw\":%d,\"temperature\":%f,\"relative_humidity\":%f,\"pressure\":%f,\"temperature2\":%f,\"relative_humidity2\":%f,\"pressure2\":%f,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw,temperature1, relative_humidity1,pressure1,temperature2, relative_humidity2,pressure2,contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
-//          Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+          float relative_humidity1 = bme1.readHumidity();
+          float relative_humidity2 = bme2.readHumidity();
+          float pressure1 = bme1.readPressure() / 100;
+          float pressure2 = bme2.readPressure() / 100;
+          Serial_Printf("{\"par_raw\":%d,\"temperature\":%f,\"relative_humidity\":%f,\"pressure\":%f,\"temperature2\":%f,\"relative_humidity2\":%f,\"pressure2\":%f,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, temperature1, relative_humidity1, pressure1, temperature2, relative_humidity2, pressure2, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+          //          Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
           Serial_Print_CRC();
         }
       }
@@ -542,7 +542,7 @@ void do_command()
         }
       }
       break;
-      
+
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
       break;
@@ -551,27 +551,27 @@ void do_command()
       battery_low();  // test battery
       break;
 
-    case 1100:       
+    case 1100:
       break;
     case 1101:
-        {
+      {
         Serial_Print("let's start with a test, this is more than 20 chars long.\n");
         Serial_Flush_Output();
         char c[2];
         int count = 0;
         c[1] = 0;
         for (;;)  {
-            c[0] = Serial_Read();
-            Serial_Print(c);
-            if (c[0] < ' ') continue;
-            ++count;
-            if (c[0] == 'X')
-               break;
+          c[0] = Serial_Read();
+          Serial_Print(c);
+          if (c[0] < ' ') continue;
+          ++count;
+          if (c[0] == 'X')
+            break;
         } // for
-        Serial_Printf("%d chars\n",count);
+        Serial_Printf("%d chars\n", count);
         Serial_Flush_Output();
-                }
-        break;
+      }
+      break;
     case 2000:
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
       break;
@@ -834,6 +834,7 @@ void do_protocol()
         JsonArray recall_eeprom  = hashTable.getArray("recall");                                // userdef values to recall
         JsonArray number_samples = hashTable.getArray("number_samples");                       // number of samples on the cap during sample + hold phase (default is 40);
         JsonArray reference =     hashTable.getArray("reference");                              // subtract reference value if set to 1 (also causes 1/2 the sample rate per detector) due to time constraints.  Default is no reference (== 0)
+        uint16_t dac_lights =     hashTable.getLong("dac_lights");                                // when inputting light intensity values, use DAC instead of calibrated outputs (do not use expr() function on coming API data)
         uint16_t adc_show =       hashTable.getLong("adc_show");                                // this tells the MultispeQ to print the ADC values only instead of the normal data_raw (for signal quality debugging)
         uint16_t adc_only[150];                                                   // this and first_adc_ref are used to save the first set of ADC averages produced, so it can be optionally displayed instead of data_raw (for signal quality debugging).  USE ONLY WITH REFERENCE == 0 (ie reference is OFF!)
         JsonArray pulses =        hashTable.getArray("pulses");                                // the number of measuring pulses, as an array.  For example [50,10,50] means 50 pulses, followed by 10 pulses, follwed by 50 pulses.
@@ -1020,7 +1021,7 @@ void do_protocol()
 
         temperature2 = humidity2 = pressure2 = 0;
         temperature2_averaged = humidity2_averaged = pressure2_averaged = 0;
-        
+
         //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
         //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
 
@@ -1101,8 +1102,9 @@ void do_protocol()
               }
               for (unsigned i = 0; i < NUM_LEDS; i++) {                                   // save the current list of act lights, determine if they should be on, and determine their intensity
                 _a_lights[i] = a_lights.getArray(cycle).getLong(i);                        // save which light should be turned on/off
-                String temp_intensity = a_intensities.getArray(cycle).getString(i);
-                _a_intensities[i] = expr(temp_intensity.c_str());                             // evaluate inputted intensity to see if it was an expression
+                String intensity_string = a_intensities.getArray(cycle).getString(i);
+                _a_intensities[i] = expr(intensity_string.c_str());                       // evaluate as an expression
+
                 if (PULSERDEBUG) {
                   Serial_Printf("\n all a_lights, intensities: %d,%d\n", _a_lights[i], _a_intensities[i]);
                 } // PULSERDEBUG
@@ -1156,8 +1158,8 @@ void do_protocol()
             //            assert(_number_samples >= 0 && _number_samples < 500);
 
             _meas_light = meas_lights.getArray(cycle).getLong(meas_number % meas_array_size);             // move to next measurement light
-            String temp_intensity = m_intensities.getArray(cycle).getString(meas_number % meas_array_size);
-            uint16_t _m_intensity = expr(temp_intensity.c_str());                                             // evaluate inputted intensity to see if it was an expression
+            String intensity_string = m_intensities.getArray(cycle).getString(meas_number % meas_array_size);          // evaluate inputted intensity to see if it was an expression
+            uint16_t _m_intensity = expr(intensity_string.c_str());
             //            assert(_m_intensity >= 0 && _m_intensity <= 4095);
 
             uint16_t detector = detectors.getArray(cycle).getLong(meas_number % meas_array_size);          // move to next detector
@@ -1248,12 +1250,23 @@ void do_protocol()
 
               // calculate_intensity(_meas_light, tcs_to_act, cycle, _light_intensity);                   // in addition, calculate the intensity of the current measuring light
 
-              DAC_set(_meas_light, par_to_dac(_m_intensity, _meas_light));                                // set the DAC, make sure to convert PAR intensity to DAC value
+              //            Serial_Printf("_meas_light = %d, par_to_dac = %d, _m_intensity = %d, dac_lights = %d\n",_meas_light,par_to_dac(_m_intensity, _meas_light),_m_intensity,dac_lights);
+              if (!dac_lights) {                                                                            // evaluate as an expression...
+                DAC_set(_meas_light, par_to_dac(_m_intensity, _meas_light));                                // set the DAC, make sure to convert PAR intensity to DAC value
+              }
+              else {                                                                                      // otherwise evaluate directly as a number to enter into the DAC
+                DAC_set(_meas_light, _m_intensity);                                // set the DAC, make sure to convert PAR intensity to DAC value
+              }
               DAC_change();
 
               for (unsigned i = 0; i < NUM_LEDS; i++) {                         // set the DAC lights for actinic lights in the current pulse set
                 if (_a_lights[i] != 0) {                                        // if there's a light there, then change it, otherwise skip
-                  DAC_set(_a_lights[i], par_to_dac(_a_intensities[i], _a_lights[i]));
+                  if (!dac_lights) {                                                                            // evaluate as an expression...
+                    DAC_set(_a_lights[i], par_to_dac(_a_intensities[i], _a_lights[i]));
+                  }
+                  else {                                                                                      // otherwise evaluate directly as a number to enter into the DAC
+                    DAC_set(_a_lights[i], _a_intensities[i]);
+                  }
                   if (PULSERDEBUG) {
                     Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
                     Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
@@ -1669,8 +1682,8 @@ int abort_cmd()
 void get_temperature_humidity_pressure (int _averages) {    // read temperature, relative humidity, and pressure BME280 module
 
   temperature = bme1.readTempC();                // temperature in C
-  humidity= bme1.readHumidity();                       // humidity in %
-  pressure = bme1.readPressure()/100;                 // pressure in millibar
+  humidity = bme1.readHumidity();                      // humidity in %
+  pressure = bme1.readPressure() / 100;               // pressure in millibar
 
   temperature_averaged += temperature / _averages;                // same as above, but averaged if API requests averaging
   humidity_averaged += humidity / _averages;
@@ -1682,7 +1695,7 @@ void get_temperature_humidity_pressure2 (int _averages) {    // read temperature
 
   temperature2 = bme2.readTempC();
   humidity2 = bme2.readHumidity();
-  pressure2 = bme2.readPressure()/100;
+  pressure2 = bme2.readPressure() / 100;
 
   temperature2_averaged += temperature2 / _averages;                // collect temp, rh, and humidity data (averaged if API requests averaging)
   humidity2_averaged += humidity2 / _averages;

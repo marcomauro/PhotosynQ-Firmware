@@ -76,6 +76,7 @@ loop ()
 // load new firmware over the Serial port and flash it
 // format is an intel hex file followed by ":flash xx" where xx is the number of lines sent
 // Max size is 1/2 of flash
+// TODO  Modify to allow any combination of programs that fit in flash - ie, allow a 64K program to load a 188K program
 
 // hint:  on Linux, exit the serial console and do "dd if=blink.hex of=/dev/ttyACM0", then restart the Serial console and
 // enter the ":flash xxx" command.

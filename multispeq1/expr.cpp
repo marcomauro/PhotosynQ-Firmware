@@ -159,6 +159,27 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
+ } else  if (strncmp( name, "colorcal_blank1", 15) == 0 ) { 
+    unsigned index = atoi(name + 15);
+    if (index < NUM_LEDS + 1)
+      *value = eeprom->colorcal_blank1[index];
+    else
+      *value = NAN;
+    return PARSER_TRUE;
+ } else  if (strncmp( name, "colorcal_blank2", 15) == 0 ) { 
+    unsigned index = atoi(name + 15);
+    if (index < NUM_LEDS + 1)
+      *value = eeprom->colorcal_blank2[index];
+    else
+      *value = NAN;
+    return PARSER_TRUE;
+ } else  if (strncmp( name, "colorcal_blank3", 15) == 0 ) { 
+    unsigned index = atoi(name + 15);
+    if (index < NUM_LEDS + 1)
+      *value = eeprom->colorcal_blank3[index];
+    else
+      *value = NAN;
+    return PARSER_TRUE;
   }
 
   // failed to find variable, return false

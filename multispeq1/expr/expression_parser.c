@@ -250,9 +250,9 @@ double parser_read_builtin( parser_data *pd ){
 	
 	c = parser_peek( pd );
 	if( isalpha(c) || c == '_' ){
-		// alphabetic character or underscore, indicates that either a function 
-		// call or variable follows
-		while( isalpha(c) || isdigit(c) || c == '_' ){
+		// alphanumeric character or underscore, indicates that either a function 
+		// call or variable or variable array follows
+		while( isalpha(c) || isdigit(c) || c == '_'  || c == '[' || c == ']'){
 			token[pos++] = parser_eat( pd );
 			c = parser_peek( pd );
 		}

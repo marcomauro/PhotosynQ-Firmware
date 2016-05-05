@@ -788,7 +788,7 @@ void do_protocol()
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);   // change to : format?
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
-  Serial_Printf(",\"device_firmware\":%s", DEVICE_FIRMWARE);
+  Serial_Printf(",\"firmware_version\":%s", DEVICE_FIRMWARE);
   if (year() >= 2016)
     Serial_Printf(",\"device_time\":%u", now());
   Serial_Print(",\"sample\":[");
@@ -1469,6 +1469,35 @@ void do_protocol()
 
         recall_save(recall_eeprom, save_eeprom);                                                    // Recall and save values to the eeprom.  If you save values to eeprom, you get those saved values returned to you to confirm that they have been saved successfully (so save automatically calls recall once complete)
 
+
+        Serial_Print("\"colorcal_blank1\": [");
+        for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank1) / sizeof(float); i++) {
+          if (i != sizeof(eeprom->colorcal_blank1) / sizeof(float) - 1) {
+            Serial_Printf("\"%f\",", eeprom->colorcal_blank1[i]);
+          }
+          else {
+            Serial_Printf("\"%f\"],", eeprom->colorcal_blank1[i]);
+          }
+        }
+        Serial_Print("\"colorcal_blank2\": [");
+        for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank2) / sizeof(float); i++) {
+          if (i != sizeof(eeprom->colorcal_blank2) / sizeof(float) - 1) {
+            Serial_Printf("\"%f\",", eeprom->colorcal_blank2[i]);
+          }
+          else {
+            Serial_Printf("\"%f\"],", eeprom->colorcal_blank2[i]);
+          }
+        }
+        Serial_Print("\"colorcal_blank3\": [");
+        for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank3) / sizeof(float); i++) {
+          if (i != sizeof(eeprom->colorcal_blank3) / sizeof(float) - 1) {
+            Serial_Printf("\"%f\",", eeprom->colorcal_blank3[i]);
+          }
+          else {
+            Serial_Printf("\"%f\"],", eeprom->colorcal_blank3[i]);
+          }
+        }
+
         if (spec_on == 1) {                                                                    // if the spec is being used, then read it and print data_raw as spec values.  Otherwise, print data_raw as multispeq detector values as per normal
           Serial_Print("\"data_raw\":[");
           for (int i = 0; i < SPEC_CHANNELS; i++) {
@@ -1649,12 +1678,34 @@ static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
       delay(1);                                                               // delay to make sure it has time to save (min 1ms)
     }
   }
+  // FIXME
   if (number_recalls > 0) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
     Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there
     for (int i = 0; i < number_recalls; i++) {
-      long location = _recall_eeprom.getLong(i);
-      if (location >= 0 && location < (long)NUM_USERDEFS)
-        Serial_Printf("\"%d\":%f", (int) location, eeprom->userdef[location]);
+      //      long location = _recall_eeprom.getLong(i);
+      String recall_string = _recall_eeprom.getString(i);
+/*
+      Serial_Print_Line("");
+      Serial_Print(recall_string);
+      Serial_Print(",");
+      Serial_Print(recall_string.c_str());
+      Serial_Print(",");
+      Serial_Print(expr(recall_string.c_str()));
+*/
+int isnumber = strtol(recall_string.c_str(),0,0);
+float recall_userdef = expr(recall_string.c_str());
+Serial_Print_Line(recall_userdef,4);
+Serial_Print_Line(isnumber);
+      if ((int) recall_string.c_str() >= 0 && (int) recall_string.c_str() < (long)NUM_USERDEFS) {
+        uint16_t recall_userdef = expr(recall_string.c_str());
+        Serial_Printf("\"%d\":%f", recall_userdef, eeprom->userdef[recall_userdef]);
+      }
+      /*
+      else {
+        //        float recalled = expr(recall_string.c_str());
+        Serial_Printf("\"%s\":%f", recall_string.c_str(), expr(recall_string.c_str()));
+      }
+*/
       if (i != number_recalls - 1) {
         Serial_Print(",");
       }
@@ -2059,6 +2110,34 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
     }
   }
+  Serial_Print("\"colorcal_blank1\": [");
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank1) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_blank1) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_blank1[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_blank1[i]);
+    }
+  }
+  Serial_Print("\"colorcal_blank2\": [");
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank2) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_blank2) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_blank2[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_blank2[i]);
+    }
+  }
+  Serial_Print("\"colorcal_blank3\": [");
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank3) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_blank3) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_blank3[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_blank3[i]);
+    }
+  }
+
   for (unsigned i = 0; i < NUM_USERDEFS; i++) {
     if (i != NUM_USERDEFS - 1) {
       Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);

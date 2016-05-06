@@ -19,7 +19,7 @@ void i2cRead(byte address, byte count, byte* buffer);
 extern int averages;  // ??
 mcp4728 dac1 = mcp4728(1); // instantiate mcp4728 object, Device ID = 1
 
-// global variables (should be all static)
+// global variables 
 extern float light_intensity;
 extern float light_intensity_averaged;
 extern float light_intensity_raw;
@@ -46,10 +46,10 @@ void PAR_init()
   par_sensor->setGain(TCS3471_GAIN_1X);
   par_sensor->enable();
 
-  // should use new DAC() routines
-  dac1.setVref(1, 1, 1, 1);
-  dac1.setGain(0, 0, 0, 0);
-  delay(1);
+  //  use new DAC() routines
+  //dac1.setVref(1, 1, 1, 1);
+  //dac1.setGain(0, 0, 0, 0);
+  //delay(1);
 
 }  // PAR_init()
 

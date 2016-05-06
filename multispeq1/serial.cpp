@@ -114,6 +114,8 @@ int Serial_Peek()
   if (Serial1.available())
     return Serial1.peek();
 
+  asm volatile( "wfi" );  // save some power
+  
   return -1;
 }  // Serial_Available()
 
@@ -353,7 +355,7 @@ Serial_Print_Line (const char *str)
 }
 
 void
-Serial_Print_Line(String string)
+Serial_Print_Line(const String string)
 {
   // output to both ports
   Serial_Print (string.c_str());

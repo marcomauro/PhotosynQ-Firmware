@@ -38,6 +38,7 @@ void do_command(void);
 int battery_low(void);
 void print_calibrations(void);
 
+
 //////////////////////// MAIN LOOP /////////////////////////
 
 // process ascii serial input commands of two forms:
@@ -53,8 +54,8 @@ void loop() {
 
     powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
 
-    if (c == -1)
-      continue;             // nothing available, try again
+    if (c == -1) 
+      continue;               // nothing available, try again
 
     activity();             // record fact that we have seen activity (used with powerdown())
 
@@ -957,7 +958,6 @@ void do_protocol()
           for (int i = 0; i < size_of_data_raw; i++) {
             Serial_Print((unsigned)data_raw_average[i]);
           }
-          Serial_Print_Line("");
 
           Serial_Print_Line("");
           Serial_Print("number of pulses:  ");
@@ -1290,7 +1290,8 @@ void do_protocol()
             //            uint16_t endTimer;
 
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
-              if (abort_cmd()) goto abort;   // or just reboot?
+              asm volatile( "wfi" );        // save some power
+              if (abort_cmd()) goto abort;  // or just reboot?
             }
 
             if (_reference != 0) {
@@ -1693,8 +1694,8 @@ static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
         Serial_Print("},");
       }
     } // for
-  } // recall_save()
-}
+  } // if
+} // recall_save()
 
 // return true if a Ctrl-A character has been typed
 int abort_cmd()
@@ -1889,7 +1890,6 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
     if ((String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
       int pin = environmental.getArray(i).getLong(2);
-      pinMode(pin, INPUT);
       int analog_read = analogRead(pin);
       if (count == _averages - 1) {
         Serial_Printf("\"analog_read\":%f,", analog_read);
@@ -1898,7 +1898,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
     if ((String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
       int pin = environmental.getArray(i).getLong(2);
-      pinMode(pin, INPUT);
+      pinMode(pin, INPUT_PULLUP);
       int digital_read = digitalRead(pin);
       if (count == _averages - 1) {
         Serial_Printf("\"digital_read\":%f,", digital_read);
@@ -1974,6 +1974,8 @@ void reset_freq() {
 
 
 void print_calibrations() {
+  unsigned i;
+
   Serial_Printf("{\n\"device_id\":\"d4:f5:%x:%x:%x:%x\",\n",
                 (unsigned)eeprom->device_id >> 24,
                 ((unsigned)eeprom->device_id & 0xff0000) >> 16,
@@ -1996,7 +1998,13 @@ void print_calibrations() {
   Serial_Printf("\"thickness_a\": \"%f\",\n", eeprom->thickness_a);
   Serial_Printf("\"thickness_b\": \"%f\",\n", eeprom->thickness_b);
   Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
+
   Serial_Print("\"par_to_dac_slope\": [");
+#if 1          // TODO improved example - note, i should probably start at 1 since the first value isn't used
+  for (i = 0; i < arraysize(eeprom->par_to_dac_slope) - 1; i++)
+    Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
+  Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
+#else
   for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
@@ -2005,6 +2013,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
     }
   }
+#endif
 
   Serial_Print("\"par_to_dac_yint\": [");
   for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
@@ -2026,7 +2035,7 @@ void print_calibrations() {
     }
   }
 
-  Serial_Print("\"ir_baseline_slope\": [");
+  Serial_Print("\"ir_baseline_yint\": [");
   for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_yint[i]);
@@ -2118,14 +2127,10 @@ void print_calibrations() {
     }
   }
 
-  for (unsigned i = 0; i < NUM_USERDEFS; i++) {
-    if (i != NUM_USERDEFS - 1) {
-      Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
-    }
-    else {
-      Serial_Printf("\"userdef%d\": \"%f\"\n}", i, eeprom->userdef[i]);
-    }
-  }
+  for (i = 0; i < NUM_USERDEFS - 1; i++)
+    Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
+  Serial_Printf("\"userdef%d\": \"%f\"\n}", i, eeprom->userdef[i]);
+
   Serial_Print_CRC();
 }
 

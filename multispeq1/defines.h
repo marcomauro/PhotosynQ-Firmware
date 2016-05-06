@@ -58,6 +58,11 @@ const int PULSERDEBUG=0;   // uncomment to debug the pulser and detector
 // use this to store values to eeprom 
 #define store(location, value)   { typeof(value) f = value;  if (eeprom->location != f) eeprom->location = f;  while (!(FTFL_FCNFG & FTFL_FCNFG_EEERDY)) {} }
 
+// use to get the number of elements in an array
+template <typename T, size_t N> 
+char (&ArraySizeHelper(T (&array)[N]))[N];
+#define arraysize(array) (sizeof(ArraySizeHelper(array)))
+
 const int NUM_LEDS=10;
 // map LED (1-10 not 0-9) to MCU pin
 const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )

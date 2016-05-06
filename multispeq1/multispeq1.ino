@@ -25,10 +25,9 @@
 
   + test do we need to calibrate offsets (like we did with the betas?)
 
-  Discuss meringing other eeprom floats into userdef[] with #define
   Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
-  Using bluetooth ID as ID -
-  Firmware needs api call to write code to eeprom (unique ID).
+  X Using bluetooth ID as ID -
+  X Firmware needs api call to write code to eeprom (unique ID).
   Get rid of user_enter… and replace with new user enter, then delete main function
   Pull out the alert/confirm/prompt into a subroutine.
   If averages == 1, then print data in real time
@@ -100,9 +99,6 @@
    X Note: eeprom writing needs refactoring - eliminate all EEPROMxAnything()
 
    Here's the remaining commands in this file which should be moved.  I've organized them by function.  Actually this will be nice as some of them need to be renamed and cleaned up anyway.
-
-  // power off
-  pwr_off
 
   // Calibration commands
   add_calibration             // this adds a single element to the calibrations stored as an array (containing all of the LED pins)
@@ -229,7 +225,6 @@ void setup() {
 
   // initialize SPI bus
   SPI.begin ();
-  //  Serial_Print_Line("SPI works");
 
   // initialize DACs
   DAC_init();
@@ -240,25 +235,17 @@ void setup() {
   for (unsigned i = 1; i < NUM_LEDS + 1; ++i)
     pinMode(LED_to_pin[i], OUTPUT);
 
-  pinMode(HALL_OUT, INPUT);                                                       // set hall effect sensor to input so it can be read
-  pinMode(DEBUG_DC, INPUT);                                                       // leave floating
-  pinMode(DEBUG_DD, INPUT);                                                       // leave floating
-  //  pinMode(BLERESET, OUTPUT);                                                  // leave floating - deprecated
-  //  digitalWriteFast(BLERESET, HIGH);
-  //  delay(100);
-  //  digitalWriteFast(BLERESET, LOW);                                                // set BLE reset low for the bluetooth to be active
-  //  pinMode(ISET, OUTPUT);                                                          // set USB charge level - deprecated
-  //  digitalWriteFast(ISET, HIGH);
-  //  pinMode(ACTINICLIGHT_INTENSITY_SWITCH, OUTPUT);
-  //  digitalWriteFast(ACTINICLIGHT_INTENSITY_SWITCH, HIGH);                     // preset the switch to the actinic (high) preset position, DAC channel 0
-
+  //pinMode(HALL_OUT, INPUT);                       // set hall effect sensor to input so it can be read
+  //pinMode(DEBUG_DC, INPUT_PULLUP);                                                    
+  //pinMode(DEBUG_DD, INPUT_PULLUP);                                                       
+  
   // pins used to turn on/off detector integration/discharge
   pinMode(HOLDM, OUTPUT);
   digitalWriteFast(HOLDM, HIGH);                  // discharge cap
   pinMode(HOLDADD, OUTPUT);
   digitalWriteFast(HOLDADD, HIGH);                // discharge cap
 
-  pinMode(BLANK, OUTPUT);                                                            // used as a blank pin to pull high and low if the meas lights is otherwise blank (set to 0)
+  //pinMode(BLANK, OUTPUT);                                                            // used as a blank pin to pull high and low if the meas lights is otherwise blank (set to 0)
 
 #if CORALSPEQ == 1
   // Set pinmodes for the coralspeq
@@ -296,10 +283,6 @@ void setup() {
 
   PAR_init();               // color sensor
   eeprom_initialize();      // eeprom
-
-  // test expressions - works! pass it a string and it is evaluated
-  //double expr(const char s[]);
-  //Serial_Printf("expr = %f\n",expr("userdef1/2"));  // userdef1 is from eeprom
 
   assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
@@ -646,7 +629,7 @@ int battery_low()
   DAC_set(5, 4906 / 4);
   DAC_set(6, 4906 / 4);
   DAC_change();
-  delay(10);       // stabilize
+  delay(1);       // stabilize
 
   // turn on 4 LEDs
   digitalWriteFast(PULSE1, 1);

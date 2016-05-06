@@ -68,7 +68,7 @@ class eeprom_class
      volatile float colorcal_intensity3_yint[NUM_LEDS+1]; // y intercept from calibration to Minolta SPAD at intensity 3 (use colorcal_blank1 as blank)
 
     // user set values
-     volatile float userdef[NUM_USERDEFS];  
+     volatile float userdef[NUM_USERDEFS+1];  
  
 };
 

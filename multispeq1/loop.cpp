@@ -11,6 +11,7 @@
 #include "flasher.h"
 #include "utility/crc32.h"
 #include <TimeLib.h>
+#include <math.h>
 
 // function declarations
 
@@ -37,6 +38,14 @@ void do_protocol(void);
 void do_command(void);
 int battery_low(void);
 void print_calibrations(void);
+void applyMagCal(int &x, int &y, int &z);
+double getCompass(const int magX, const int magY, const int magZ, const double& pitch, const double& roll);
+double getRoll(const int accelY, const int accelZ);
+double getPitch(const int accelX, const int accel, const int accelZ, const double& roll);
+String getDirection(double compass);
+struct Tilt;
+Tilt calculateTilt(const double& roll, const double& pitch, double compass);
+
 
 //////////////////////// MAIN LOOP /////////////////////////
 
@@ -53,8 +62,8 @@ void loop() {
 
     powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
 
-    if (c == -1)
-      continue;             // nothing available, try again
+    if (c == -1) 
+      continue;               // nothing available, try again
 
     activity();             // record fact that we have seen activity (used with powerdown())
 
@@ -955,7 +964,6 @@ void do_protocol()
           for (int i = 0; i < size_of_data_raw; i++) {
             Serial_Print((unsigned)data_raw_average[i]);
           }
-          Serial_Print_Line("");
 
           Serial_Print_Line("");
           Serial_Print("number of pulses:  ");
@@ -1288,7 +1296,8 @@ void do_protocol()
             //            uint16_t endTimer;
 
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
-              if (abort_cmd()) goto abort;   // or just reboot?
+              asm volatile( "wfi" );        // save some power
+              if (abort_cmd()) goto abort;  // or just reboot?
             }
 
             if (_reference != 0) {
@@ -1662,8 +1671,8 @@ static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
         Serial_Print("},");
       }
     } // for
-  } // recall_save()
-}
+  } // if
+} // recall_save()
 
 // return true if a Ctrl-A character has been typed
 int abort_cmd()
@@ -1769,6 +1778,154 @@ float get_thickness (int notRaw, int _averages) {
   }
 }
 
+//apply the calibration values for magnetometer from EEPROM
+void applyMagCal(int &x, int &y, int &z){
+  
+  x -= eeprom->mag_bias[0];
+  y -= eeprom->mag_bias[1];
+  z -= eeprom->mag_bias[2];
+
+  int xTemp, yTemp, zTemp;
+
+  xTemp = x * eeprom->mag_cal[0][0] + y * eeprom->mag_cal[0][1] + z * eeprom->mag_cal[0][2];
+  yTemp = x * eeprom->mag_cal[1][0] + y * eeprom->mag_cal[1][1] + z * eeprom->mag_cal[1][2];
+  zTemp = x * eeprom->mag_cal[2][0] + y * eeprom->mag_cal[2][1] + z * eeprom->mag_cal[2][2];
+
+  y = -1 * xTemp;
+  x = -1 * yTemp;
+  z = zTemp;
+}
+
+//return compass heading (RADIANS) given pitch, roll and magentotmeter measurements
+double getCompass(const int magX, const int magY, const int magZ, const double& pitch, const double& roll){
+  double negBfy = magZ * sin(roll) - magY * cos(roll);
+  double Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
+
+  return atan2(negBfy, Bfx);
+}
+
+//return roll (RADIANS) from accelerometer measurements
+double getRoll(const int accelY, const int accelZ){
+  return atan2(accelY, accelZ);
+}
+
+//return pitch (RADIANS) from accelerometer measurements + roll
+double getPitch(const int accelX, const int accelY, const int accelZ, const double& roll){
+  return atan(-1 * accelX/(accelY * sin(roll) + accelZ * cos(roll)));
+}
+
+//get the direction (N/S/E/W/NW/NE/SW/SE) from the compass heading
+String getDirection(double compass){
+
+  compass *= 180 / PI;
+
+  if (compass > 360 || compass < 0){
+    return "Invalid compass heading.";
+  }
+  
+  if(compass > 337.5 || compass <= 22.5){
+    return "N";
+  } else if (compass <= 67.5){
+    return "NE";
+  } else if (compass <= 112.5){
+    return "E";
+  } else if (compass <= 157.5){
+    return "SE";
+  } else if (compass <= 202.5){
+    return "S";
+  } else if (compass <= 247.5){
+    return "SW";
+  } else if (compass <= 292.5){
+    return "W";
+  } else if (compass <= 337.5){
+    return "NW";
+  } else {
+    return "Invalid compass heading.";
+  }
+}
+
+//struct to hold tilt information
+struct Tilt {
+  double angle;
+  String deviceDirection;
+};
+
+//calculate tilt angle and tilt direction given roll, pitch, compass heading
+Tilt calculateTilt(const double &roll, const double &pitch, double compass){
+
+  compass *= 180/PI;
+  
+  Tilt deviceTilt;
+  deviceTilt.angle = acos(sqrt(cos(roll) * cos(roll) + cos(pitch) * cos(pitch))) * 180 / PI;
+
+  if(0 <= compass && compass <= 360){
+    deviceTilt.deviceDirection = "Invalid compass heading";
+  }
+
+  double* angle = &deviceTilt.angle;
+
+  int compass_dir = 0; 
+  if(337.5 < compass || compass <= 22.5){
+    compass_dir = 0;
+  } else if (compass <= 67.5){
+    compass_dir = 1;
+  } else if (compass <= 112.5){
+    compass_dir = 2;
+  } else if (compass <= 157.5){
+    compass_dir = 3;
+  } else if (compass <= 202.5){
+    compass_dir = 4;
+  } else if (compass <= 247.5){
+    compass_dir = 5;
+  } else if (compass <= 292.5){
+    compass_dir = 6;
+  } else if (compass <= 337.5){
+    compass_dir = 7;
+  } 
+
+  if(337.5 < *angle || *angle <= 22.5){
+    compass_dir += 0;
+  } else if (*angle <= 67.5){
+    compass_dir += 1;
+  } else if (*angle <= 112.5){
+    compass_dir += 2;
+  } else if (*angle <= 157.5){
+    compass_dir += 3;
+  } else if (*angle <= 202.5){
+    compass_dir += 4;
+  } else if (*angle <= 247.5){
+    compass_dir += 5;
+  } else if (*angle <= 292.5){
+    compass_dir += 6;
+  } else if (*angle <= 337.5){
+    compass_dir += 7;
+  } 
+
+  compass_dir = compass_dir % 8;
+
+   if(compass_dir == 0){
+    deviceTilt.deviceDirection = "N";
+  } else if (compass_dir == 1){
+    deviceTilt.deviceDirection = "NE";
+  } else if (compass_dir == 2){
+    deviceTilt.deviceDirection = "E";
+  } else if (compass_dir == 3){
+    deviceTilt.deviceDirection = "SE";
+  } else if (compass_dir == 4){
+    deviceTilt.deviceDirection = "S";
+  } else if (compass_dir == 5){
+    deviceTilt.deviceDirection = "SW";
+  } else if (compass_dir == 6){
+    deviceTilt.deviceDirection = "W";
+  } else if (compass_dir == 7){
+    deviceTilt.deviceDirection = "NW";
+  } else {
+    deviceTilt.deviceDirection = "Invalid compass heading.";
+  }
+
+  return deviceTilt;
+}
+
 // check for commands to read various envirmental sensors
 // also output the value on the final call
 
@@ -1858,7 +2015,6 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
     if ((String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
       int pin = environmental.getArray(i).getLong(2);
-      pinMode(pin, INPUT);
       int analog_read = analogRead(pin);
       if (count == _averages - 1) {
         Serial_Printf("\"analog_read\":%f,", analog_read);
@@ -1867,7 +2023,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
     if ((String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
       int pin = environmental.getArray(i).getLong(2);
-      pinMode(pin, INPUT);
+      pinMode(pin, INPUT_PULLUP);
       int digital_read = digitalRead(pin);
       if (count == _averages - 1) {
         Serial_Printf("\"digital_read\":%f,", digital_read);
@@ -1943,6 +2099,8 @@ void reset_freq() {
 
 
 void print_calibrations() {
+  unsigned i;
+
   Serial_Printf("{\n\"device_id\":\"d4:f5:%x:%x:%x:%x\",\n",
                 (unsigned)eeprom->device_id >> 24,
                 ((unsigned)eeprom->device_id & 0xff0000) >> 16,
@@ -1965,7 +2123,13 @@ void print_calibrations() {
   Serial_Printf("\"thickness_a\": \"%f\",\n", eeprom->thickness_a);
   Serial_Printf("\"thickness_b\": \"%f\",\n", eeprom->thickness_b);
   Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
+
   Serial_Print("\"par_to_dac_slope\": [");
+#if 1          // TODO improved example - note, i should probably start at 1 since the first value isn't used
+  for (i = 0; i < arraysize(eeprom->par_to_dac_slope) - 1; i++)
+    Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
+  Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
+#else
   for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
@@ -1974,6 +2138,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
     }
   }
+#endif
 
   Serial_Print("\"par_to_dac_yint\": [");
   for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
@@ -1995,7 +2160,7 @@ void print_calibrations() {
     }
   }
 
-  Serial_Print("\"ir_baseline_slope\": [");
+  Serial_Print("\"ir_baseline_yint\": [");
   for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_yint[i]);
@@ -2087,14 +2252,10 @@ void print_calibrations() {
     }
   }
 
-  for (unsigned i = 0; i < NUM_USERDEFS; i++) {
-    if (i != NUM_USERDEFS - 1) {
-      Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
-    }
-    else {
-      Serial_Printf("\"userdef%d\": \"%f\"\n}", i, eeprom->userdef[i]);
-    }
-  }
+  for (i = 0; i < NUM_USERDEFS - 1; i++)
+    Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
+  Serial_Printf("\"userdef%d\": \"%f\"\n}", i, eeprom->userdef[i]);
+
   Serial_Print_CRC();
 }
 

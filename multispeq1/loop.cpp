@@ -11,6 +11,7 @@
 #include "flasher.h"
 #include "utility/crc32.h"
 #include <TimeLib.h>
+#include <math.h>
 
 // function declarations
 
@@ -37,6 +38,13 @@ void do_protocol(void);
 void do_command(void);
 int battery_low(void);
 void print_calibrations(void);
+void applyMagCal(int &x, int &y, int &z);
+double getCompass(const int magX, const int magY, const int magZ, const double& pitch, const double& roll);
+double getRoll(const int accelY, const int accelZ);
+double getPitch(const int accelX, const int accel, const int accelZ, const double& roll);
+String getDirection(double compass);
+struct Tilt;
+Tilt calculateTilt(const double& roll, const double& pitch, double compass);
 
 
 //////////////////////// MAIN LOOP /////////////////////////
@@ -1799,6 +1807,154 @@ float get_thickness (int notRaw, int _averages) {
   else {
     return 0;
   }
+}
+
+//apply the calibration values for magnetometer from EEPROM
+void applyMagCal(int &x, int &y, int &z){
+  
+  x -= eeprom->mag_bias[0];
+  y -= eeprom->mag_bias[1];
+  z -= eeprom->mag_bias[2];
+
+  int xTemp, yTemp, zTemp;
+
+  xTemp = x * eeprom->mag_cal[0][0] + y * eeprom->mag_cal[0][1] + z * eeprom->mag_cal[0][2];
+  yTemp = x * eeprom->mag_cal[1][0] + y * eeprom->mag_cal[1][1] + z * eeprom->mag_cal[1][2];
+  zTemp = x * eeprom->mag_cal[2][0] + y * eeprom->mag_cal[2][1] + z * eeprom->mag_cal[2][2];
+
+  y = -1 * xTemp;
+  x = -1 * yTemp;
+  z = zTemp;
+}
+
+//return compass heading (RADIANS) given pitch, roll and magentotmeter measurements
+double getCompass(const int magX, const int magY, const int magZ, const double& pitch, const double& roll){
+  double negBfy = magZ * sin(roll) - magY * cos(roll);
+  double Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
+
+  return atan2(negBfy, Bfx);
+}
+
+//return roll (RADIANS) from accelerometer measurements
+double getRoll(const int accelY, const int accelZ){
+  return atan2(accelY, accelZ);
+}
+
+//return pitch (RADIANS) from accelerometer measurements + roll
+double getPitch(const int accelX, const int accelY, const int accelZ, const double& roll){
+  return atan(-1 * accelX/(accelY * sin(roll) + accelZ * cos(roll)));
+}
+
+//get the direction (N/S/E/W/NW/NE/SW/SE) from the compass heading
+String getDirection(double compass){
+
+  compass *= 180 / PI;
+
+  if (compass > 360 || compass < 0){
+    return "Invalid compass heading.";
+  }
+  
+  if(compass > 337.5 || compass <= 22.5){
+    return "N";
+  } else if (compass <= 67.5){
+    return "NE";
+  } else if (compass <= 112.5){
+    return "E";
+  } else if (compass <= 157.5){
+    return "SE";
+  } else if (compass <= 202.5){
+    return "S";
+  } else if (compass <= 247.5){
+    return "SW";
+  } else if (compass <= 292.5){
+    return "W";
+  } else if (compass <= 337.5){
+    return "NW";
+  } else {
+    return "Invalid compass heading.";
+  }
+}
+
+//struct to hold tilt information
+struct Tilt {
+  double angle;
+  String deviceDirection;
+};
+
+//calculate tilt angle and tilt direction given roll, pitch, compass heading
+Tilt calculateTilt(const double &roll, const double &pitch, double compass){
+
+  compass *= 180/PI;
+  
+  Tilt deviceTilt;
+  deviceTilt.angle = acos(sqrt(cos(roll) * cos(roll) + cos(pitch) * cos(pitch))) * 180 / PI;
+
+  if(0 <= compass && compass <= 360){
+    deviceTilt.deviceDirection = "Invalid compass heading";
+  }
+
+  double* angle = &deviceTilt.angle;
+
+  int compass_dir = 0; 
+  if(337.5 < compass || compass <= 22.5){
+    compass_dir = 0;
+  } else if (compass <= 67.5){
+    compass_dir = 1;
+  } else if (compass <= 112.5){
+    compass_dir = 2;
+  } else if (compass <= 157.5){
+    compass_dir = 3;
+  } else if (compass <= 202.5){
+    compass_dir = 4;
+  } else if (compass <= 247.5){
+    compass_dir = 5;
+  } else if (compass <= 292.5){
+    compass_dir = 6;
+  } else if (compass <= 337.5){
+    compass_dir = 7;
+  } 
+
+  if(337.5 < *angle || *angle <= 22.5){
+    compass_dir += 0;
+  } else if (*angle <= 67.5){
+    compass_dir += 1;
+  } else if (*angle <= 112.5){
+    compass_dir += 2;
+  } else if (*angle <= 157.5){
+    compass_dir += 3;
+  } else if (*angle <= 202.5){
+    compass_dir += 4;
+  } else if (*angle <= 247.5){
+    compass_dir += 5;
+  } else if (*angle <= 292.5){
+    compass_dir += 6;
+  } else if (*angle <= 337.5){
+    compass_dir += 7;
+  } 
+
+  compass_dir = compass_dir % 8;
+
+   if(compass_dir == 0){
+    deviceTilt.deviceDirection = "N";
+  } else if (compass_dir == 1){
+    deviceTilt.deviceDirection = "NE";
+  } else if (compass_dir == 2){
+    deviceTilt.deviceDirection = "E";
+  } else if (compass_dir == 3){
+    deviceTilt.deviceDirection = "SE";
+  } else if (compass_dir == 4){
+    deviceTilt.deviceDirection = "S";
+  } else if (compass_dir == 5){
+    deviceTilt.deviceDirection = "SW";
+  } else if (compass_dir == 6){
+    deviceTilt.deviceDirection = "W";
+  } else if (compass_dir == 7){
+    deviceTilt.deviceDirection = "NW";
+  } else {
+    deviceTilt.deviceDirection = "Invalid compass heading.";
+  }
+
+  return deviceTilt;
 }
 
 // check for commands to read various envirmental sensors

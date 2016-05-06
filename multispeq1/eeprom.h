@@ -69,21 +69,7 @@ class eeprom_class
 
     // user set values
      volatile float userdef[NUM_USERDEFS];  
-
-    /*
-         volatile float calibration_slope;
-         volatile float calibration_yint;
-         volatile float calibration_slope_factory;
-         volatile float calibration_yint_factory;
-         volatile float calibration_baseline_slope;
-         volatile float calibration_baseline_yint;
-         volatile float calibration_blank1;
-         volatile float calibration_blank2;
-         volatile float calibration_other1;
-         volatile float calibration_other2;
-    */
  
-    // add more here
 };
 
 // where to store permanent data (teensy 3 specific)

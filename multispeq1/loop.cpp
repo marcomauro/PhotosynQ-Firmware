@@ -139,8 +139,6 @@ void do_command()
           }
           int hall = (sum / samples);
           delay(1);
-          bme1.begin(0x77);
-          bme2.begin(0x76);
           float temperature1 = bme1.readTempC();
           float temperature2 = bme2.readTempC();
           float relative_humidity1 = bme1.readHumidity();
@@ -1468,35 +1466,6 @@ void do_protocol()
         */
 
         recall_save(recall_eeprom, save_eeprom);                                                    // Recall and save values to the eeprom.  If you save values to eeprom, you get those saved values returned to you to confirm that they have been saved successfully (so save automatically calls recall once complete)
-
-
-        Serial_Print("\"colorcal_blank1\": [");
-        for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank1) / sizeof(float); i++) {
-          if (i != sizeof(eeprom->colorcal_blank1) / sizeof(float) - 1) {
-            Serial_Printf("\"%f\",", eeprom->colorcal_blank1[i]);
-          }
-          else {
-            Serial_Printf("\"%f\"],", eeprom->colorcal_blank1[i]);
-          }
-        }
-        Serial_Print("\"colorcal_blank2\": [");
-        for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank2) / sizeof(float); i++) {
-          if (i != sizeof(eeprom->colorcal_blank2) / sizeof(float) - 1) {
-            Serial_Printf("\"%f\",", eeprom->colorcal_blank2[i]);
-          }
-          else {
-            Serial_Printf("\"%f\"],", eeprom->colorcal_blank2[i]);
-          }
-        }
-        Serial_Print("\"colorcal_blank3\": [");
-        for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank3) / sizeof(float); i++) {
-          if (i != sizeof(eeprom->colorcal_blank3) / sizeof(float) - 1) {
-            Serial_Printf("\"%f\",", eeprom->colorcal_blank3[i]);
-          }
-          else {
-            Serial_Printf("\"%f\"],", eeprom->colorcal_blank3[i]);
-          }
-        }
 
         if (spec_on == 1) {                                                                    // if the spec is being used, then read it and print data_raw as spec values.  Otherwise, print data_raw as multispeq detector values as per normal
           Serial_Print("\"data_raw\":[");

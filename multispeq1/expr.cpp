@@ -70,6 +70,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = b_averaged;
     return PARSER_TRUE;
+    
   } else if (strcmp( name, "thickness" ) == 0 ) {
     // set return value, return true
     *value = thickness;
@@ -86,6 +87,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = thickness_raw_averaged;
     return PARSER_TRUE;
+    
   } else if (strcmp( name, "contactless_temp" ) == 0 ) {
     // set return value, return true
     *value = contactless_temp;
@@ -93,6 +95,64 @@ int variable_callback( void *user_data, const char *name, double *value ) {
   } else if (strcmp( name, "contactless_temp_averaged" ) == 0 ) {
     // set return value, return true
     *value = contactless_temp_averaged;
+    return PARSER_TRUE;
+
+  } else if (strcmp( name, "compass" ) == 0 ) {
+    // set return value, return true
+    *value = compass;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "compass_averaged" ) == 0 ) {
+    // set return value, return true
+    *value = compass_averaged;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "x_compass_raw" ) == 0 ) {
+    // set return value, return true
+    *value = x_compass_raw;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "y_compass_raw" ) == 0 ) {
+    // set return value, return true
+    *value = y_compass_raw;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "z_compass_raw" ) == 0 ) {
+    // set return value, return true
+    *value = z_compass_raw;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "x_compass_raw_averaged" ) == 0 ) {
+    // set return value, return true
+    *value = x_compass_raw_averaged;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "y_compass_raw_averaged" ) == 0 ) {
+    // set return value, return true
+    *value = y_compass_raw_averaged;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "z_compass_raw_averaged" ) == 0 ) {
+    // set return value, return true
+    *value = z_compass_raw_averaged;
+    return PARSER_TRUE;
+  
+  } else if (strcmp( name, "angle" ) == 0 ) {
+    // set return value, return true
+    *value = angle;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "angle_averaged" ) == 0 ) {
+    // set return value, return true
+    *value = angle_averaged;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "pitch" ) == 0 ) {
+    // set return value, return true
+    *value = pitch;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "pitch_averaged" ) == 0 ) {
+    // set return value, return true
+    *value = pitch_averaged;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "roll" ) == 0 ) {
+    // set return value, return true
+    *value = roll;
+    return PARSER_TRUE;
+  } else if (strcmp( name, "roll_averaged" ) == 0 ) {
+    // set return value, return true
+    *value = roll_averaged;
     return PARSER_TRUE;
   } else if (strcmp( name, "x_tilt" ) == 0 ) {
     // set return value, return true
@@ -118,30 +178,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = z_tilt_averaged;
     return PARSER_TRUE;
-  } else if (strcmp( name, "x_tilt_raw" ) == 0 ) {
-    // set return value, return true
-    *value = x_tilt_raw;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "y_tilt_raw" ) == 0 ) {
-    // set return value, return true
-    *value = y_tilt_raw;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "z_tilt_raw" ) == 0 ) {
-    // set return value, return true
-    *value = z_tilt_raw;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "x_tilt_raw_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = x_tilt_raw_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "y_tilt_raw_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = y_tilt_raw_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "z_tilt_raw_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = z_tilt_raw_averaged;
-    return PARSER_TRUE;
+    
   } else if (strcmp( name, "temperature" ) == 0 ) {
     // set return value, return true
     *value = temperature;

@@ -43,9 +43,13 @@ double getCompass(const int magX, const int magY, const int magZ, const double& 
 double getRoll(const int accelY, const int accelZ);
 double getPitch(const int accelX, const int accel, const int accelZ, const double& roll);
 String getDirection(double compass);
-struct Tilt;
-Tilt calculateTilt(const double& roll, const double& pitch, double compass);
 
+//struct to hold tilt information
+struct Tilt {
+  double angle;
+  String angle_direction;
+};
+Tilt calculateTilt(const double& roll, const double& pitch, double compass);
 
 //////////////////////// MAIN LOOP /////////////////////////
 
@@ -62,7 +66,7 @@ void loop() {
 
     powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
 
-    if (c == -1) 
+    if (c == -1)
       continue;               // nothing available, try again
 
     activity();             // record fact that we have seen activity (used with powerdown())
@@ -1013,14 +1017,16 @@ void do_protocol()
 
         contactless_temp = contactless_temp_averaged = 0;
 
-        cardinal = cardinal_averaged = 0;
-        x_cardinal_raw = 0, y_cardinal_raw = 0, z_cardinal_raw = 0;
-        x_cardinal_raw_averaged = 0, y_cardinal_raw_averaged = 0, z_cardinal_raw_averaged = 0;
+        compass = compass_averaged = 0;
+        x_compass_raw = 0, y_compass_raw = 0, z_compass_raw = 0;
+        x_compass_raw_averaged = 0, y_compass_raw_averaged = 0, z_compass_raw_averaged = 0;
 
-        x_tilt = y_tilt = z_tilt = 0;
+        angle = 0;
+        angle_direction = "";
+        roll = roll_averaged = 0;
+        pitch = pitch_averaged = 0;
+        x_tilt = 0, y_tilt = 0, z_tilt = 0;
         x_tilt_averaged = 0, y_tilt_averaged = 0, z_tilt_averaged = 0;
-        x_tilt_raw = 0, y_tilt_raw = 0, z_tilt_raw = 0;
-        x_tilt_raw_averaged = 0, y_tilt_raw_averaged = 0, z_tilt_raw_averaged = 0;
 
         temperature = humidity = pressure = 0;
         temperature_averaged = humidity_averaged = pressure_averaged = 0;
@@ -1686,7 +1692,7 @@ int abort_cmd()
       An example - "environmental":[["tilt",1],["light_intensity",0]] would call tilt after the measurement, and light intensity before the measurement.
    2) Sensor data gets called in 3 ways: either inside the measurement as part of an expression (maybe "a_intensities":[light_intensity/2]), after a measurement or set of averaged measurements.
       In addition, there are often raw and calibrated versions of sensors, like raw tcs value versus the PAR value, or raw hall sensor versus calibrated thickness.
-      As a result, for most sensors there is the base version (like x_tilt) which is available in that measurment, an averaged version (like x_tilt_averaged) which is outputted after averaging, and raw versions of each of those (x_tilt_raw and x_tilt_raw_averaged)
+      As a result, for most sensors there is the base version (like x_tilt) which is available in that measurment, an averaged version (like x_tilt_averaged) which is outputted after averaging, and raw versions of each of those (x_tilt and x_tilt_averaged)
 */
 void get_temperature_humidity_pressure (int _averages) {    // read temperature, relative humidity, and pressure BME280 module
 
@@ -1720,39 +1726,57 @@ float get_contactless_temp (int _averages) {
 
 // read accelerometer
 
-void get_tilt (int notRaw, int _averages) {
-  MMA8653FC_read(&x_tilt_raw, &y_tilt_raw, &z_tilt_raw);                      // saves x_tilt_raw, y_... and z_... values
+void get_compass_and_angle (int notRaw, int _averages) {
+
+  // get accelerometer values for tilt
+  MMA8653FC_read(&x_tilt, &y_tilt, &z_tilt);                      // saves x_tilt, y_... and z_... values
   // consider adding a calibration with more useful outputs
-  x_tilt = x_tilt_raw * (180. / 1000);
-  y_tilt = y_tilt_raw * (180. / 1000);
-  z_tilt = z_tilt_raw * (180. / 1000);
+  roll = getRoll(y_tilt, z_tilt);
+  pitch = getPitch(x_tilt, y_tilt, z_tilt, roll);
+
+  // get compass values, and use tilt values to adjust calibration
+  MAG3110_read(&x_compass_raw, &y_compass_raw, &z_compass_raw);            // saves x_compass, y_ and z_ values
+  compass = getCompass(x_compass_raw, y_compass_raw, z_compass_raw, pitch, roll);
+  Tilt tilt_temp = calculateTilt(roll, pitch, compass);
+  angle = tilt_temp.angle;
+  angle_direction = tilt_temp.angle_direction;
+
+  // TODO now access the elements in the Tilt struct and save them.  Go change all the values elsewhere
+
   if (notRaw == 0) {                                              // save the raw values average
-    x_tilt_raw_averaged += (float)x_tilt_raw / _averages;
-    y_tilt_raw_averaged += (float)y_tilt_raw / _averages;
-    z_tilt_raw_averaged += (float)z_tilt_raw / _averages;
-  }
-  if (notRaw == 1) {                                              // save the calibrated values and average
     x_tilt_averaged += (float)x_tilt / _averages;
     y_tilt_averaged += (float)y_tilt / _averages;
     z_tilt_averaged += (float)z_tilt / _averages;
+    x_compass_raw_averaged += (float)x_compass_raw / _averages;
+    y_compass_raw_averaged += (float)y_compass_raw / _averages;
+    z_compass_raw_averaged += (float)z_compass_raw / _averages;
+  }
+  if (notRaw == 1) {                                              // save the calibrated values and average
+    roll_averaged += roll / _averages;
+    pitch_averaged += pitch / _averages;
+    compass_averaged += compass / _averages;
+    angle_averaged += angle / _averages;
   }
   // add better routine here to produce clearer tilt values
 }
 
 // read compass
 
-void get_cardinal (int notRaw, int _averages) {
-  MAG3110_read(&x_cardinal_raw, &y_cardinal_raw, &z_cardinal_raw);            // saves x_cardinal, y_ and z_ values
-  // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called cardinal
+/*
+  void get_compass (int notRaw, int _averages) {
+  get_tilt(notRaw, _averages)
+  MAG3110_read(&x_compass_raw, &y_compass_raw, &z_compass_raw);            // saves x_compass, y_ and z_ values
+  // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called compass
   if (notRaw == 0) {                                              // save the raw values average
-    x_cardinal_raw_averaged += (float)x_cardinal_raw / _averages;
-    y_cardinal_raw_averaged += (float)y_cardinal_raw / _averages;
-    z_cardinal_raw_averaged += (float)z_cardinal_raw / _averages;
+    x_compass_raw_averaged += (float)x_compass_raw / _averages;
+    y_compass_raw_averaged += (float)y_compass_raw / _averages;
+    z_compass_raw_averaged += (float)z_compass_raw / _averages;
   }
   if (notRaw == 1) {                                              // save the calibrated values and average
-    cardinal_averaged += (float)x_cardinal_raw / _averages;
+    compass_averaged += (float)x_compass_raw / _averages;
   }
-}
+  }
+*/
 
 // read the hall sensor to measure thickness of a leaf
 
@@ -1779,8 +1803,8 @@ float get_thickness (int notRaw, int _averages) {
 }
 
 //apply the calibration values for magnetometer from EEPROM
-void applyMagCal(int &x, int &y, int &z){
-  
+void applyMagCal(int &x, int &y, int &z) {
+
   x -= eeprom->mag_bias[0];
   y -= eeprom->mag_bias[1];
   z -= eeprom->mag_bias[2];
@@ -1797,7 +1821,7 @@ void applyMagCal(int &x, int &y, int &z){
 }
 
 //return compass heading (RADIANS) given pitch, roll and magentotmeter measurements
-double getCompass(const int magX, const int magY, const int magZ, const double& pitch, const double& roll){
+double getCompass(const int magX, const int magY, const int magZ, const double& pitch, const double& roll) {
   double negBfy = magZ * sin(roll) - magY * cos(roll);
   double Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
 
@@ -1805,122 +1829,116 @@ double getCompass(const int magX, const int magY, const int magZ, const double& 
 }
 
 //return roll (RADIANS) from accelerometer measurements
-double getRoll(const int accelY, const int accelZ){
+double getRoll(const int accelY, const int accelZ) {
   return atan2(accelY, accelZ);
 }
 
 //return pitch (RADIANS) from accelerometer measurements + roll
-double getPitch(const int accelX, const int accelY, const int accelZ, const double& roll){
-  return atan(-1 * accelX/(accelY * sin(roll) + accelZ * cos(roll)));
+double getPitch(const int accelX, const int accelY, const int accelZ, const double& roll) {
+  return atan(-1 * accelX / (accelY * sin(roll) + accelZ * cos(roll)));
 }
 
 //get the direction (N/S/E/W/NW/NE/SW/SE) from the compass heading
-String getDirection(double compass){
+String getDirection(double compass) {
 
   compass *= 180 / PI;
 
-  if (compass > 360 || compass < 0){
+  if (compass > 360 || compass < 0) {
     return "Invalid compass heading.";
   }
-  
-  if(compass > 337.5 || compass <= 22.5){
+
+  if (compass > 337.5 || compass <= 22.5) {
     return "N";
-  } else if (compass <= 67.5){
+  } else if (compass <= 67.5) {
     return "NE";
-  } else if (compass <= 112.5){
+  } else if (compass <= 112.5) {
     return "E";
-  } else if (compass <= 157.5){
+  } else if (compass <= 157.5) {
     return "SE";
-  } else if (compass <= 202.5){
+  } else if (compass <= 202.5) {
     return "S";
-  } else if (compass <= 247.5){
+  } else if (compass <= 247.5) {
     return "SW";
-  } else if (compass <= 292.5){
+  } else if (compass <= 292.5) {
     return "W";
-  } else if (compass <= 337.5){
+  } else if (compass <= 337.5) {
     return "NW";
   } else {
     return "Invalid compass heading.";
   }
 }
 
-//struct to hold tilt information
-struct Tilt {
-  double angle;
-  String deviceDirection;
-};
-
 //calculate tilt angle and tilt direction given roll, pitch, compass heading
-Tilt calculateTilt(const double &roll, const double &pitch, double compass){
+Tilt calculateTilt(const double &roll, const double &pitch, double compass) {
 
-  compass *= 180/PI;
-  
+  compass *= 180 / PI;
+
   Tilt deviceTilt;
   deviceTilt.angle = acos(sqrt(cos(roll) * cos(roll) + cos(pitch) * cos(pitch))) * 180 / PI;
 
-  if(0 <= compass && compass <= 360){
-    deviceTilt.deviceDirection = "Invalid compass heading";
+  if (0 <= compass && compass <= 360) {
+    deviceTilt.angle_direction = "Invalid compass heading";
   }
 
   double* angle = &deviceTilt.angle;
 
-  int compass_dir = 0; 
-  if(337.5 < compass || compass <= 22.5){
+  int compass_dir = 0;
+  if (337.5 < compass || compass <= 22.5) {
     compass_dir = 0;
-  } else if (compass <= 67.5){
+  } else if (compass <= 67.5) {
     compass_dir = 1;
-  } else if (compass <= 112.5){
+  } else if (compass <= 112.5) {
     compass_dir = 2;
-  } else if (compass <= 157.5){
+  } else if (compass <= 157.5) {
     compass_dir = 3;
-  } else if (compass <= 202.5){
+  } else if (compass <= 202.5) {
     compass_dir = 4;
-  } else if (compass <= 247.5){
+  } else if (compass <= 247.5) {
     compass_dir = 5;
-  } else if (compass <= 292.5){
+  } else if (compass <= 292.5) {
     compass_dir = 6;
-  } else if (compass <= 337.5){
+  } else if (compass <= 337.5) {
     compass_dir = 7;
-  } 
+  }
 
-  if(337.5 < *angle || *angle <= 22.5){
+  if (337.5 < *angle || *angle <= 22.5) {
     compass_dir += 0;
-  } else if (*angle <= 67.5){
+  } else if (*angle <= 67.5) {
     compass_dir += 1;
-  } else if (*angle <= 112.5){
+  } else if (*angle <= 112.5) {
     compass_dir += 2;
-  } else if (*angle <= 157.5){
+  } else if (*angle <= 157.5) {
     compass_dir += 3;
-  } else if (*angle <= 202.5){
+  } else if (*angle <= 202.5) {
     compass_dir += 4;
-  } else if (*angle <= 247.5){
+  } else if (*angle <= 247.5) {
     compass_dir += 5;
-  } else if (*angle <= 292.5){
+  } else if (*angle <= 292.5) {
     compass_dir += 6;
-  } else if (*angle <= 337.5){
+  } else if (*angle <= 337.5) {
     compass_dir += 7;
-  } 
+  }
 
   compass_dir = compass_dir % 8;
 
-   if(compass_dir == 0){
-    deviceTilt.deviceDirection = "N";
-  } else if (compass_dir == 1){
-    deviceTilt.deviceDirection = "NE";
-  } else if (compass_dir == 2){
-    deviceTilt.deviceDirection = "E";
-  } else if (compass_dir == 3){
-    deviceTilt.deviceDirection = "SE";
-  } else if (compass_dir == 4){
-    deviceTilt.deviceDirection = "S";
-  } else if (compass_dir == 5){
-    deviceTilt.deviceDirection = "SW";
-  } else if (compass_dir == 6){
-    deviceTilt.deviceDirection = "W";
-  } else if (compass_dir == 7){
-    deviceTilt.deviceDirection = "NW";
+  if (compass_dir == 0) {
+    deviceTilt.angle_direction = "N";
+  } else if (compass_dir == 1) {
+    deviceTilt.angle_direction = "NE";
+  } else if (compass_dir == 2) {
+    deviceTilt.angle_direction = "E";
+  } else if (compass_dir == 3) {
+    deviceTilt.angle_direction = "SE";
+  } else if (compass_dir == 4) {
+    deviceTilt.angle_direction = "S";
+  } else if (compass_dir == 5) {
+    deviceTilt.angle_direction = "SW";
+  } else if (compass_dir == 6) {
+    deviceTilt.angle_direction = "W";
+  } else if (compass_dir == 7) {
+    deviceTilt.angle_direction = "NW";
   } else {
-    deviceTilt.deviceDirection = "Invalid compass heading.";
+    deviceTilt.angle_direction = "Invalid compass heading.";
   }
 
   return deviceTilt;
@@ -1985,31 +2003,17 @@ static void environmentals(JsonArray environmental, const int _averages, const i
       }
     }
 
-    if ((String) environmental.getArray(i).getString(0) == "tilt") {                             // measure tilt in -180 - 180 degrees
-      get_tilt(1, _averages);
+    if ((String) environmental.getArray(i).getString(0) == "compass_and_angle") {                             // measure tilt in -180 - 180 degrees
+      get_compass_and_angle(1, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"x_tilt\":%.2f, \"y_tilt\":%.2f, \"z_tilt\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged);
+        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass).c_str(), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
       }
     }
 
-    if ((String) environmental.getArray(i).getString(0) == "tilt_raw") {                         // measure tilt from -1000 - 1000
-      get_tilt(0, _averages);
+    if ((String) environmental.getArray(i).getString(0) == "compass_and_angle_raw") {                         // measure tilt from -1000 - 1000
+      get_compass_and_angle(0, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"x_tilt_raw\":%.2f, \"y_tilt_raw\":%.2f, \"z_tilt_raw\":%.2f,", x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged);
-      }
-    }
-
-    if ((String) environmental.getArray(i).getString(0) == "cardinal") {                         // measure cardinal direction, with calibration applied
-      get_cardinal(1, _averages);
-      if (count == _averages - 1) {
-        Serial_Printf("\"cardinal\":%.2f,", cardinal_averaged);
-      }
-    }
-
-    if ((String) environmental.getArray(i).getString(0) == "cardinal_raw") {                     // measure cardinal direction, raw values
-      get_cardinal(0, _averages);
-      if (count == _averages - 1) {
-        Serial_Printf("\"x_cardinal_raw\":%.2f,\"y_cardinal_raw\":%.2f,\"z_cardinal_raw\":%.2f,", x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged);
+        Serial_Printf("\"x_tilt\":%.2f,\"y_tilt\":%.2f,\"z_tilt\":%.2f,\"x_compass_raw\":%.2f,\"y_compass_raw\":%.2f,\"z_compass_raw\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged, x_compass_raw, y_compass_raw, z_compass_raw);
       }
     }
 

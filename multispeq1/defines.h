@@ -136,15 +136,18 @@ EXTERN float thickness_raw_averaged;
 EXTERN float contactless_temp;
 EXTERN float contactless_temp_averaged;
 
-EXTERN int cardinal;
-EXTERN int cardinal_averaged;
-EXTERN int x_cardinal_raw, y_cardinal_raw, z_cardinal_raw;
-EXTERN float x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged;
+EXTERN int compass;
+EXTERN float compass_averaged;
+EXTERN int x_compass_raw, y_compass_raw, z_compass_raw;
+EXTERN float x_compass_raw_averaged, y_compass_raw_averaged, z_compass_raw_averaged;
 
-EXTERN float x_tilt, y_tilt, z_tilt;
+EXTERN double angle;
+EXTERN double angle_averaged;
+EXTERN String angle_direction;
+EXTERN int roll, pitch;
+EXTERN float roll_averaged, pitch_averaged;
+EXTERN int x_tilt, y_tilt, z_tilt;
 EXTERN float x_tilt_averaged, y_tilt_averaged, z_tilt_averaged;
-EXTERN int x_tilt_raw, y_tilt_raw, z_tilt_raw;
-EXTERN float x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged;
 
 EXTERN float temperature, humidity, pressure;
 EXTERN float temperature_averaged, humidity_averaged, pressure_averaged;

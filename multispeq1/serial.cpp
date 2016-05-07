@@ -13,6 +13,7 @@
 #include <Arduino.h>
 #include "serial.h"
 #include "utility/crc32.h"
+#include "defines.h"
 
 static void Serial_Print_BLE(const char *str);
 static void print_packet(const char *str);
@@ -114,7 +115,7 @@ int Serial_Peek()
   if (Serial1.available())
     return Serial1.peek();
 
-  asm volatile( "wfi" );  // save some power
+  sleep_cpu();  // save some power
   
   return -1;
 }  // Serial_Available()

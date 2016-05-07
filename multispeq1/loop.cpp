@@ -11,6 +11,7 @@
 #include "flasher.h"
 #include "utility/crc32.h"
 #include <TimeLib.h>
+//#include <avr/sleep.h>
 
 // function declarations
 
@@ -1290,8 +1291,9 @@ void do_protocol()
             //            uint16_t endTimer;
 
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
-              asm volatile( "wfi" );        // save some power
-              if (abort_cmd()) goto abort;  // or just reboot?
+              sleep_cpu();                  // save some power
+              if (abort_cmd()) 
+                 goto abort;  // or just reboot?
             }
 
             if (_reference != 0) {

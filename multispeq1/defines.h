@@ -65,6 +65,12 @@ char (&ArraySizeHelper(T (&array)[N]))[N];
 
 #define sleep_cpu()             {asm("wfi");}                 // go to lower power mode
 
+// hash a string to an unsigned int AT COMPILE TIME, so it can be used in a switch statement
+constexpr unsigned hash(const char *string)
+{
+ return (*string == 0 ? 0 : (*string << 8) + hash(string+1));
+}
+
 const int NUM_LEDS=10;
 // map LED (1-10 not 0-9) to MCU pin
 const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PULSE5, PULSE6, PULSE7, PULSE8, PULSE9, PULSE10 }; // NOTE!  We skip the first element in the array so that the array lines up correctly (PULSE1 == 1, PULSE2 == 2 ... )
@@ -97,10 +103,15 @@ const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PUL
 /*NOTES*/// blank pin (used when no other pin is selected - probably should change this later
 #define BLANK    32   // error - same as IOEXT2
 
+
+//struct to hold tilt information
+struct Tilt {
+  double angle;
+  String angle_direction;
+};
+
 // Functions
-
 #include <stdint.h>
-
 void activity(void);
 void powerdown(void);
 uint16_t median16(uint16_t array[], const int n, const float percentile = .50);

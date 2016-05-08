@@ -13,16 +13,16 @@ static int flash_hex_line(const char *line);
 int parse_hex_line (const char *theline, char *bytes, unsigned int *addr, unsigned int *num, unsigned int *code);
 static int flash_block(uint32_t address, uint32_t *bytes, int count);
 
+#if 0
+
 // you probably need these, customized for your serial port (ie, Serial, Serial1, etc)
-//#define Serial_Available()  Serial.available()
-//#define Serial_Read()       Serial.read()
-//#define Serial_Printf()     Serial.printf()
+#define Serial_Available()  Serial.available()
+#define Serial_Read()       Serial.read()
+#define Serial_Printf       Serial.printf
 
-//const int ledPin = 13;
+const int ledPin = 13;
 
-/*
-void
-setup ()
+void setup ()
 {
   // put your setup code here, to run once:
   boot_check();             // check if we need to upgrade firmware before running loop()
@@ -33,8 +33,7 @@ setup ()
   digitalWrite(ledPin, LOW);     // set the LED off
 }
 
-void
-loop ()
+void loop ()
 {
 #if 0
   //simple example of writing to flash
@@ -54,7 +53,8 @@ loop ()
   for (;;) {}
 
 }  // loop()
-*/
+
+#endif
 
 // *******************************
 
@@ -81,8 +81,7 @@ loop ()
 // hint:  on Linux, exit the serial console and do "dd if=blink.hex of=/dev/ttyACM0", then restart the Serial console and
 // enter the ":flash xxx" command.
 
-void
-upgrade_firmware(void)   // main entry point
+void upgrade_firmware(void)   // main entry point
 {
   Serial_Printf("%s flash size = %dK in %dK sectors\n", FLASH_ID, FLASH_SIZE / 1024, FLASH_SECTOR_SIZE / 1024);
 
@@ -446,8 +445,7 @@ flash_sector_erased(uint32_t address)
 // ***************************
 // erase the entire upper half
 // Note: highest sectors of flash are used for other things - don't erase them
-void
-flash_erase_upper()
+void flash_erase_upper()
 {
   uint32_t address;
   int ret;

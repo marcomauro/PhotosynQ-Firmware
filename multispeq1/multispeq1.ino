@@ -245,8 +245,6 @@ void setup() {
   pinMode(HOLDADD, OUTPUT);
   digitalWriteFast(HOLDADD, HIGH);                // discharge cap
 
-  //pinMode(BLANK, OUTPUT);                                                            // used as a blank pin to pull high and low if the meas lights is otherwise blank (set to 0)
-
 #if CORALSPEQ == 1
   // Set pinmodes for the coralspeq
   //pinMode(SPEC_EOS, INPUT);
@@ -292,7 +290,7 @@ void setup() {
   Serial_Set(2);
   Serial_Print_Line("This is a long test.  Does it work?  We may never know.  There are always hidden bugs.");
   Serial_Flush_Output();
-  packet_mode = 0;
+  packet_mode = 0;   // restore to normal
   Serial_Set(4);
 #endif
 
@@ -307,17 +305,6 @@ void setup() {
 // read/write device_id and manufacture_date to eeprom
 
 void get_set_device_info(const int _set) {
-  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
-                (unsigned)eeprom->device_id >> 24,
-                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
-                ((unsigned)eeprom->device_id & 0xff00) >> 8,
-                (unsigned)eeprom->device_id & 0xff,
-                DEVICE_FIRMWARE, eeprom->device_manufacture);
-  Serial_Print_CRC();
-
-  if (_set == 0) {                                                                      // if you're not trying to set the values, then just print this and bail
-    return;
-  }
 
   if (_set == 1) {
     long val;
@@ -332,7 +319,9 @@ void get_set_device_info(const int _set) {
     val = Serial_Input_Long("+", 0);
     store(device_manufacture, val);
 
-    // print again for verification
+  } // if
+  
+    // print
     Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
                   (unsigned)eeprom->device_id >> 24,
                   ((unsigned)eeprom->device_id & 0xff0000) >> 16,
@@ -340,8 +329,6 @@ void get_set_device_info(const int _set) {
                   (unsigned)eeprom->device_id & 0xff,
                   DEVICE_FIRMWARE, eeprom->device_manufacture);
     Serial_Print_CRC();
-
-  } // if
 
   return;
 
@@ -666,4 +653,49 @@ int battery_low()
   return 0;  // OK
 
 } // battery_low()
+
+
+// print message for every I2C device on the bus
+// original author unknown
+
+void scan_i2c(void)
+{
+  byte error, address;
+  int nDevices;
+ 
+  Serial.println("Scanning...");
+ 
+  nDevices = 0;
+  for(address = 1; address < 127; address++ )
+  {
+    // The i2c_scanner uses the return value of
+    // the Write.endTransmisstion to see if
+    // a device did acknowledge to the address.
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+ 
+    if (error == 0)
+    {
+      Serial.print("I2C device found at address 0x");
+      if (address<16)
+        Serial.print("0");
+      Serial.print(address,HEX);
+      Serial.println("  !");
+ 
+      nDevices++;
+    }
+    else if (error==4)
+    {
+      Serial.print("Unknow error at address 0x");
+      if (address<16)
+        Serial.print("0");
+      Serial.println(address,HEX);
+    }    
+  }
+  if (nDevices == 0)
+    Serial.println("No I2C devices found\n");
+  else
+    Serial.println("done\n");
+ 
+} // scan_i2c()
 

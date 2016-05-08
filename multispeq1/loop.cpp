@@ -43,12 +43,6 @@ double getCompass(const int magX, const int magY, const int magZ, const double& 
 double getRoll(const int accelY, const int accelZ);
 double getPitch(const int accelX, const int accel, const int accelZ, const double& roll);
 String getDirection(double compass);
-
-//struct to hold tilt information
-struct Tilt {
-  double angle;
-  String angle_direction;
-};
 Tilt calculateTilt(const double& roll, const double& pitch, double compass);
 
 //////////////////////// MAIN LOOP /////////////////////////
@@ -104,29 +98,45 @@ static uint8_t _meas_light;                    // measuring light to be used dur
 static uint16_t _pulsesize = 0;         // pulse width in usec
 static volatile uint8_t led_off = 0;    // status of LED set by ISR
 
-// process a numeric + command
+// process a  + command
 
 void do_command()
 {
   char choose[50];
   Serial_Input_Chars(choose, "+", 500, sizeof(choose) - 1);
 
+  for (unsigned i = 0; i < strlen(choose); ++i) {   // remove ctrl characters
+    if (!isprint(choose[i]))
+      choose[i] = 0;
+  }
+
   if (strlen(choose) < 3) {        // short or null command, quietly ignore it
     return;
   }
 
-  if (isprint(choose[0]) && !isdigit(choose[0])) {
-    Serial_Print("{\"error\":\"commands must be numbers or json\"}\n");
+  if (!isalnum(choose[0])) {
+    Serial_Print("{\"error\":\" bad command\"}\n");
     return;                     // go read another command
   }
 
-  // process + command
+  unsigned val;                     // we accept int or alpha commands
+  if (isdigit(choose[0]))
+    val = atoi(choose);
+  else
+    val = hash(choose);       // convert alpha command to an int
 
-  switch (atoi(choose)) {
+  // process command
+  switch (val) {
+    
+    case hash("test"):        // bet you didn't think this was possible :-)
+      Serial_Print_Line("got test command");
+      break;
+
     case 1000:                                                                    // print "Ready" to USB and Bluetooth
       Serial_Print(DEVICE_NAME);
       Serial_Print_Line(" Ready");
       break;
+
     case 1001:                                                                      // standard startup routine for new device
       DAC_set_address(LDAC1, 0, 1);                                                 // Set DAC addresses to 1,2,3 assuming addresses are unset and all are factory (0,0,0)
       DAC_set_address(LDAC2, 0, 2);
@@ -558,7 +568,7 @@ void do_command()
       upgrade_firmware();
       break;
 
-    case 1200:
+    case hash("battery"):
       battery_low();  // test battery
       break;
 
@@ -583,11 +593,12 @@ void do_command()
         Serial_Flush_Output();
       }
       break;
-    case 2000:
+
+    case hash("compiled"):
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
       break;
 
-    case 4044:
+    case hash("single_pulse"):
       {
         // JZ test - do not remove
         // read and analyze noise on ADC from a single LED pulse
@@ -620,7 +631,7 @@ void do_command()
       }
       break;
 
-    case 4047:
+    case hash("p2p"):
       {
         // JZ test - do not remove
         // read multiple pulses with increasing intensity or pulse width for linearity test
@@ -710,12 +721,15 @@ void do_command()
       break;
 
     default:
-      Serial_Printf("{\"error\":\"bad command # %s\"}\n", choose);
+      Serial_Printf("{\"error\":\"bad command %s\"}\n", choose);
       break;
 
   }  // switch()
 
 } // do_command()
+
+
+
 
 // read in and execute a protocol
 // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]<newline>
@@ -1303,8 +1317,8 @@ void do_protocol()
 
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
               sleep_cpu();                  // save some power
-              if (abort_cmd()) 
-                 goto abort;  // or just reboot?
+              if (abort_cmd())
+                goto abort;  // or just reboot?
             }
 
             if (_reference != 0) {
@@ -1822,7 +1836,7 @@ void applyMagCal(int &x, int &y, int &z) {
 }
 
 //return compass heading (RADIANS) given pitch, roll and magentotmeter measurements
-double getCompass(const int magX, const int magY, const int magZ, const double& pitch, const double& roll) {
+double getCompass(const int magX, const int magY, const int magZ, const double & pitch, const double & roll) {
   double negBfy = magZ * sin(roll) - magY * cos(roll);
   double Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
 
@@ -1835,8 +1849,16 @@ double getRoll(const int accelY, const int accelZ) {
 }
 
 //return pitch (RADIANS) from accelerometer measurements + roll
-double getPitch(const int accelX, const int accelY, const int accelZ, const double& roll) {
+double getPitch(const int accelX, const int accelY, const int accelZ, const double & roll) {
   return atan(-1 * accelX / (accelY * sin(roll) + accelZ * cos(roll)));
+}
+
+// Kevin TODO - use this instead of multiple if statements
+// return 0-7 based on 8 segments of the compass
+
+int compass_segment(float angle)    // in degrees, assume no negatives
+{
+  return (round(angle / 45) % 8);
 }
 
 //get the direction (N/S/E/W/NW/NE/SW/SE) from the compass heading
@@ -1870,7 +1892,7 @@ String getDirection(double compass) {
 }
 
 //calculate tilt angle and tilt direction given roll, pitch, compass heading
-Tilt calculateTilt(const double &roll, const double &pitch, double compass) {
+Tilt calculateTilt(const double & roll, const double & pitch, double compass) {
 
   compass *= 180 / PI;
 
@@ -1922,7 +1944,7 @@ Tilt calculateTilt(const double &roll, const double &pitch, double compass) {
 
   compass_dir = compass_dir % 8;
 
-  if (compass_dir == 0) {
+  if (compass_dir == 0) {              // use switch statement
     deviceTilt.angle_direction = "N";
   } else if (compass_dir == 1) {
     deviceTilt.angle_direction = "NE";
@@ -2130,7 +2152,7 @@ void print_calibrations() {
   Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
 
   Serial_Print("\"par_to_dac_slope\": [");
-#if 1          // TODO improved example - note, i should probably start at 1 since the first value isn't used
+#if 1          // Greg TODO improved example - note, i should probably start at 1 since the first value isn't used
   for (i = 0; i < arraysize(eeprom->par_to_dac_slope) - 1; i++)
     Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
   Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);

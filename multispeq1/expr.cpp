@@ -28,8 +28,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
-    
-    // Responses from sensors
   } else if (strcmp( name, "light_intensity" ) == 0 ) {
     // set return value, return true
     *value = light_intensity;
@@ -70,7 +68,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = b_averaged;
     return PARSER_TRUE;
-    
   } else if (strcmp( name, "thickness" ) == 0 ) {
     // set return value, return true
     *value = thickness;
@@ -87,7 +84,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = thickness_raw_averaged;
     return PARSER_TRUE;
-    
   } else if (strcmp( name, "contactless_temp" ) == 0 ) {
     // set return value, return true
     *value = contactless_temp;
@@ -96,7 +92,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = contactless_temp_averaged;
     return PARSER_TRUE;
-
   } else if (strcmp( name, "compass" ) == 0 ) {
     // set return value, return true
     *value = compass;
@@ -129,7 +124,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = z_compass_raw_averaged;
     return PARSER_TRUE;
-  
   } else if (strcmp( name, "angle" ) == 0 ) {
     // set return value, return true
     *value = angle;
@@ -178,7 +172,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = z_tilt_averaged;
     return PARSER_TRUE;
-    
   } else if (strcmp( name, "temperature" ) == 0 ) {
     // set return value, return true
     *value = temperature;
@@ -227,7 +220,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = pressure2_averaged;
     return PARSER_TRUE;
-    
     // Admin defined values
   } else if (strcmp( name, "light_yint" ) == 0 ) {
     // set return value, return true

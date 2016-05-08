@@ -55,6 +55,9 @@ void PAR_init()
 
 uint16_t par_to_dac (float _par, uint16_t _pin) {                                             // convert dac value to par, in form y = mx + b where y is the dac value
   int dac_value = _par * eeprom->par_to_dac_slope[_pin] + eeprom->par_to_dac_yint[_pin];
+ 
+  dac_value = constrain(dac_value,0,4095);
+
   return dac_value;
 }
 

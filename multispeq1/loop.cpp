@@ -114,6 +114,11 @@ void do_command()
     return;
   }
 
+  if  (choose[0] == '(') {             // an expression
+      Serial_Printf("%g\n",expr(choose));
+      return;
+  }
+
   if (!isalnum(choose[0])) {
     Serial_Print("{\"error\":\" bad command\"}\n");
     return;                     // go read another command

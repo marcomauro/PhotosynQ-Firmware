@@ -68,7 +68,7 @@ char (&ArraySizeHelper(T (&array)[N]))[N];
 // hash a string to an unsigned int AT COMPILE TIME, so it can be used in a switch statement
 constexpr unsigned hash(const char *string)
 {
- return (*string == 0 ? 0 : (*string << 8) + hash(string+1));
+ return *string == 0 ? 17325 : *string + (*string * hash(string+1));
 }
 
 const int NUM_LEDS=10;

@@ -127,12 +127,9 @@ void do_command()
 
   // process command
   switch (val) {
-    
-    case hash("test"):        // bet you didn't think this was possible :-)
-      Serial_Print_Line("got test command");
-      break;
 
-    case 1000:                                                                    // print "Ready" to USB and Bluetooth
+    case hash("hello"):  
+    case 1000:                                                                    // print "Ready" to USB and/or Bluetooth
       Serial_Print(DEVICE_NAME);
       Serial_Print_Line(" Ready");
       break;
@@ -143,6 +140,7 @@ void do_command()
       DAC_set_address(LDAC3, 0, 3);
       get_set_device_info(1);                                                           //  input device info and write to eeprom
       break;
+      
     case 1002:                                                                          // continuously output until user enter -1+
       {
         int Xcomp, Ycomp, Zcomp;
@@ -218,6 +216,7 @@ void do_command()
       get_set_device_info(0);
       break;
 
+    case hash("powerdown"):
     case 1008:
       Serial_Print_Line("a");
       pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
@@ -356,6 +355,7 @@ void do_command()
       }
       break;
 
+    case hash("reboot"):
     case 1027:                                                                                // restart teensy (keep here!)
       _reboot_Teensyduino_();
       break;
@@ -564,6 +564,7 @@ void do_command()
       }
       break;
 
+    case hash("upgrade"):
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
       break;

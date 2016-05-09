@@ -115,8 +115,8 @@ void do_command()
   }
 
   if  (choose[0] == '(') {             // an expression
-      Serial_Printf("%g\n",expr(choose));
-      return;
+    Serial_Printf("%g\n", expr(choose));
+    return;
   }
 
   if (!isalnum(choose[0])) {
@@ -133,7 +133,7 @@ void do_command()
   // process command
   switch (val) {
 
-    case hash("hello"):  
+    case hash("hello"):
     case 1000:                                                                    // print "Ready" to USB and/or Bluetooth
       Serial_Print(DEVICE_NAME);
       Serial_Print_Line(" Ready");
@@ -145,7 +145,7 @@ void do_command()
       DAC_set_address(LDAC3, 0, 3);
       get_set_device_info(1);                                                           //  input device info and write to eeprom
       break;
-      
+
     case 1002:                                                                          // continuously output until user enter -1+
       {
         int Xcomp, Ycomp, Zcomp;
@@ -602,6 +602,11 @@ void do_command()
 
     case hash("compiled"):
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
+      break;
+
+    case hash("temp"):
+      Serial_Printf("BME2801 Temperature = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
+      Serial_Printf("BME2802 Temperature = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
       break;
 
     case hash("single_pulse"):

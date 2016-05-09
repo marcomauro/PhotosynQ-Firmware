@@ -38,10 +38,10 @@ void do_protocol(void);
 void do_command(void);
 int battery_low(void);
 void print_calibrations(void);
-void applyMagCal(int &x, int &y, int &z);
-double getCompass(const int magX, const int magY, const int magZ, const double& pitch, const double& roll);
+void applyMagCal(float* arr);
+double getCompass(const float magX, const float magY, const float magZ, const double& pitch, const double& roll);
 double getRoll(const int accelY, const int accelZ);
-double getPitch(const int accelX, const int accel, const int accelZ, const double& roll);
+double getPitch(const int accelX, const int accelY, const int accelZ, const double& roll);
 String getDirection(double compass);
 Tilt calculateTilt(const double& roll, const double& pitch, double compass);
 
@@ -98,7 +98,7 @@ static uint8_t _meas_light;                    // measuring light to be used dur
 static uint16_t _pulsesize = 0;         // pulse width in usec
 static volatile uint8_t led_off = 0;    // status of LED set by ISR
 
-// process a  + command
+// process a numeric + command
 
 void do_command()
 {
@@ -111,6 +111,11 @@ void do_command()
   }
 
   if (strlen(choose) < 3) {        // short or null command, quietly ignore it
+    return;
+  }
+
+  if  (choose[0] == '(') {             // an expression
+    Serial_Printf("%g\n", expr(choose));
     return;
   }
 
@@ -128,7 +133,7 @@ void do_command()
   // process command
   switch (val) {
 
-    case hash("hello"):  
+    case hash("hello"):
     case 1000:                                                                    // print "Ready" to USB and/or Bluetooth
       Serial_Print(DEVICE_NAME);
       Serial_Print_Line(" Ready");
@@ -140,7 +145,7 @@ void do_command()
       DAC_set_address(LDAC3, 0, 3);
       get_set_device_info(1);                                                           //  input device info and write to eeprom
       break;
-      
+
     case 1002:                                                                          // continuously output until user enter -1+
       {
         int Xcomp, Ycomp, Zcomp;
@@ -561,7 +566,59 @@ void do_command()
         }
       }
       break;
+      
+    case 1051:
+      Serial_Print_Line("Magnetometer Bias: ");
+      Serial_Print_Line(eeprom->mag_bias[0], 7);
+      Serial_Print_Line(eeprom->mag_bias[1], 7);
+      Serial_Print_Line(eeprom->mag_bias[2], 7);
+      break;
+      
+    case 1052:
+      Serial_Print_Line("Magnetometer Rotation: ");
+      for(int i = 0; i < 3; i++){
+        for(int j = 0; j < 3; j++){
+          Serial_Print_Line(eeprom->mag_cal[i][j], 7);
+        }
+      }
+      break;
 
+    case 1053:
+            {
+              int magX, magY, magZ, accX, accY, accZ;
+              MAG3110_read(&magX, &magY, &magZ);
+              MMA8653FC_read(&accX, &accY, &accZ);
+              
+              float coords[3] = {(float) magX, (float) magY, (float) magZ};
+              applyMagCal(coords);
+              
+              double roll = getRoll(accY, accZ);
+              double pitch = getPitch(accX, accY, accZ, roll);
+              double yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
+
+              roll *= 180 / PI;
+              pitch *= 180 / PI;
+              yaw *= 180/ PI;
+
+              if(yaw < 0) {
+                yaw = yaw * -1 + 180;
+              }
+
+              Serial_Print_Line("Roll: ");
+              Serial_Print_Line(roll, 3);
+              Serial_Print_Line("Pitch: ");
+              Serial_Print_Line(pitch, 3);
+              Serial_Print_Line("Compass: ");
+              Serial_Print_Line(yaw, 3);
+
+              Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
+
+              Serial_Printf("Tilt angle: %d, Tilt direction: ", deviceTilt.angle);
+              Serial_Print_Line(deviceTilt.angle_direction);
+              
+            }
+            break;
+    
     case hash("upgrade"):
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
@@ -596,6 +653,11 @@ void do_command()
 
     case hash("compiled"):
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
+      break;
+
+    case hash("temp"):
+      Serial_Printf("BME2801 Temperature = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
+      Serial_Printf("BME2802 Temperature = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
       break;
 
     case hash("single_pulse"):
@@ -1818,25 +1880,26 @@ float get_thickness (int notRaw, int _averages) {
 }
 
 //apply the calibration values for magnetometer from EEPROM
-void applyMagCal(int &x, int &y, int &z) {
+void applyMagCal(float* arr) {
 
-  x -= eeprom->mag_bias[0];
-  y -= eeprom->mag_bias[1];
-  z -= eeprom->mag_bias[2];
+  arr[0] -= eeprom->mag_bias[0];
+  arr[1] -= eeprom->mag_bias[1];
+  arr[2] -= eeprom->mag_bias[2];
 
-  int xTemp, yTemp, zTemp;
+  float tempY = arr[0] * eeprom->mag_cal[0][0] + arr[1] * eeprom->mag_cal[0][1] + arr[2] * eeprom->mag_cal[0][2];
+  float tempX = arr[0] * eeprom->mag_cal[1][0] + arr[1] * eeprom->mag_cal[1][1] + arr[2] * eeprom->mag_cal[1][2];
+  float tempZ = arr[0] * eeprom->mag_cal[2][0] + arr[1] * eeprom->mag_cal[2][1] + arr[2] * eeprom->mag_cal[2][2];
 
-  xTemp = x * eeprom->mag_cal[0][0] + y * eeprom->mag_cal[0][1] + z * eeprom->mag_cal[0][2];
-  yTemp = x * eeprom->mag_cal[1][0] + y * eeprom->mag_cal[1][1] + z * eeprom->mag_cal[1][2];
-  zTemp = x * eeprom->mag_cal[2][0] + y * eeprom->mag_cal[2][1] + z * eeprom->mag_cal[2][2];
+  arr[0] = tempX;
+  arr[1] = tempY;
+  arr[2] = tempZ;
 
-  y = -1 * xTemp;
-  x = -1 * yTemp;
-  z = zTemp;
+  arr[1] *= -1;
+  arr[0] *= -1;
 }
 
 //return compass heading (RADIANS) given pitch, roll and magentotmeter measurements
-double getCompass(const int magX, const int magY, const int magZ, const double & pitch, const double & roll) {
+double getCompass(const float magX, const float magY, const float magZ, const double & pitch, const double & roll) {
   double negBfy = magZ * sin(roll) - magY * cos(roll);
   double Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
 
@@ -1853,42 +1916,23 @@ double getPitch(const int accelX, const int accelY, const int accelZ, const doub
   return atan(-1 * accelX / (accelY * sin(roll) + accelZ * cos(roll)));
 }
 
-// Kevin TODO - use this instead of multiple if statements
 // return 0-7 based on 8 segments of the compass
 
 int compass_segment(float angle)    // in degrees, assume no negatives
 {
-  return (round(angle / 45) % 8);
+  return (round( angle / 45) % 8);
 }
 
 //get the direction (N/S/E/W/NW/NE/SW/SE) from the compass heading
-String getDirection(double compass) {
+String getDirection(int segment) {
 
-  compass *= 180 / PI;
-
-  if (compass > 360 || compass < 0) {
-    return "Invalid compass heading.";
+  if(segment > 7 || segment < 0){
+    return "Invalid compass segment";
   }
 
-  if (compass > 337.5 || compass <= 22.5) {
-    return "N";
-  } else if (compass <= 67.5) {
-    return "NE";
-  } else if (compass <= 112.5) {
-    return "E";
-  } else if (compass <= 157.5) {
-    return "SE";
-  } else if (compass <= 202.5) {
-    return "S";
-  } else if (compass <= 247.5) {
-    return "SW";
-  } else if (compass <= 292.5) {
-    return "W";
-  } else if (compass <= 337.5) {
-    return "NW";
-  } else {
-    return "Invalid compass heading.";
-  }
+  String names[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+
+  return names[segment];
 }
 
 //calculate tilt angle and tilt direction given roll, pitch, compass heading
@@ -1903,67 +1947,12 @@ Tilt calculateTilt(const double & roll, const double & pitch, double compass) {
     deviceTilt.angle_direction = "Invalid compass heading";
   }
 
-  double* angle = &deviceTilt.angle;
+  int tilt_segment = compass_segment(deviceTilt.angle);
 
-  int compass_dir = 0;
-  if (337.5 < compass || compass <= 22.5) {
-    compass_dir = 0;
-  } else if (compass <= 67.5) {
-    compass_dir = 1;
-  } else if (compass <= 112.5) {
-    compass_dir = 2;
-  } else if (compass <= 157.5) {
-    compass_dir = 3;
-  } else if (compass <= 202.5) {
-    compass_dir = 4;
-  } else if (compass <= 247.5) {
-    compass_dir = 5;
-  } else if (compass <= 292.5) {
-    compass_dir = 6;
-  } else if (compass <= 337.5) {
-    compass_dir = 7;
-  }
+  int comp_segment = compass_segment(compass) + tilt_segment;
+  comp_segment = comp_segment % 8;
 
-  if (337.5 < *angle || *angle <= 22.5) {
-    compass_dir += 0;
-  } else if (*angle <= 67.5) {
-    compass_dir += 1;
-  } else if (*angle <= 112.5) {
-    compass_dir += 2;
-  } else if (*angle <= 157.5) {
-    compass_dir += 3;
-  } else if (*angle <= 202.5) {
-    compass_dir += 4;
-  } else if (*angle <= 247.5) {
-    compass_dir += 5;
-  } else if (*angle <= 292.5) {
-    compass_dir += 6;
-  } else if (*angle <= 337.5) {
-    compass_dir += 7;
-  }
-
-  compass_dir = compass_dir % 8;
-
-  if (compass_dir == 0) {              // use switch statement
-    deviceTilt.angle_direction = "N";
-  } else if (compass_dir == 1) {
-    deviceTilt.angle_direction = "NE";
-  } else if (compass_dir == 2) {
-    deviceTilt.angle_direction = "E";
-  } else if (compass_dir == 3) {
-    deviceTilt.angle_direction = "SE";
-  } else if (compass_dir == 4) {
-    deviceTilt.angle_direction = "S";
-  } else if (compass_dir == 5) {
-    deviceTilt.angle_direction = "SW";
-  } else if (compass_dir == 6) {
-    deviceTilt.angle_direction = "W";
-  } else if (compass_dir == 7) {
-    deviceTilt.angle_direction = "NW";
-  } else {
-    deviceTilt.angle_direction = "Invalid compass heading.";
-  }
-
+  deviceTilt.angle_direction = getDirection(comp_segment);
   return deviceTilt;
 }
 
@@ -2036,8 +2025,14 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "compass_and_angle_raw") {                         // measure tilt from -1000 - 1000
       get_compass_and_angle(0, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"x_tilt\":%.2f,\"y_tilt\":%.2f,\"z_tilt\":%.2f,\"x_compass_raw\":%.2f,\"y_compass_raw\":%.2f,\"z_compass_raw\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged, x_compass_raw, y_compass_raw, z_compass_raw);
+        Serial_Printf("\"x_tilt\":%.2f,\"y_tilt\":%.2f,\"z_tilt\":%.2f,\"x_compass_raw\":%.2f,\"y_compass_raw\":%.2f,\"z_compass_raw\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged, x_compass_raw_averaged, y_compass_raw_averaged, z_compass_raw_averaged);
       }
+    }
+
+    if ((String) environmental.getArray(i).getString(0) == "compass_raw"){
+      int magX, magY, magZ;
+      MAG3110_read(&magX, &magY, &magZ);
+      Serial_Printf("\"x_compass\":%d,\"y_compass\":%d,\"z_compass\":%d", magX, magY, magZ);
     }
 
     if ((String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads

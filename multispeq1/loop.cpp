@@ -98,7 +98,7 @@ static uint8_t _meas_light;                    // measuring light to be used dur
 static uint16_t _pulsesize = 0;         // pulse width in usec
 static volatile uint8_t led_off = 0;    // status of LED set by ISR
 
-// process a  + command
+// process a numeric + command
 
 void do_command()
 {
@@ -2047,7 +2047,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "compass_and_angle_raw") {                         // measure tilt from -1000 - 1000
       get_compass_and_angle(0, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"x_tilt\":%.2f,\"y_tilt\":%.2f,\"z_tilt\":%.2f,\"x_compass_raw\":%.2f,\"y_compass_raw\":%.2f,\"z_compass_raw\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged, x_compass_raw, y_compass_raw, z_compass_raw);
+        Serial_Printf("\"x_tilt\":%.2f,\"y_tilt\":%.2f,\"z_tilt\":%.2f,\"x_compass_raw\":%.2f,\"y_compass_raw\":%.2f,\"z_compass_raw\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged, x_compass_raw_averaged, y_compass_raw_averaged, z_compass_raw_averaged);
       }
     }
 

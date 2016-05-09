@@ -218,14 +218,12 @@ void do_command()
 
     case hash("powerdown"):
     case 1008:
-      Serial_Print_Line("a");
       pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
       digitalWrite(POWERDOWN_REQUEST, LOW);
-      Serial_Print_Line("b");
       delay(11000);                  // device should power off here - P0.5 (third pin) should go low
-      Serial_Print_Line("c");        // shouldn't get here
       digitalWrite(POWERDOWN_REQUEST, HIGH); // put it back
       break;
+
     case 1011:
       Serial_Print_Line("PULSE1");
       DAC_set(1, 50);
@@ -575,6 +573,7 @@ void do_command()
 
     case 1100:
       break;
+      
     case 1101:
       {
         Serial_Print("let's start with a test, this is more than 20 chars long.\n");

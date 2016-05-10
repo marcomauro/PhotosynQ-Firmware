@@ -338,20 +338,20 @@ void applyMagCal(float * arr) {
 }
 
 //return compass heading (RADIANS) given pitch, roll and magentotmeter measurements
-double getCompass(const float magX, const float magY, const float magZ, const double & pitch, const double & roll) {
-  double negBfy = magZ * sin(roll) - magY * cos(roll);
-  double Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
+float getCompass(const float magX, const float magY, const float magZ, const float & pitch, const float & roll) {
+  float negBfy = magZ * sin(roll) - magY * cos(roll);
+  float Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
 
   return atan2(negBfy, Bfx);
 }
 
 //return roll (RADIANS) from accelerometer measurements
-double getRoll(const int accelY, const int accelZ) {
+float getRoll(const int accelY, const int accelZ) {
   return atan2(accelY, accelZ);
 }
 
 //return pitch (RADIANS) from accelerometer measurements + roll
-double getPitch(const int accelX, const int accelY, const int accelZ, const double & roll) {
+float getPitch(const int accelX, const int accelY, const int accelZ, const float & roll) {
   return atan(-1 * accelX / (accelY * sin(roll) + accelZ * cos(roll)));
 }
 
@@ -371,28 +371,43 @@ String getDirection(int segment) {
 
   String names[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
 
-  return names[segment];
+  return "\"" + names[segment] + "\"";
 }
 
 //calculate tilt angle and tilt direction given roll, pitch, compass heading
-Tilt calculateTilt(const double & roll, const double & pitch, double compass) {
+Tilt calculateTilt(const float & roll, const float & pitch, float compass) {
 
   compass *= 180 / PI;
 
   Tilt deviceTilt;
-  deviceTilt.angle = acos(sqrt(cos(roll) * cos(roll) + cos(pitch) * cos(pitch))) * 180 / PI;
+
+  //equation derived from rotation matricies in AN4248 by Freescale
+  float a = (cos(roll) * cos(pitch));
+  float b = sqrt((sin(roll) * sin(roll) + (sin(pitch) * sin(pitch) * cos(roll) * cos(roll))));
+  deviceTilt.angle = atan2(a, b);
+
+  deviceTilt.angle *= 180 / PI;
+
+  deviceTilt.angle  = 90 - deviceTilt.angle;
 
   if (0 <= compass && compass <= 360) {
-    deviceTilt.angle_direction = "Invalid compass heading";
+    deviceTilt.angle_direction = "\"Invalid compass heading\"";
   }
 
-  int tilt_segment = compass_segment(deviceTilt.angle);
+  float tilt_angle = atan2((sin(roll)), cos(roll) * sin(pitch));
+  tilt_angle *= 180 / PI;
 
+  if(tilt_angle < 0){
+    tilt_angle += 360;
+  }
+
+
+  int tilt_segment = compass_segment(tilt_angle);
+  
   int comp_segment = compass_segment(compass) + tilt_segment;
   comp_segment = comp_segment % 8;
 
   deviceTilt.angle_direction = getDirection(comp_segment);
+  
   return deviceTilt;
 }
-
-

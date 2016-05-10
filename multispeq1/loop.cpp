@@ -131,6 +131,8 @@ void do_command()
   // process command
   switch (val) {
 
+    static int dataArray[3][100];
+
     case hash("hello"):
     case 1000:                                                                    // print "Ready" to USB and/or Bluetooth
       Serial_Print(DEVICE_NAME);
@@ -573,10 +575,7 @@ void do_command()
       break;
 
     case 1051:
-      Serial_Print_Line("Magnetometer Bias: ");
-      Serial_Print_Line(eeprom->mag_bias[0], 7);
-      Serial_Print_Line(eeprom->mag_bias[1], 7);
-      Serial_Print_Line(eeprom->mag_bias[2], 7);
+      Serial_Printf("Magnetometer Bias: %f, %f, %f", eeprom->mag_bias[0], eeprom->mag_bias[1], eeprom->mag_bias[2]);
       break;
 
     case 1052:
@@ -590,40 +589,65 @@ void do_command()
 
     case 1053:
       {
-        int magX, magY, magZ, accX, accY, accZ;
-        MAG3110_read(&magX, &magY, &magZ);
-        MMA8653FC_read(&accX, &accY, &accZ);
+        int leave = 0;
+        while (leave != -1) {
+          leave = Serial_Input_Long("+", 1000);
+          int magX, magY, magZ, accX, accY, accZ;
+          MAG3110_read(&magX, &magY, &magZ);
+          MMA8653FC_read(&accX, &accY, &accZ);
 
-        float coords[3] = {(float) magX, (float) magY, (float) magZ};
-        applyMagCal(coords);
+          float coords[3] = {(float) magX, (float) magY, (float) magZ};
+          applyMagCal(coords);
 
-        double roll = getRoll(accY, accZ);
-        double pitch = getPitch(accX, accY, accZ, roll);
-        double yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
+          float roll = getRoll(accY, accZ);
+          float pitch = getPitch(accX, accY, accZ, roll);
+          float yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
 
-        roll *= 180 / PI;
-        pitch *= 180 / PI;
-        yaw *= 180 / PI;
+          if (yaw < 0) {
+            yaw += 2 * PI;
+          }
 
-        if (yaw < 0) {
-          yaw = yaw * -1 + 180;
+          Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
+
+
+          roll *= 180 / PI;
+          pitch *= 180 / PI;
+          yaw *= 180 / PI;
+
+
+          Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
+          Serial_Print_Line(getDirection(compass_segment(yaw)));
+
+
+
+          Serial_Printf("Tilt angle: %f, Tilt direction: ", deviceTilt.angle);
+          Serial_Print_Line(deviceTilt.angle_direction);
         }
-
-        Serial_Print_Line("Roll: ");
-        Serial_Print_Line(roll, 3);
-        Serial_Print_Line("Pitch: ");
-        Serial_Print_Line(pitch, 3);
-        Serial_Print_Line("Compass: ");
-        Serial_Print_Line(yaw, 3);
-
-        Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
-
-        Serial_Printf("Tilt angle: %d, Tilt direction: ", deviceTilt.angle);
-        Serial_Print_Line(deviceTilt.angle_direction);
 
       }
       break;
 
+
+    case hash("collect"):
+      int x, y, z;
+      Serial_Print("Disconnect the cable");
+      delay(5000);
+      for (int i = 0; i < 100; i++)
+      {
+        MAG3110_read(&x, &y, &z);
+        dataArray[0][i] = x;
+        dataArray[1][i] = y;
+        dataArray[2][i] = z;
+        delay(100);
+      }
+      break;
+
+    case hash("dump"):
+      for (int i = 0; i < 100; i++) {
+        Serial_Printf("%d, %d, %d \n", dataArray[0][i], dataArray[1][i], dataArray[2][i]);
+      }
+      break;
+      
     case hash("upgrade"):
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();

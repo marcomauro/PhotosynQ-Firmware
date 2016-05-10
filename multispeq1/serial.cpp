@@ -115,7 +115,7 @@ int Serial_Peek()
   if (Serial1.available())
     return Serial1.peek();
 
-  sleep_cpu();  // save some power
+  sleep_cpu();  // should save power, but I see no difference
   
   return -1;
 }  // Serial_Available()

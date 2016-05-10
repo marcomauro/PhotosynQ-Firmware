@@ -3,16 +3,16 @@
 
 #define EXTERN
 #include "defines.h"             // various globals                                                         // enable real time clock library
-//#include "utility/Adafruit_Sensor.h"
 #include "json/JsonParser.h"
 #include "DAC.h"
-#include "AD7689.h"               // external ADC
-//#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
+#include "utility/AD7689.h"               // external ADC
 #include "eeprom.h"
 #include "serial.h"
 #include "flasher.h"
 #include "utility/crc32.h"
 #include <TimeLib.h>
+//#include <math.h>
+#include "util.h"
 
 // function declarations
 
@@ -40,6 +40,7 @@ void do_command(void);
 int battery_low(void);
 void print_calibrations(void);
 
+
 //////////////////////// MAIN LOOP /////////////////////////
 
 // process ascii serial input commands of two forms:
@@ -56,12 +57,12 @@ void loop() {
     powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
 
     if (c == -1)
-      continue;             // nothing available, try again
+      continue;               // nothing available, try again
 
     activity();             // record fact that we have seen activity (used with powerdown())
 
     crc32_init();
-        
+
     if (c == '[')
       break;                // start of json, exit this for loop to process it
 
@@ -100,28 +101,47 @@ void do_command()
   char choose[50];
   Serial_Input_Chars(choose, "+", 500, sizeof(choose) - 1);
 
+  for (unsigned i = 0; i < strlen(choose); ++i) {   // remove ctrl characters
+    if (!isprint(choose[i]))
+      choose[i] = 0;
+  }
+
   if (strlen(choose) < 3) {        // short or null command, quietly ignore it
     return;
   }
 
-  if (isprint(choose[0]) && !isdigit(choose[0])) {
-    Serial_Print("{\"error\":\"commands must be numbers or json\"}\n");
+  if (choose[0] == '(') {             // an expression
+    Serial_Printf("%g\n", expr(choose));
+    return;
+  }
+
+  if (!isalnum(choose[0])) {
+    Serial_Printf("{\"error\":\" bad command %s\"}\n", choose);
     return;                     // go read another command
   }
 
-  // process + command
+  unsigned val;                     // we accept int or alpha commands
+  if (isdigit(choose[0]))
+    val = atoi(choose);
+  else
+    val = hash(choose);       // convert alpha command to an int
 
-  switch (atoi(choose)) {
-    case 1000:                                                                    // print "Ready" to USB and Bluetooth
+  // process command
+  switch (val) {
+
+    case hash("hello"):
+    case 1000:                                                                    // print "Ready" to USB and/or Bluetooth
       Serial_Print(DEVICE_NAME);
       Serial_Print_Line(" Ready");
       break;
+
     case 1001:                                                                      // standard startup routine for new device
       DAC_set_address(LDAC1, 0, 1);                                                 // Set DAC addresses to 1,2,3 assuming addresses are unset and all are factory (0,0,0)
       DAC_set_address(LDAC2, 0, 2);
       DAC_set_address(LDAC3, 0, 3);
       get_set_device_info(1);                                                           //  input device info and write to eeprom
       break;
+
     case 1002:                                                                          // continuously output until user enter -1+
       {
         int Xcomp, Ycomp, Zcomp;
@@ -141,11 +161,19 @@ void do_command()
           }
           int hall = (sum / samples);
           delay(1);
-          Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+          float temperature1 = bme1.readTempC();
+          float temperature2 = bme2.readTempC();
+          float relative_humidity1 = bme1.readHumidity();
+          float relative_humidity2 = bme2.readHumidity();
+          float pressure1 = bme1.readPressure() / 100;
+          float pressure2 = bme2.readPressure() / 100;
+          Serial_Printf("{\"par_raw\":%d,\"temperature\":%f,\"relative_humidity\":%f,\"pressure\":%f,\"temperature2\":%f,\"relative_humidity2\":%f,\"pressure2\":%f,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, temperature1, relative_humidity1, pressure1, temperature2, relative_humidity2, pressure2, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
+          //          Serial_Printf("{\"par_raw\":%d,\"contactless_temp\":%f,\"hall\":%d,\"accelerometer\":[%d,%d,%d],\"magnetometer\":[%d,%d,%d]}", par_raw, contactless_temp, hall, Xval, Yval, Zval, Xcomp, Ycomp, Zcomp);
           Serial_Print_CRC();
         }
       }
       break;
+
     case 1003:
       {
         Serial_Print_Line("\"message\": \"Enter led # setting followed by +: \"}");
@@ -162,7 +190,8 @@ void do_command()
       }
       break;
 
-    case 1004: {
+    case hash("set_date"):
+      {
         Serial_Print_Line("enter GMT hours+min+sec+day+month+year+");
         int hours, minutes, seconds, days, months, years;
         hours =  Serial_Input_Long("+");
@@ -175,7 +204,7 @@ void do_command()
         delay(2000);
       }
     // fall through to print
-    case 1005:
+    case hash("print_date"):
       // example: 2004-02-12T15:19:21.000Z
       if (year() >= 2016) {
         Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}\n", year(), month(), day(), hour(), minute(), second());
@@ -186,19 +215,19 @@ void do_command()
     case 1006:
       print_calibrations();
       break;
+
+    case hash("device_info"):
     case 1007:
       get_set_device_info(0);
       break;
 
-    case 1008:
-      Serial_Print_Line("a");
+    case hash("powerdown"):
       pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
       digitalWrite(POWERDOWN_REQUEST, LOW);
-      Serial_Print_Line("b");
       delay(11000);                  // device should power off here - P0.5 (third pin) should go low
-      Serial_Print_Line("c");        // shouldn't get here
       digitalWrite(POWERDOWN_REQUEST, HIGH); // put it back
       break;
+
     case 1011:
       Serial_Print_Line("PULSE1");
       DAC_set(1, 50);
@@ -328,21 +357,26 @@ void do_command()
       }
       break;
 
+    case hash("reboot"):
     case 1027:                                                                                // restart teensy (keep here!)
       _reboot_Teensyduino_();
       break;
+
     case 1028:
       print_userdef();                                                                        // print only the userdef eeprom values
       break;
+
     case 1029:
       print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
       break;
+
     case 1030:
       //      Serial_Print("{\"message\": \"input 3 magnetometer bias values, each followed by +: \"}");
       store(mag_bias[0], Serial_Input_Double("+", 0));
       store(mag_bias[1], Serial_Input_Double("+", 0));
       store(mag_bias[2], Serial_Input_Double("+", 0));
       break;
+
     case 1031:
       //      Serial_Print("{\"message\": \"input 9 magnetometer calibration values, each followed by +: \"}");
       for (int i = 0; i < 3; i++) {
@@ -535,41 +569,110 @@ void do_command()
         }
       }
       break;
-      
+
+    case 1051:
+      Serial_Print_Line("Magnetometer Bias: ");
+      Serial_Print_Line(eeprom->mag_bias[0], 7);
+      Serial_Print_Line(eeprom->mag_bias[1], 7);
+      Serial_Print_Line(eeprom->mag_bias[2], 7);
+      break;
+
+    case 1052:
+      Serial_Print_Line("Magnetometer Rotation: ");
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          Serial_Print_Line(eeprom->mag_cal[i][j], 7);
+        }
+      }
+      break;
+
+    case 1053:
+      {
+        int magX, magY, magZ, accX, accY, accZ;
+        MAG3110_read(&magX, &magY, &magZ);
+        MMA8653FC_read(&accX, &accY, &accZ);
+
+        float coords[3] = {(float) magX, (float) magY, (float) magZ};
+        applyMagCal(coords);
+
+        double roll = getRoll(accY, accZ);
+        double pitch = getPitch(accX, accY, accZ, roll);
+        double yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
+
+        roll *= 180 / PI;
+        pitch *= 180 / PI;
+        yaw *= 180 / PI;
+
+        if (yaw < 0) {
+          yaw = yaw * -1 + 180;
+        }
+
+        Serial_Print_Line("Roll: ");
+        Serial_Print_Line(roll, 3);
+        Serial_Print_Line("Pitch: ");
+        Serial_Print_Line(pitch, 3);
+        Serial_Print_Line("Compass: ");
+        Serial_Print_Line(yaw, 3);
+
+        Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
+
+        Serial_Printf("Tilt angle: %d, Tilt direction: ", deviceTilt.angle);
+        Serial_Print_Line(deviceTilt.angle_direction);
+
+      }
+      break;
+
+    case hash("upgrade"):
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
       break;
 
-    case 1200:
+    case hash("battery"):
       battery_low();  // test battery
       break;
 
-    case 1100:       
+    case hash("scan_i2c"):
+      scan_i2c();
+      break;Hello World 
+
+    case 1100:
       break;
-    case 1101:
-        {
+
+    case hash("sleep"):
+        sleep_mode();
+        Serial_Print_Line("done sleeping");
+        break;
+
+    case hash("packet_test"):
+      {
         Serial_Print("let's start with a test, this is more than 20 chars long.\n");
         Serial_Flush_Output();
         char c[2];
         int count = 0;
         c[1] = 0;
         for (;;)  {
-            c[0] = Serial_Read();
-            Serial_Print(c);
-            if (c[0] < ' ') continue;
-            ++count;
-            if (c[0] == 'X')
-               break;
+          c[0] = Serial_Read();
+          Serial_Print(c);
+          if (c[0] < ' ') continue;
+          ++count;
+          if (c[0] == 'X')
+            break;
         } // for
-        Serial_Printf("%d chars\n",count);
+        Serial_Printf("%d chars\n", count);
         Serial_Flush_Output();
-                }
-        break;
-    case 2000:
+      }
+      break;
+
+    case hash("compiled"):
       Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
       break;
 
-    case 4044:
+    case hash("temp"):
+      Serial_Printf("BME2801 Temp = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
+      Serial_Printf("BME2802 Temp = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
+      break;
+
+    case hash("single_pulse"):
       {
         // JZ test - do not remove
         // read and analyze noise on ADC from a single LED pulse
@@ -602,7 +705,7 @@ void do_command()
       }
       break;
 
-    case 4047:
+    case hash("p2p"):
       {
         // JZ test - do not remove
         // read multiple pulses with increasing intensity or pulse width for linearity test
@@ -647,7 +750,7 @@ void do_command()
         // read multiple pulses with increasing intensity or pulse width for linearity test
         // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
         const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
-        Serial_Print_Line("using 2 timers - wait...");
+        Serial_Print_Line("wait...");
         AD7689_set(0);                                  // 0 is main detector
         DAC_set(LED, 200);                               // set initial LED intensity
         DAC_change();
@@ -692,12 +795,15 @@ void do_command()
       break;
 
     default:
-      Serial_Printf("{\"error\":\"bad command # %s\"}\n", choose);
+      Serial_Printf("{\"error\":\"bad command %s\"}\n", choose);
       break;
 
   }  // switch()
 
 } // do_command()
+
+
+
 
 // read in and execute a protocol
 // example: [{"pulses": [150],"a_lights": [[3]],"a_intensities": [[50]],"pulsedistance": 1000,"m_intensities": [[125]],"pulsesize": 2,"detectors": [[3]],"meas_lights": [[1]],"protocols": 1}]<newline>
@@ -781,7 +887,7 @@ void do_protocol()
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);   // change to : format?
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
-  Serial_Printf(",\"device_firmware\":%s", DEVICE_FIRMWARE);
+  Serial_Printf(",\"firmware_version\":%s", DEVICE_FIRMWARE);
   if (year() >= 2016)
     Serial_Printf(",\"device_time\":%u", now());
   Serial_Print(",\"sample\":[");
@@ -827,6 +933,7 @@ void do_protocol()
         JsonArray recall_eeprom  = hashTable.getArray("recall");                                // userdef values to recall
         JsonArray number_samples = hashTable.getArray("number_samples");                       // number of samples on the cap during sample + hold phase (default is 40);
         JsonArray reference =     hashTable.getArray("reference");                              // subtract reference value if set to 1 (also causes 1/2 the sample rate per detector) due to time constraints.  Default is no reference (== 0)
+        uint16_t dac_lights =     hashTable.getLong("dac_lights");                                // when inputting light intensity values, use DAC instead of calibrated outputs (do not use expr() function on coming API data)
         uint16_t adc_show =       hashTable.getLong("adc_show");                                // this tells the MultispeQ to print the ADC values only instead of the normal data_raw (for signal quality debugging)
         uint16_t adc_only[150];                                                   // this and first_adc_ref are used to save the first set of ADC averages produced, so it can be optionally displayed instead of data_raw (for signal quality debugging).  USE ONLY WITH REFERENCE == 0 (ie reference is OFF!)
         JsonArray pulses =        hashTable.getArray("pulses");                                // the number of measuring pulses, as an array.  For example [50,10,50] means 50 pulses, followed by 10 pulses, follwed by 50 pulses.
@@ -949,7 +1056,6 @@ void do_protocol()
           for (int i = 0; i < size_of_data_raw; i++) {
             Serial_Print((unsigned)data_raw_average[i]);
           }
-          Serial_Print_Line("");
 
           Serial_Print_Line("");
           Serial_Print("number of pulses:  ");
@@ -999,16 +1105,22 @@ void do_protocol()
 
         contactless_temp = contactless_temp_averaged = 0;
 
-        cardinal = cardinal_averaged = 0;
-        x_cardinal_raw = 0, y_cardinal_raw = 0, z_cardinal_raw = 0;
-        x_cardinal_raw_averaged = 0, y_cardinal_raw_averaged = 0, z_cardinal_raw_averaged = 0;
+        compass = compass_averaged = 0;
+        x_compass_raw = 0, y_compass_raw = 0, z_compass_raw = 0;
+        x_compass_raw_averaged = 0, y_compass_raw_averaged = 0, z_compass_raw_averaged = 0;
 
-        x_tilt = y_tilt = z_tilt = 0;
+        angle = 0;
+        angle_direction = "";
+        roll = roll_averaged = 0;
+        pitch = pitch_averaged = 0;
+        x_tilt = 0, y_tilt = 0, z_tilt = 0;
         x_tilt_averaged = 0, y_tilt_averaged = 0, z_tilt_averaged = 0;
-        x_tilt_raw = 0, y_tilt_raw = 0, z_tilt_raw = 0;
-        x_tilt_raw_averaged = 0, y_tilt_raw_averaged = 0, z_tilt_raw_averaged = 0;
 
         temperature = humidity = pressure = 0;
+        temperature_averaged = humidity_averaged = pressure_averaged = 0;
+
+        temperature2 = humidity2 = pressure2 = 0;
+        temperature2_averaged = humidity2_averaged = pressure2_averaged = 0;
 
         //!!! when offset gets recalculated I need to reposition this later, since pulsesize is now an array
         //        calculate_offset(pulsesize);                                                                    // calculate the offset, based on the pulsesize and the calibration values (ax+b)
@@ -1090,8 +1202,9 @@ void do_protocol()
               }
               for (unsigned i = 0; i < NUM_LEDS; i++) {                                   // save the current list of act lights, determine if they should be on, and determine their intensity
                 _a_lights[i] = a_lights.getArray(cycle).getLong(i);                        // save which light should be turned on/off
-                String temp_intensity = a_intensities.getArray(cycle).getString(i);
-                _a_intensities[i] = expr(temp_intensity.c_str());                             // evaluate inputted intensity to see if it was an expression
+                String intensity_string = a_intensities.getArray(cycle).getString(i);
+                _a_intensities[i] = expr(intensity_string.c_str());                       // evaluate as an expression
+
                 if (PULSERDEBUG) {
                   Serial_Printf("\n all a_lights, intensities: %d,%d\n", _a_lights[i], _a_intensities[i]);
                 } // PULSERDEBUG
@@ -1145,8 +1258,8 @@ void do_protocol()
             //            assert(_number_samples >= 0 && _number_samples < 500);
 
             _meas_light = meas_lights.getArray(cycle).getLong(meas_number % meas_array_size);             // move to next measurement light
-            String temp_intensity = m_intensities.getArray(cycle).getString(meas_number % meas_array_size);
-            uint16_t _m_intensity = expr(temp_intensity.c_str());                                             // evaluate inputted intensity to see if it was an expression
+            String intensity_string = m_intensities.getArray(cycle).getString(meas_number % meas_array_size);          // evaluate inputted intensity to see if it was an expression
+            uint16_t _m_intensity = expr(intensity_string.c_str());
             //            assert(_m_intensity >= 0 && _m_intensity <= 4095);
 
             uint16_t detector = detectors.getArray(cycle).getLong(meas_number % meas_array_size);          // move to next detector
@@ -1237,12 +1350,23 @@ void do_protocol()
 
               // calculate_intensity(_meas_light, tcs_to_act, cycle, _light_intensity);                   // in addition, calculate the intensity of the current measuring light
 
-              DAC_set(_meas_light, par_to_dac(_m_intensity, _meas_light));                                // set the DAC, make sure to convert PAR intensity to DAC value
+              //            Serial_Printf("_meas_light = %d, par_to_dac = %d, _m_intensity = %d, dac_lights = %d\n",_meas_light,par_to_dac(_m_intensity, _meas_light),_m_intensity,dac_lights);
+              if (!dac_lights) {                                                                            // evaluate as an expression...
+                DAC_set(_meas_light, par_to_dac(_m_intensity, _meas_light));                                // set the DAC, make sure to convert PAR intensity to DAC value
+              }
+              else {                                                                                      // otherwise evaluate directly as a number to enter into the DAC
+                DAC_set(_meas_light, _m_intensity);                                // set the DAC, make sure to convert PAR intensity to DAC value
+              }
               DAC_change();
 
               for (unsigned i = 0; i < NUM_LEDS; i++) {                         // set the DAC lights for actinic lights in the current pulse set
                 if (_a_lights[i] != 0) {                                        // if there's a light there, then change it, otherwise skip
-                  DAC_set(_a_lights[i], par_to_dac(_a_intensities[i], _a_lights[i]));
+                  if (!dac_lights) {                                                                            // evaluate as an expression...
+                    DAC_set(_a_lights[i], par_to_dac(_a_intensities[i], _a_lights[i]));
+                  }
+                  else {                                                                                      // otherwise evaluate directly as a number to enter into the DAC
+                    DAC_set(_a_lights[i], _a_intensities[i]);
+                  }
                   if (PULSERDEBUG) {
                     Serial_Printf("actinic pin : %d \nactinic intensity %d \n", _a_lights[i], _a_intensities[i]);
                     Serial_Printf("length of _a_lights : %d \n ", sizeof(_a_lights));
@@ -1266,7 +1390,9 @@ void do_protocol()
             //            uint16_t endTimer;
 
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
-              if (abort_cmd()) goto abort;   // or just reboot?
+              sleep_cpu();                  // save some power
+              if (abort_cmd())
+                goto abort;  // or just reboot?
             }
 
             if (_reference != 0) {
@@ -1608,29 +1734,31 @@ inline static void stopTimers() {
   timer0.end();                         // if it's the last cycle and last pulse, then... stop the timers
 }
 
-// read/write userdef[] values from/to eeprom
-// example json: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
-// also be able to read other values defined in eeprom, like [{"recall":["light_slope_all","light_yint"]}]... this requires some interpretation akin to what's done in expressions
+// write userdef values to eeprom
+// example json for save: [{"save":[[1,3.43],[2,5545]]}]  for userdef[1] = 3.43 and userdef[2] = 5545
+// read userdef and other values from eeprom
+// example json for read: [{"recall":["light_slope_all","userdef[1]"]}]
 
 static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
   int number_saves = _save_eeprom.getLength();                                // define these explicitly to make it easier to understand the logic
   int number_recalls = _recall_eeprom.getLength();                            // define these explicitly to make it easier to understand the logic
-  if (number_saves > 0) {                                                     // if the user is saving eeprom values, then...
-    for (int i = 0; i < number_saves; i++) {
-      long location = _save_eeprom.getArray(i).getLong(0);
-      double value_to_save = _save_eeprom.getArray(i).getDouble(1);
-      if (location >= 0 && location < (long)NUM_USERDEFS)
-        if (eeprom->userdef[location] != value_to_save)                       // prevent re-write if already there (wears out the eeprom)
-          store(userdef[location], value_to_save);                         // save new value in the defined eeprom location
-      delay(1);                                                               // delay to make sure it has time to save (min 1ms)
-    }
+
+  for (int i = 0; i < number_saves; i++) {                             // do any saves
+    long location = _save_eeprom.getArray(i).getLong(0);
+    double value_to_save = _save_eeprom.getArray(i).getDouble(1);
+    if (location >= 0 && location <= (long)NUM_USERDEFS)
+      store(userdef[location], value_to_save);                         // save new value in the defined eeprom location
   }
-  if (number_recalls > 0) {                  // if the user is recalling any saved eeprom values or if they just saved some, then...
+
+  if (number_recalls > 0) {                  // if the user is recalling any saved eeprom values then...
     Serial_Print("\"recall\":{");                                                       // then print the eeprom location number and the value located there
+
     for (int i = 0; i < number_recalls; i++) {
-      long location = _recall_eeprom.getLong(i);
-      if (location >= 0 && location < (long)NUM_USERDEFS)
-        Serial_Printf("\"%d\":%f", (int) location, eeprom->userdef[location]);
+
+      String recall_string = _recall_eeprom.getString(i);
+
+      Serial_Printf("\"%s\":%f", recall_string.c_str(), expr(recall_string.c_str()));
+
       if (i != number_recalls - 1) {
         Serial_Print(",");
       }
@@ -1638,8 +1766,8 @@ static void recall_save(JsonArray _recall_eeprom, JsonArray _save_eeprom) {
         Serial_Print("},");
       }
     } // for
-  } // recall_save()
-}
+  } // if
+} // recall_save()
 
 // return true if a Ctrl-A character has been typed
 int abort_cmd()
@@ -1653,20 +1781,31 @@ int abort_cmd()
       An example - "environmental":[["tilt",1],["light_intensity",0]] would call tilt after the measurement, and light intensity before the measurement.
    2) Sensor data gets called in 3 ways: either inside the measurement as part of an expression (maybe "a_intensities":[light_intensity/2]), after a measurement or set of averaged measurements.
       In addition, there are often raw and calibrated versions of sensors, like raw tcs value versus the PAR value, or raw hall sensor versus calibrated thickness.
-      As a result, for most sensors there is the base version (like x_tilt) which is available in that measurment, an averaged version (like x_tilt_averaged) which is outputted after averaging, and raw versions of each of those (x_tilt_raw and x_tilt_raw_averaged)
+      As a result, for most sensors there is the base version (like x_tilt) which is available in that measurment, an averaged version (like x_tilt_averaged) which is outputted after averaging, and raw versions of each of those (x_tilt and x_tilt_averaged)
 */
-void get_temperature_humidity_pressure (int _averages) {
-  // TODO
-  /*
-    if (notRaw == 0) {                                              // save the raw values average
-    }
-    if (notRaw == 1) {                                              // save the calibrated values and average
-    }
-  */
+void get_temperature_humidity_pressure (int _averages) {    // read temperature, relative humidity, and pressure BME280 module
+
+  temperature = bme1.readTempC();                // temperature in C
+  humidity = bme1.readHumidity();                      // humidity in %
+  pressure = bme1.readPressure() / 100;               // pressure in millibar
+
+  temperature_averaged += temperature / _averages;                // same as above, but averaged if API requests averaging
+  humidity_averaged += humidity / _averages;
+  pressure_averaged += pressure / _averages;
+
 }
 
-// read IR temp sensor
-// TODO - so if the user aborts, the averages are incorrect?
+void get_temperature_humidity_pressure2 (int _averages) {    // read temperature, relative humidity, and pressure BME280 module
+
+  temperature2 = bme2.readTempC();
+  humidity2 = bme2.readHumidity();
+  pressure2 = bme2.readPressure() / 100;
+
+  temperature2_averaged += temperature2 / _averages;                // collect temp, rh, and humidity data (averaged if API requests averaging)
+  humidity2_averaged += humidity2 / _averages;
+  pressure2_averaged += pressure2 / _averages;
+
+}
 
 float get_contactless_temp (int _averages) {
   contactless_temp = (MLX90615_Read(0) + MLX90615_Read(0) + MLX90615_Read(0)) / 3.0;
@@ -1676,39 +1815,57 @@ float get_contactless_temp (int _averages) {
 
 // read accelerometer
 
-void get_tilt (int notRaw, int _averages) {
-  MMA8653FC_read(&x_tilt_raw, &y_tilt_raw, &z_tilt_raw);                      // saves x_tilt_raw, y_... and z_... values
+void get_compass_and_angle (int notRaw, int _averages) {
+
+  // get accelerometer values for tilt
+  MMA8653FC_read(&x_tilt, &y_tilt, &z_tilt);                      // saves x_tilt, y_... and z_... values
   // consider adding a calibration with more useful outputs
-  x_tilt = x_tilt_raw * (180. / 1000);
-  y_tilt = y_tilt_raw * (180. / 1000);
-  z_tilt = z_tilt_raw * (180. / 1000);
+  roll = getRoll(y_tilt, z_tilt);
+  pitch = getPitch(x_tilt, y_tilt, z_tilt, roll);
+
+  // get compass values, and use tilt values to adjust calibration
+  MAG3110_read(&x_compass_raw, &y_compass_raw, &z_compass_raw);            // saves x_compass, y_ and z_ values
+  compass = getCompass(x_compass_raw, y_compass_raw, z_compass_raw, pitch, roll);
+  Tilt tilt_temp = calculateTilt(roll, pitch, compass);
+  angle = tilt_temp.angle;
+  angle_direction = tilt_temp.angle_direction;
+
+  // TODO now access the elements in the Tilt struct and save them.  Go change all the values elsewhere
+
   if (notRaw == 0) {                                              // save the raw values average
-    x_tilt_raw_averaged += (float)x_tilt_raw / _averages;
-    y_tilt_raw_averaged += (float)y_tilt_raw / _averages;
-    z_tilt_raw_averaged += (float)z_tilt_raw / _averages;
-  }
-  if (notRaw == 1) {                                              // save the calibrated values and average
     x_tilt_averaged += (float)x_tilt / _averages;
     y_tilt_averaged += (float)y_tilt / _averages;
     z_tilt_averaged += (float)z_tilt / _averages;
+    x_compass_raw_averaged += (float)x_compass_raw / _averages;
+    y_compass_raw_averaged += (float)y_compass_raw / _averages;
+    z_compass_raw_averaged += (float)z_compass_raw / _averages;
+  }
+  if (notRaw == 1) {                                              // save the calibrated values and average
+    roll_averaged += roll / _averages;
+    pitch_averaged += pitch / _averages;
+    compass_averaged += compass / _averages;
+    angle_averaged += angle / _averages;
   }
   // add better routine here to produce clearer tilt values
 }
 
 // read compass
 
-void get_cardinal (int notRaw, int _averages) {
-  MAG3110_read(&x_cardinal_raw, &y_cardinal_raw, &z_cardinal_raw);            // saves x_cardinal, y_ and z_ values
-  // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called cardinal
+/*
+  void get_compass (int notRaw, int _averages) {
+  get_tilt(notRaw, _averages)
+  MAG3110_read(&x_compass_raw, &y_compass_raw, &z_compass_raw);            // saves x_compass, y_ and z_ values
+  // add calibration here to give 0 - 360 directional values or N / NE / E / SE / S / SW / W / NW save that to variable called compass
   if (notRaw == 0) {                                              // save the raw values average
-    x_cardinal_raw_averaged += (float)x_cardinal_raw / _averages;
-    y_cardinal_raw_averaged += (float)y_cardinal_raw / _averages;
-    z_cardinal_raw_averaged += (float)z_cardinal_raw / _averages;
+    x_compass_raw_averaged += (float)x_compass_raw / _averages;
+    y_compass_raw_averaged += (float)y_compass_raw / _averages;
+    z_compass_raw_averaged += (float)z_compass_raw / _averages;
   }
   if (notRaw == 1) {                                              // save the calibrated values and average
-    cardinal_averaged += (float)x_cardinal_raw / _averages;
+    compass_averaged += (float)x_compass_raw / _averages;
   }
-}
+  }
+*/
 
 // read the hall sensor to measure thickness of a leaf
 
@@ -1734,6 +1891,7 @@ float get_thickness (int notRaw, int _averages) {
   }
 }
 
+
 // check for commands to read various envirmental sensors
 // also output the value on the final call
 
@@ -1748,7 +1906,13 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure") {                   // measure light intensity with par calibration applied
       get_temperature_humidity_pressure(_averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"temp\":%f,\"humidity\":%f,\"pressure\":%f,", temperature, humidity, pressure);
+        Serial_Printf("\"temperature\":%f,\"humidity\":%f,\"pressure\":%f,", temperature_averaged, humidity_averaged, pressure_averaged);
+      }
+    }
+    if ((String) environmental.getArray(i).getString(0) == "temperature_humidity_pressure2") {                   // measure light intensity with par calibration applied
+      get_temperature_humidity_pressure2(_averages);
+      if (count == _averages - 1) {
+        Serial_Printf("\"temperature2\":%f,\"humidity2\":%f,\"pressure2\":%f,", temperature2_averaged, humidity2_averaged, pressure2_averaged);
       }
     }
 
@@ -1787,37 +1951,28 @@ static void environmentals(JsonArray environmental, const int _averages, const i
       }
     }
 
-    if ((String) environmental.getArray(i).getString(0) == "tilt") {                             // measure tilt in -180 - 180 degrees
-      get_tilt(1, _averages);
+    if ((String) environmental.getArray(i).getString(0) == "compass_and_angle") {                             // measure tilt in -180 - 180 degrees
+      get_compass_and_angle(1, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"x_tilt\":%.2f, \"y_tilt\":%.2f, \"z_tilt\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged);
+        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass).c_str(), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
       }
     }
 
-    if ((String) environmental.getArray(i).getString(0) == "tilt_raw") {                         // measure tilt from -1000 - 1000
-      get_tilt(0, _averages);
+    if ((String) environmental.getArray(i).getString(0) == "compass_and_angle_raw") {                         // measure tilt from -1000 - 1000
+      get_compass_and_angle(0, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"x_tilt_raw\":%.2f, \"y_tilt_raw\":%.2f, \"z_tilt_raw\":%.2f,", x_tilt_raw_averaged, y_tilt_raw_averaged, z_tilt_raw_averaged);
+        Serial_Printf("\"x_tilt\":%.2f,\"y_tilt\":%.2f,\"z_tilt\":%.2f,\"x_compass_raw\":%.2f,\"y_compass_raw\":%.2f,\"z_compass_raw\":%.2f,", x_tilt_averaged, y_tilt_averaged, z_tilt_averaged, x_compass_raw_averaged, y_compass_raw_averaged, z_compass_raw_averaged);
       }
     }
 
-    if ((String) environmental.getArray(i).getString(0) == "cardinal") {                         // measure cardinal direction, with calibration applied
-      get_cardinal(1, _averages);
-      if (count == _averages - 1) {
-        Serial_Printf("\"cardinal\":%.2f,", cardinal_averaged);
-      }
-    }
-
-    if ((String) environmental.getArray(i).getString(0) == "cardinal_raw") {                     // measure cardinal direction, raw values
-      get_cardinal(0, _averages);
-      if (count == _averages - 1) {
-        Serial_Printf("\"x_cardinal_raw\":%.2f,\"y_cardinal_raw\":%.2f,\"z_cardinal_raw\":%.2f,", x_cardinal_raw_averaged, y_cardinal_raw_averaged, z_cardinal_raw_averaged);
-      }
+    if ((String) environmental.getArray(i).getString(0) == "compass_raw") {
+      int magX, magY, magZ;
+      MAG3110_read(&magX, &magY, &magZ);
+      Serial_Printf("\"x_compass\":%d,\"y_compass\":%d,\"z_compass\":%d", magX, magY, magZ);
     }
 
     if ((String) environmental.getArray(i).getString(0) == "analog_read") {                      // perform analog reads
       int pin = environmental.getArray(i).getLong(2);
-      pinMode(pin, INPUT);
       int analog_read = analogRead(pin);
       if (count == _averages - 1) {
         Serial_Printf("\"analog_read\":%f,", analog_read);
@@ -1826,7 +1981,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
     if ((String) environmental.getArray(i).getString(0) == "digital_read") {                      // perform digital reads
       int pin = environmental.getArray(i).getLong(2);
-      pinMode(pin, INPUT);
+      pinMode(pin, INPUT_PULLUP);
       int digital_read = digitalRead(pin);
       if (count == _averages - 1) {
         Serial_Printf("\"digital_read\":%f,", digital_read);
@@ -1902,6 +2057,8 @@ void reset_freq() {
 
 
 void print_calibrations() {
+  unsigned i;
+
   Serial_Printf("{\n\"device_id\":\"d4:f5:%x:%x:%x:%x\",\n",
                 (unsigned)eeprom->device_id >> 24,
                 ((unsigned)eeprom->device_id & 0xff0000) >> 16,
@@ -1924,7 +2081,13 @@ void print_calibrations() {
   Serial_Printf("\"thickness_a\": \"%f\",\n", eeprom->thickness_a);
   Serial_Printf("\"thickness_b\": \"%f\",\n", eeprom->thickness_b);
   Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
+
   Serial_Print("\"par_to_dac_slope\": [");
+#if 1          // Greg TODO improved example - note, i should probably start at 1 since the first value isn't used
+  for (i = 0; i < arraysize(eeprom->par_to_dac_slope) - 1; i++)
+    Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
+  Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
+#else
   for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->par_to_dac_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
@@ -1933,6 +2096,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
     }
   }
+#endif
 
   Serial_Print("\"par_to_dac_yint\": [");
   for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_yint) / sizeof(float); i++) {
@@ -1954,7 +2118,7 @@ void print_calibrations() {
     }
   }
 
-  Serial_Print("\"ir_baseline_slope\": [");
+  Serial_Print("\"ir_baseline_yint\": [");
   for (unsigned i = 0; i < sizeof(eeprom->ir_baseline_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->ir_baseline_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->ir_baseline_yint[i]);
@@ -2018,14 +2182,38 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
     }
   }
-  for (unsigned i = 0; i < NUM_USERDEFS; i++) {
-    if (i != NUM_USERDEFS - 1) {
-      Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
+  Serial_Print("\"colorcal_blank1\": [");
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank1) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_blank1) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_blank1[i]);
     }
     else {
-      Serial_Printf("\"userdef%d\": \"%f\"\n}", i, eeprom->userdef[i]);
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_blank1[i]);
     }
   }
+  Serial_Print("\"colorcal_blank2\": [");
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank2) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_blank2) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_blank2[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_blank2[i]);
+    }
+  }
+  Serial_Print("\"colorcal_blank3\": [");
+  for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank3) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->colorcal_blank3) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->colorcal_blank3[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->colorcal_blank3[i]);
+    }
+  }
+
+  for (i = 0; i < NUM_USERDEFS - 1; i++)
+    Serial_Printf("\"userdef%d\": \"%f\",\n", i, eeprom->userdef[i]);
+  Serial_Printf("\"userdef%d\": \"%f\"\n}", i, eeprom->userdef[i]);
+
   Serial_Print_CRC();
 }
 

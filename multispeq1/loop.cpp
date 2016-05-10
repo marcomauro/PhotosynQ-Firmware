@@ -56,8 +56,11 @@ void loop() {
 
     powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
 
-    if (c == -1)
-      continue;               // nothing available, try again
+    if (c == -1) {
+      for (int i = 0; i < 200; ++i)
+        sleep_cpu();                // save power for 200 ms
+      continue;                     // nothing available, try again
+    }
 
     activity();             // record fact that we have seen activity (used with powerdown())
 
@@ -663,8 +666,9 @@ void do_command()
       break;
 
     case hash("sleep"):
-        sleep_mode();
-        break;
+      sleep_mode(5000);
+      Serial_Print_Line("done sleeping");
+      break;
 
     case hash("packet_test"):
       {

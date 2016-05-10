@@ -200,12 +200,23 @@ int battery_low()
 } // battery_low()
 
 
-// enter sleep mode for 1 second
-void sleep_mode(void)
-{
+#define USE_HIBERNATE  // doesn't work, you have to edit the library source code
+#include <Snooze.h>
 
+static SnoozeBlock config;
+
+// enter sleep mode for n milliseconds
+void sleep_mode(const int n)
+{
+    // Set Low Power Timer wake up in milliseconds.
+    config.setTimer(n);      // milliseconds
+
+    Snooze.deepSleep( config );
+    //    Snooze.hibernate( config );
+    delay(1);      // maybe some time is needed before everything works?
+    // restore time from RTC?
     
-}
+} // sleep_mode()
 
 
 // print message for every I2C device on the bus

@@ -1,7 +1,7 @@
 
 // Firmware for MultispeQ 1.0 hardware.   Part of the PhotosynQ project.
 
-// setup() and support routines
+// setup() 
 // main loop is in loop.cpp
 
 // update DAC and get lights working in [{}]
@@ -25,10 +25,9 @@
 
   + test do we need to calibrate offsets (like we did with the betas?)
 
-  Discuss meringing other eeprom floats into userdef[] with #define
   Create API for read_userdef, save_userdev, and reset_eeprom, delete all other eeprom commands, clean up all 1000… calls.
-  Using bluetooth ID as ID -
-  Firmware needs api call to write code to eeprom (unique ID).
+  X Using bluetooth ID as ID -
+  X Firmware needs api call to write code to eeprom (unique ID).
   Get rid of user_enter… and replace with new user enter, then delete main function
   Pull out the alert/confirm/prompt into a subroutine.
   If averages == 1, then print data in real time
@@ -70,7 +69,7 @@
   Attach par sensor to USB-C breakout, make calibration routine.
   Look up and see why iOS doesn’t connect to BLE.
   Test the power down feature from the bluetooth.  Determine how long it takes when powered down to come back to life (from bluetooth).  Include auto power off in the main while loop - auto-off after 10 seconds.
-  Test BLE packet mode 
+  Test BLE packet mode
   Troubleshoot issues with bluetooth between protocols.
 
   Start documenting the commands + parameters to pass…
@@ -100,9 +99,6 @@
    X Note: eeprom writing needs refactoring - eliminate all EEPROMxAnything()
 
    Here's the remaining commands in this file which should be moved.  I've organized them by function.  Actually this will be nice as some of them need to be renamed and cleaned up anyway.
-
-  // power off
-  pwr_off
 
   // Calibration commands
   add_calibration             // this adds a single element to the calibrations stored as an array (containing all of the LED pins)
@@ -193,12 +189,10 @@
 #include "defines.h"
 #include <i2c_t3.h>
 #include <Time.h>                                                             // enable real time clock library
-#include "utility/Adafruit_Sensor.h"
 #include "json/JsonParser.h"
 #include "utility/mcp4728.h"              // delete this once PAR is fixed
 #include "DAC.h"
-#include "AD7689.h"               // external ADC
-#include "utility/Adafruit_BME280.h"      // temp/humidity/pressure sensor
+#include "utility/AD7689.h"               // external ADC
 #define EXTERN
 #include "eeprom.h"
 //#include <ADC.h>                  // internal ADC
@@ -226,13 +220,11 @@ void setup() {
   Serial_Print_Line("serial works");
 #endif
 
-  // Set up I2C bus
+  // Set up I2C bus - CAUTION: any subsequent calls to Wire.begin() will mess this up
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_INT, I2C_RATE_400);  // using alternative wire library
-  //  Serial_Print_Line("I2C works");
 
   // initialize SPI bus
   SPI.begin ();
-  //  Serial_Print_Line("SPI works");
 
   // initialize DACs
   DAC_init();
@@ -243,25 +235,15 @@ void setup() {
   for (unsigned i = 1; i < NUM_LEDS + 1; ++i)
     pinMode(LED_to_pin[i], OUTPUT);
 
-  pinMode(HALL_OUT, INPUT);                                                       // set hall effect sensor to input so it can be read
-  pinMode(DEBUG_DC, INPUT);                                                       // leave floating
-  pinMode(DEBUG_DD, INPUT);                                                       // leave floating
-  //  pinMode(BLERESET, OUTPUT);                                                  // leave floating - deprecated
-  //  digitalWriteFast(BLERESET, HIGH);
-  //  delay(100);
-  //  digitalWriteFast(BLERESET, LOW);                                                // set BLE reset low for the bluetooth to be active
-  //  pinMode(ISET, OUTPUT);                                                          // set USB charge level - deprecated
-  //  digitalWriteFast(ISET, HIGH);
-  //  pinMode(ACTINICLIGHT_INTENSITY_SWITCH, OUTPUT);
-  //  digitalWriteFast(ACTINICLIGHT_INTENSITY_SWITCH, HIGH);                     // preset the switch to the actinic (high) preset position, DAC channel 0
-
+  //pinMode(HALL_OUT, INPUT);                       // set hall effect sensor to input so it can be read
+  //pinMode(DEBUG_DC, INPUT_PULLUP);                                                    
+  //pinMode(DEBUG_DD, INPUT_PULLUP);                                                       
+  
   // pins used to turn on/off detector integration/discharge
   pinMode(HOLDM, OUTPUT);
   digitalWriteFast(HOLDM, HIGH);                  // discharge cap
   pinMode(HOLDADD, OUTPUT);
   digitalWriteFast(HOLDADD, HIGH);                // discharge cap
-
-  pinMode(BLANK, OUTPUT);                                                            // used as a blank pin to pull high and low if the meas lights is otherwise blank (set to 0)
 
 #if CORALSPEQ == 1
   // Set pinmodes for the coralspeq
@@ -291,29 +273,14 @@ void setup() {
   }
   analogReference(INTERNAL);   // 1.20V
 
-Serial.print("hello\n");
-
-//#define BME280
-#ifdef BME280
-Adafruit_BME280 bme;
   // pressure/humidity/temp sensors
-  // note: will need 0x76 or 0x77 to support two chips
-  assert (bme.begin(0x77));
-  //assert (bme2.begin(0x77));
-#if 1
-  Serial_Printf("BME280 Temperature = %fC and %fC",bme.readTemperature(),bme.readTemperature());
-#endif
-#endif
+  bme1.begin(0x77);
+  //Serial_Printf("BME2801 Temperature = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
+  bme2.begin(0x76);
+  //Serial_Printf("BME2802 Temperature = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
 
   PAR_init();               // color sensor
-
   eeprom_initialize();      // eeprom
-
-#undef DEBUGSIMPLE
-
-  // test expressions - works! pass it a string and it is evaluated
-  //double expr(const char s[]);
-  //Serial_Printf("expr = %f\n",expr("userdef1/2"));  // userdef1 is from eeprom
 
   assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
@@ -323,7 +290,7 @@ Adafruit_BME280 bme;
   Serial_Set(2);
   Serial_Print_Line("This is a long test.  Does it work?  We may never know.  There are always hidden bugs.");
   Serial_Flush_Output();
-  packet_mode = 0;
+  packet_mode = 0;   // restore to normal
   Serial_Set(4);
 #endif
 
@@ -338,19 +305,8 @@ Adafruit_BME280 bme;
 // read/write device_id and manufacture_date to eeprom
 
 void get_set_device_info(const int _set) {
-  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
-                (unsigned)eeprom->device_id >> 24,
-                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
-                ((unsigned)eeprom->device_id & 0xff00) >> 8,
-                (unsigned)eeprom->device_id & 0xff,
-                DEVICE_FIRMWARE, eeprom->device_manufacture);
-  Serial_Print_CRC();
 
-  if (_set == 0) {                                                                      // if you're not trying to set the values, then just print this and bail
-    return;
-  }
-
-  if (_set == 1) { 
+  if (_set == 1) {
     long val;
 
     // please enter new device ID (lower 4 bytes of BLE MAC address as a long int) followed by '+'
@@ -363,7 +319,9 @@ void get_set_device_info(const int _set) {
     val = Serial_Input_Long("+", 0);
     store(device_manufacture, val);
 
-    // print again for verification
+  } // if
+  
+    // print
     Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
                   (unsigned)eeprom->device_id >> 24,
                   ((unsigned)eeprom->device_id & 0xff0000) >> 16,
@@ -371,8 +329,6 @@ void get_set_device_info(const int _set) {
                   (unsigned)eeprom->device_id & 0xff,
                   DEVICE_FIRMWARE, eeprom->device_manufacture);
     Serial_Print_CRC();
-
-  } // if
 
   return;
 
@@ -506,192 +462,4 @@ void print_data()
   Serial_Print("]");
 }
 #endif
-
-// qsort uint16_t comparison function (tri-state) - needed for median16()
-
-static int uint16_cmp(const void *a, const void *b)
-{
-  const uint16_t *ia = (const uint16_t *)a; // casting pointer types
-  const uint16_t *ib = (const uint16_t *)b;
-
-  if (*ia == *ib)
-    return 0;
-
-  if (*ia > *ib)
-    return 1;
-  else
-    return -1;
-}
-
-// return the median value of an array of 16 bit unsigned values
-// note: this also sorts the array
-// percentile is normally .50
-
-uint16_t median16(uint16_t array[], const int n, const float percentile)
-{
-  qsort(array, (size_t) n, sizeof(uint16_t), uint16_cmp);
-  return (array[(int) roundf(n * percentile)]);
-}
-
-
-// return the stdev value of an array of 16 bit unsigned values
-
-float stdev16(uint16_t val[], const int count)
-{
-  // calc stats
-  double mean = 0, delta = 0, m2 = 0, variance = 0, stdev = 0, n = 0;
-
-  for (int i = 0; i < count; i++) {
-    ++n;
-    delta = val[i] - mean;
-    mean += delta / n;
-    m2 += (delta * (val[i] - mean));
-  } // for
-  variance = m2 / (count - 1);  // (n-1):Sample Variance  (n): Population Variance
-  stdev =  sqrt(variance);        // Calculate standard deviation
-  //Serial_Printf("single pulse stdev = %.2f, mean = %.2f AD counts\n", stdev, mean);
-  //Serial_Printf("bits (95%%) = %.2f\n", (15 - log(stdev * 2) / log(2.0))); // 2 std dev from mean = 95%
-  return stdev;
-} // stdev16()
-
-
-// check a json protocol for validity (matching [] and {})
-// return 1 if OK, otherwise 0
-// also check CRC value if present
-
-int check_protocol(char *str)
-{
-  int bracket = 0, curly = 0;
-  char *ptr = str;
-
-  while (*ptr != 0) {
-    switch (*ptr) {
-      case '[':
-        ++bracket;
-        break;
-      case ']':
-        --bracket;
-        break;
-      case '{':
-        ++curly;
-        break;
-      case '}':
-        --curly;
-        break;
-    } // switch
-    ++ptr;
-  } // while
-
-  if (bracket != 0 || curly != 0)  // unbalanced - can't be correct
-    return 0;
-
-  // check CRC - 8 hex digits immediately after the closing ]
-  ptr = strrchr(str, ']'); // find last ]
-  if (!ptr)                        // no ] found - how can that be?
-    return 0;
-
-  ++ptr;                      // char after last ]
-
-  if (!isxdigit(*(ptr)))      // hex digit follows last ] ?
-    return 1;                    // no CRC so report OK
-
-  // CRC is there - check it
-
-  crc32_init();     // find crc of json (from first [ to last ])
-  crc32_buf (str, ptr - str);
-
-  // note: must be exactly 8 upper case hex digits
-  if (strncmp(int32_to_hex (crc32_value()), ptr, 8) != 0) {
-    return 0;                 // bad CRC
-  }
-
-  *ptr = 0;                   // remove the CRC
-
-  return 1;                   // CRC is OK
-} // check_protocol()
-
-const unsigned long SHUTDOWN = 10000;   // power down after X ms of inactivity
-static unsigned long last_activity = millis();
-
-// if there hasn't been any activity for x seconds, then attempt power down
-// note: if USB power is connected, power down is not possible
-
-void powerdown() {
-  // send command to BLE module by setting pin low
-  // has no effect if USB is plugged in
-
-  if (millis() - last_activity > SHUTDOWN) {
-    //Serial_Print_Line("powerdown"); delay(10000);
-    // send request to BLE module to power down this MCU
-    pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
-    digitalWriteFast(POWERDOWN_REQUEST, LOW);
-  } else {
-    pinMode(POWERDOWN_REQUEST, INPUT);                // active, let it float high
-  }
-}  // powerdown()
-
-// record that we have seen serial port activity (used with powerdown())
-void activity() {
-  last_activity = millis();
-}
-
-// Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.
-// This should run just before any new protocol - if it’s too low, report to the user
-// return 1 if too low, otherwise 0
-
-const float MIN_BAT_LEVEL (3.4 * (16./(16+47)) * (65536/1.2)); // 3.4V min battery voltage, voltage divider, 1.2V reference, 16 bit ADC
-
-int battery_low()
-{
-  // pull batt_me line low
-  pinMode(BATT_ME, OUTPUT);               // battery measurement enable (active low)
-  digitalWriteFast(BATT_ME, LOW);
-  delay(20);
-
-  // find voltage before high load
-  uint32_t intial_value = 0;
-  for (int i = 0 ; i < 100; ++i)
-    initial_value += analogRead(BATT_TEST);  // test A10 analog input
-  initial_value /= 100;
-
-  // set DAC values to 1/4 of full output to create load
-  DAC_set(1, 4096 / 4);
-  DAC_set(2, 4096 / 4);
-  DAC_set(5, 4906 / 4);
-  DAC_set(6, 4906 / 4);
-  DAC_change();
-  delay(10);       // stabilize
-
-  // turn on 4 LEDs
-  digitalWriteFast(PULSE1, 1);
-  digitalWriteFast(PULSE2, 1);
-  digitalWriteFast(PULSE5, 1);
-  digitalWriteFast(PULSE6, 1);
-
-  delay(20);          // there a slow filter on the circuit
-
-  uint32_t value = 0;
-  for (int i = 0 ; i < 100; ++i)
-    value += analogRead(BATT_TEST);  // test A10 analog input 
-  value /= 100;
-
-  // turn off 4 LEDs
-  digitalWriteFast(PULSE1, 0);
-  digitalWriteFast(PULSE2, 0);
-  digitalWriteFast(PULSE5, 0);
-  digitalWriteFast(PULSE6, 0);
-
-  // turn off BATT_ME (let float)
-  pinMode(BATT_ME, INPUT);
-
-  //Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
-
-  if (value  < MIN_BAT_LEVEL) {
-    pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
-    digitalWrite(POWERDOWN_REQUEST, LOW);
-    return 1;                  // too low
-  }
-  return 0;  // OK
-
-} // battery_low()
 

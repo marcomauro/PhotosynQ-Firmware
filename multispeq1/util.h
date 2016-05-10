@@ -9,6 +9,6 @@ double getPitch(const int accelX, const int accelY, const int accelZ, const doub
 String getDirection(int compass);
 Tilt calculateTilt(const double& roll, const double& pitch, double compass);
 void scan_i2c(void);
-void sleep_mode(void);
+void sleep_mode(int n);
 
 

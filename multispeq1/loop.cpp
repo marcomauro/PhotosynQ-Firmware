@@ -37,7 +37,6 @@ static void print_userdef (void);
 double expr(const char str[]);
 void do_protocol(void);
 void do_command(void);
-int battery_low(void);
 void print_calibrations(void);
 
 
@@ -58,7 +57,7 @@ void loop() {
 
     if (c == -1) {
       for (int i = 0; i < 200; ++i)
-        sleep_cpu();                // save power for 200 ms
+        sleep_cpu();                // save power for 200 ms - low impact, USB stays on
       continue;                     // nothing available, try again
     }
 
@@ -631,7 +630,7 @@ void do_command()
       break;
 
     case hash("battery"):
-      battery_low();  // test battery
+      battery_low(1);  // test battery with LEDs on
       break;
 
     case hash("scan_i2c"):

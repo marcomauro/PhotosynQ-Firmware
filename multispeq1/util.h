@@ -10,5 +10,6 @@ String getDirection(int compass);
 Tilt calculateTilt(const double& roll, const double& pitch, double compass);
 void scan_i2c(void);
 void sleep_mode(int n);
+int battery_low(int leds);
 
 

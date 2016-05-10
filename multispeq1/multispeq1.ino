@@ -210,7 +210,7 @@ void PAR_init(void);               // initialize PAR and RGB sensor
 
 void setup() {
 
-  delay(600);
+  delay(700);
 
   // set up serial ports (Serial and Serial1)
   Serial_Set(4);

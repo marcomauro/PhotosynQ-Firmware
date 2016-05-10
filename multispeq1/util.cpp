@@ -7,6 +7,7 @@
 #include "utility/crc32.h"
 #include "DAC.h"
 #include "util.h"
+#include "serial.h"
 
 // qsort uint16_t comparison function (tri-state) - needed for median16()
 
@@ -111,39 +112,18 @@ int check_protocol(char *str)
   return 1;                   // CRC is OK
 } // check_protocol()
 
-const unsigned long SHUTDOWN = 10000;   // power down after X ms of inactivity
-static unsigned long last_activity = millis();
 
-// if there hasn't been any activity for x seconds, then attempt power down
-// note: if USB power is connected, power down is not possible
-
-void powerdown() {
-  // send command to BLE module by setting pin low
-  // has no effect if USB is plugged in
-
-  if (millis() - last_activity > SHUTDOWN) {
-    //Serial_Print_Line("powerdown"); delay(10000);
-    // send request to BLE module to power down this MCU
-    pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
-    digitalWriteFast(POWERDOWN_REQUEST, LOW);
-  } else {
-    pinMode(POWERDOWN_REQUEST, INPUT);                // active, let it float high
-  }
-}  // powerdown()
-
-// record that we have seen serial port activity (used with powerdown())
-void activity() {
-  last_activity = millis();
-}
 
 // Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.
 // This should run just before any new protocol - if it’s too low, report to the user
-// return 1 if too low, otherwise 0
+// return 1 if low, otherwise 0
 
 const float MIN_BAT_LEVEL (3.4 * (16. / (16 + 47)) * (65536 / 1.2)); // 3.4V min battery voltage, voltage divider, 1.2V reference, 16 bit ADC
 
-int battery_low()
+int battery_low(int flash)         // 0 for no load, 1 to flash LEDs to create load
 {
+  return 0;
+
   // enable bat measurement
   pinMode(BATT_ME, OUTPUT);
   digitalWriteFast(BATT_ME, LOW);
@@ -151,53 +131,125 @@ int battery_low()
 
   // find voltage before high load
   uint32_t initial_value = 0;
+  uint32_t value;
+
   for (int i = 0 ; i < 100; ++i)
     initial_value += analogRead(BATT_TEST);  // test A10 analog input
   initial_value /= 100;
 
-  // set DAC values to 1/4 of full output to create load
-  DAC_set(1, 4096 / 4);
-  DAC_set(2, 4096 / 4);
-  DAC_set(5, 4906 / 4);
-  DAC_set(6, 4906 / 4);
-  DAC_change();
-  delay(1);       // stabilize
+  value = initial_value;
 
-  // turn on 4 LEDs
-  digitalWriteFast(PULSE1, 1);
-  digitalWriteFast(PULSE2, 1);
-  digitalWriteFast(PULSE5, 1);
-  digitalWriteFast(PULSE6, 1);
+  if (flash) {   // flash LEDs if needed to create load
+    // set DAC values to 1/4 of full output to create load
+    DAC_set(1, 4096 / 4);
+    DAC_set(2, 4096 / 4);
+    DAC_set(5, 4906 / 4);
+    DAC_set(6, 4906 / 4);
+    DAC_change();
+    delay(1);       // stabilize
 
-  delay(20);          // there a slow filter on the circuit
+    // turn on 4 LEDs
+    digitalWriteFast(PULSE1, 1);
+    digitalWriteFast(PULSE2, 1);
+    digitalWriteFast(PULSE5, 1);
+    digitalWriteFast(PULSE6, 1);
 
-  // value after load
-  uint32_t value = 0;
-  for (int i = 0 ; i < 100; ++i)
-    value += analogRead(BATT_TEST);  // test A10 analog input
-  value /= 100;
+    delay(20);          // there a slow filter on the circuit
 
-  // turn off 4 LEDs
-  digitalWriteFast(PULSE1, 0);
-  digitalWriteFast(PULSE2, 0);
-  digitalWriteFast(PULSE5, 0);
-  digitalWriteFast(PULSE6, 0);
+    // value after load
+    value = 0;
+    for (int i = 0 ; i < 100; ++i)
+      value += analogRead(BATT_TEST);  // test A10 analog input
+    value /= 100;
 
-  // turn off BATT_ME (let float)
-  pinMode(BATT_ME, INPUT);
+    // turn off 4 LEDs
+    digitalWriteFast(PULSE1, 0);
+    digitalWriteFast(PULSE2, 0);
+    digitalWriteFast(PULSE5, 0);
+    digitalWriteFast(PULSE6, 0);
 
-  //Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
+    // turn off BATT_ME (let float)
+    pinMode(BATT_ME, INPUT);
 
-  // TODO - make use of intial value?
+    //Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
 
-  if (value  < MIN_BAT_LEVEL) {
-    pinMode(POWERDOWN_REQUEST, OUTPUT);               // ask BLE to power down MCU (active low)
-    digitalWrite(POWERDOWN_REQUEST, LOW);
+    // TODO - make use of intial value?
+  } // if
+
+  if (value  < MIN_BAT_LEVEL)
     return 1;                  // too low
-  }
-  return 0;  // OK
+  else
+    return 0;  // OK
 
 } // battery_low()
+
+
+// return 1 if the accelerometer values haved changed
+#define ACCEL_CHANGE 100
+void MMA8653FC_read(int *axeXnow, int *axeYnow, int *axeZnow);
+
+int accel_changed()
+{
+  int x, y, z;
+  static int prev_x, prev_y, prev_z;
+  int changed = 0;
+
+  MMA8653FC_read(&x, &y, &z);
+
+  if (abs(x - prev_x) > ACCEL_CHANGE || abs(y - prev_y) > ACCEL_CHANGE || abs(z - prev_z) > ACCEL_CHANGE)
+    changed = 1;
+
+  prev_x = x;        // always update this so slow change won't trigger it
+  prev_y = y;
+  prev_z = z;
+
+  return changed;
+}  // accel_changed()
+
+const unsigned long SHUTDOWN = 60000;   // power down after X ms of inactivity
+static unsigned long last_activity = millis();
+
+// record that we have seen serial port activity (used with powerdown())
+void activity() {
+  last_activity = millis();
+}
+
+// if not on USB and there hasn't been any activity for x seconds, then power down BLE and sleep
+
+void powerdown() {
+
+  if ((millis() - last_activity > SHUTDOWN && !Serial) || battery_low(0)) {   // if USB is active, no timeout sleep 
+#define LEGACY
+#ifdef LEGACY
+    pinMode(POWERDOWN_REQUEST, OUTPUT);               // legacy: ask BLE to power down MCU (active low)
+    digitalWriteFast(POWERDOWN_REQUEST, LOW);
+#endif
+
+    // turn off BLE, turn off analog circuitry (should already be off), then enter a sleep loop
+    // TODO
+    
+    // wake up if the device has changed orientation
+    accel_changed();     // update values with current
+
+    for (;;) {
+      sleep_mode(2000);
+
+      if (accel_changed()) {
+        if (battery_low(0)) {
+          sleep_mode(60000);    // longer sleep for low bat
+          continue;
+        } else
+          break;
+      } // if
+    } // for
+
+    // turn on BLE
+    // TODO
+
+    activity();    // save currrent time
+
+  } // if
+}  // powerdown()
 
 
 #define USE_HIBERNATE  // doesn't work, you have to edit the library source code
@@ -208,14 +260,14 @@ static SnoozeBlock config;
 // enter sleep mode for n milliseconds
 void sleep_mode(const int n)
 {
-    // Set Low Power Timer wake up in milliseconds.
-    config.setTimer(n);      // milliseconds
+  // Set Low Power Timer wake up in milliseconds.
+  config.setTimer(n);      // milliseconds
 
-    Snooze.deepSleep( config );
-    //    Snooze.hibernate( config );
-    delay(1);      // maybe some time is needed before everything works?
-    // restore time from RTC?
-    
+  Snooze.deepSleep( config );
+  //    Snooze.hibernate( config );
+  //delay(1);      // maybe some time is needed before everything works?
+  // restore time from RTC?
+
 } // sleep_mode()
 
 
@@ -267,7 +319,7 @@ void scan_i2c(void)
 
 
 //apply the calibration values for magnetometer from EEPROM
-void applyMagCal(float* arr) {
+void applyMagCal(float * arr) {
 
   arr[0] -= eeprom->mag_bias[0];
   arr[1] -= eeprom->mag_bias[1];

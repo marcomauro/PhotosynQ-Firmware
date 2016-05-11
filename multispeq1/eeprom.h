@@ -46,7 +46,8 @@ class eeprom_class
     /*
        replace calibration_slope and all that just with par_to_dac (and create a simple function for conversion)...- if the relationships is more complicated than just mx+b then add more variables as needed
     */
-     volatile float par_to_dac_slope[NUM_LEDS+1];
+     volatile float par_to_dac_slope1[NUM_LEDS+1];
+     volatile float par_to_dac_slope2[NUM_LEDS+1];
      volatile float par_to_dac_yint[NUM_LEDS+1];    
     /*
        IR baseline estimation based on the reflectivity of the object.  This helps address any residual IR in the measuring light itself (used in chlorophyll fluorescence).

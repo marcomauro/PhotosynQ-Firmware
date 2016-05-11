@@ -289,10 +289,17 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
-  } else  if (strncmp( name, "par_to_dac_slope[", 17) == 0 ) {
+  } else  if (strncmp( name, "par_to_dac_slope1[", 18) == 0 ) {
     unsigned index = atoi(name + 17);
     if (index < NUM_LEDS + 1)
-      *value = eeprom->par_to_dac_slope[index];
+      *value = eeprom->par_to_dac_slope1[index];
+    else
+      *value = NAN;
+    return PARSER_TRUE;
+  } else  if (strncmp( name, "par_to_dac_slope2[", 18) == 0 ) {
+    unsigned index = atoi(name + 17);
+    if (index < NUM_LEDS + 1)
+      *value = eeprom->par_to_dac_slope1[index];
     else
       *value = NAN;
     return PARSER_TRUE;

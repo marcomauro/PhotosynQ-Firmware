@@ -228,7 +228,6 @@ void setup() {
 
   // initialize DACs
   DAC_init();
-
   // set up MCU pins
 
   // set up LED on/off pins

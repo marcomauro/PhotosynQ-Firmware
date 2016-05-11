@@ -455,14 +455,15 @@ void do_command()
       store(detector_offset_yint[3], Serial_Input_Double("+", 0));
       break;
     case 1044:
-      //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
+      //      Serial_Print_Line("{\"message\": \"input the LED #, slope1, slope 2, and y intercept for LED PAR calibration, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
         int led = Serial_Input_Double("+", 0);
         if (led == -1) {                                    // user can bail with -1+ setting as LED
           break;
         }
         else if (led > 0 || led < NUM_LEDS + 1) {
-          store(par_to_dac_slope[led], Serial_Input_Double("+", 0));
+          store(par_to_dac_slope1[led], Serial_Input_Double("+", 0));
+          store(par_to_dac_slope2[led], Serial_Input_Double("+", 0));
           store(par_to_dac_yint[led], Serial_Input_Double("+", 0));
         }
         else {
@@ -2147,18 +2148,34 @@ void print_calibrations() {
   Serial_Printf("\"thickness_b\": \"%f\",\n", eeprom->thickness_b);
   Serial_Printf("\"thickness_d\": \"%f\",\n", eeprom->thickness_d);
 
-  Serial_Print("\"par_to_dac_slope\": [");
+  Serial_Print("\"par_to_dac_slope1\": [");
 #if 1          // Greg TODO improved example - note, i should probably start at 1 since the first value isn't used
-  for (i = 0; i < arraysize(eeprom->par_to_dac_slope) - 1; i++)
-    Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
-  Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
+  for (i = 0; i < arraysize(eeprom->par_to_dac_slope1) - 1; i++)
+    Serial_Printf("\"%f\",", eeprom->par_to_dac_slope1[i]);
+  Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope1[i]);
 #else
-  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope) / sizeof(float); i++) {
-    if (i != sizeof(eeprom->par_to_dac_slope) / sizeof(float) - 1) {
-      Serial_Printf("\"%f\",", eeprom->par_to_dac_slope[i]);
+  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope1) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->par_to_dac_slope1) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->par_to_dac_slope1[i]);
     }
     else {
-      Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope[i]);
+      Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope1[i]);
+    }
+  }
+#endif
+
+  Serial_Print("\"par_to_dac_slope2\": [");
+#if 1          // Greg TODO improved example - note, i should probably start at 1 since the first value isn't used
+  for (i = 0; i < arraysize(eeprom->par_to_dac_slope2) - 1; i++)
+    Serial_Printf("\"%f\",", eeprom->par_to_dac_slope2[i]);
+  Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope2[i]);
+#else
+  for (unsigned i = 0; i < sizeof(eeprom->par_to_dac_slope2) / sizeof(float); i++) {
+    if (i != sizeof(eeprom->par_to_dac_slope2) / sizeof(float) - 1) {
+      Serial_Printf("\"%f\",", eeprom->par_to_dac_slope2[i]);
+    }
+    else {
+      Serial_Printf("\"%f\"],\n", eeprom->par_to_dac_slope2[i]);
     }
   }
 #endif

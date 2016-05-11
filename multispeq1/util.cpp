@@ -117,6 +117,7 @@ int check_protocol(char *str)
 // Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.
 // This should run just before any new protocol - if it’s too low, report to the user
 // return 1 if low, otherwise 0
+// for flash == 0, make no assumptions about pins being initialized
 
 const float MIN_BAT_LEVEL (3.4 * (16. / (16 + 47)) * (65536 / 1.2)); // 3.4V min battery voltage, voltage divider, 1.2V reference, 16 bit ADC
 
@@ -206,7 +207,7 @@ int accel_changed()
   return changed;
 }  // accel_changed()
 
-const unsigned long SHUTDOWN = 60000;   // power down after X ms of inactivity
+const unsigned long SHUTDOWN = 30000;   // power down after X ms of inactivity
 static unsigned long last_activity = millis();
 
 // record that we have seen serial port activity (used with powerdown())
@@ -218,8 +219,10 @@ void activity() {
 
 void powerdown() {
 
-  if ((millis() - last_activity > SHUTDOWN && !Serial) || battery_low(0)) {   // if USB is active, no timeout sleep 
-#define LEGACY
+  return;    // this is still experimental
+  
+  if ((millis() - last_activity > SHUTDOWN /* && !Serial */) || battery_low(0)) {   // if USB is active, no timeout sleep
+
 #ifdef LEGACY
     pinMode(POWERDOWN_REQUEST, OUTPUT);               // legacy: ask BLE to power down MCU (active low)
     digitalWriteFast(POWERDOWN_REQUEST, LOW);
@@ -227,14 +230,14 @@ void powerdown() {
 
     // turn off BLE, turn off analog circuitry (should already be off), then enter a sleep loop
     // TODO
-    
+
     // wake up if the device has changed orientation
     accel_changed();     // update values with current
 
     for (;;) {
       sleep_mode(2000);
 
-      if (accel_changed()) {
+      if (accel_changed()) {    // note: accelerometer doesn't seem to need any initialization after being turned off then on
         if (battery_low(0)) {
           sleep_mode(60000);    // longer sleep for low bat
           continue;
@@ -243,10 +246,12 @@ void powerdown() {
       } // if
     } // for
 
-    // turn on BLE
-    // TODO
+    // note, peripherals are now in an unknown state
 
-    activity();    // save currrent time
+    // reboot to turn BLE on and re-intialize peripherals
+#define CPU_RESTART_ADDR ((uint32_t *)0xE000ED0C)
+#define CPU_RESTART_VAL 0x5FA0004
+    *CPU_RESTART_ADDR = CPU_RESTART_VAL;
 
   } // if
 }  // powerdown()
@@ -265,8 +270,6 @@ void sleep_mode(const int n)
 
   Snooze.deepSleep( config );
   //    Snooze.hibernate( config );
-  //delay(1);      // maybe some time is needed before everything works?
-  // restore time from RTC?
 
 } // sleep_mode()
 
@@ -339,8 +342,8 @@ void applyMagCal(float * arr) {
 
 //return compass heading (RADIANS) given pitch, roll and magentotmeter measurements
 float getCompass(const float magX, const float magY, const float magZ, const float & pitch, const float & roll) {
-  float negBfy = magZ * sin(roll) - magY * cos(roll);
-  float Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
+  float negBfy = magZ * sine_internal(roll) - magY * cosine_internal(roll);
+  float Bfx = magX * cosine_internal(pitch) + magY * sine_internal(roll) * sine_internal(pitch) + magZ * sine_internal(pitch) * cosine_internal(roll);
 
   return atan2(negBfy, Bfx);
 }
@@ -352,7 +355,7 @@ float getRoll(const int accelY, const int accelZ) {
 
 //return pitch (RADIANS) from accelerometer measurements + roll
 float getPitch(const int accelX, const int accelY, const int accelZ, const float & roll) {
-  return atan(-1 * accelX / (accelY * sin(roll) + accelZ * cos(roll)));
+  return atan(-1 * accelX / (accelY * sine_internal(roll) + accelZ * cosine_internal(roll)));
 }
 
 // return 0-7 based on 8 segments of the compass
@@ -382,8 +385,8 @@ Tilt calculateTilt(const float & roll, const float & pitch, float compass) {
   Tilt deviceTilt;
 
   //equation derived from rotation matricies in AN4248 by Freescale
-  float a = (cos(roll) * cos(pitch));
-  float b = sqrt((sin(roll) * sin(roll) + (sin(pitch) * sin(pitch) * cos(roll) * cos(roll))));
+  float a = (cosine_internal(roll) * cosine_internal(pitch));
+  float b = sqrt((sine_internal(roll) * sine_internal(roll) + (sine_internal(pitch) * sine_internal(pitch) * cosine_internal(roll) * cosine_internal(roll))));
   deviceTilt.angle = atan2(a, b);
 
   deviceTilt.angle *= 180 / PI;
@@ -394,21 +397,21 @@ Tilt calculateTilt(const float & roll, const float & pitch, float compass) {
     deviceTilt.angle_direction = "\"Invalid compass heading\"";
   }
 
-  float tilt_angle = atan2((sin(roll)), cos(roll) * sin(pitch));
+  float tilt_angle = atan2((sine_internal(roll)), cosine_internal(roll) * sine_internal(pitch));
   tilt_angle *= 180 / PI;
 
-  if(tilt_angle < 0){
+  if (tilt_angle < 0) {
     tilt_angle += 360;
   }
 
 
   int tilt_segment = compass_segment(tilt_angle);
-  
+
   int comp_segment = compass_segment(compass) + tilt_segment;
   comp_segment = comp_segment % 8;
 
   deviceTilt.angle_direction = getDirection(comp_segment);
-  
+
   return deviceTilt;
 
 }
@@ -445,4 +448,91 @@ void get_set_device_info(const int _set) {
   return; 
  
 } // set_device_info() 
+
+//Internal sine calculation in RADIANS
+float sine_internal(float angle) {
+  if (angle > PI) {
+    angle -= 2 * PI;
+  }
+
+  return angle - angle * angle * angle / 6 + 
+  angle * angle * angle * angle * angle / 120 - 
+  angle * angle * angle * angle * angle * angle * angle / 5040 +
+  angle * angle * angle * angle * angle * angle * angle * angle * angle / 362880;
+}
+
+//Internal cosine calculation in RADIANS
+float cosine_internal(float angle) {
+  if (angle > PI) {
+    angle -= 2 * PI;
+  }
+
+  return 1 - angle * angle / 2 + angle * angle * angle * angle / 24 - 
+  angle * angle * angle * angle * angle * angle  / 720 +
+  angle * angle * angle * angle * angle * angle * angle * angle / 40320 - 
+  angle * angle * angle * angle * angle * angle * angle * angle * angle * angle / 3628800;
+}
+//this arctan approximation only works for -pi/4 to pi/4 - can be modified for that to work, but atan2 and atan
+//only takes up <2kb, if we need the space I'll fix it but otherwise I'll leave the originals in place
+/*
+//Internal arctangent calculation in RADIANS
+float arctan_internal(float x, float y){
+  float small, large;
+  int sign = 1;
+  if((x < 0 && y > 0) || (x > 0 && y < 0)){
+    sign *= -1;
+    (x < 0) ? x *= -1 : y *= -1;
+  }
+
+  large = float_max(x, y);
+  small = float_min(x, y);
+  
+  float angle = small / large;
+
+  return PI / 4 * angle - angle * (angle - 1) * (0.2447 + 0.0663 * angle);
+}
+
+float float_max(float x, float y){
+  return (x > y) ? x : y;
+}
+
+float float_min(float x, float y){
+  return (x < y) ? x : y;
+}
+*/
+
+
+//======================================
+
+// read/write device_id and manufacture_date to eeprom
+
+void get_set_device_info(const int _set) {
+
+  if (_set == 1) {
+    long val;
+
+    // please enter new device ID (lower 4 bytes of BLE MAC address as a long int) followed by '+'
+    Serial_Print_Line("{\"message\": \"Please enter device mac address (long int) followed by +: \"}\n");
+    val =  Serial_Input_Long("+", 0);              // save to eeprom
+    store(device_id, val);              // save to eeprom
+
+    // please enter new date of manufacture (yyyymm) followed by '+'
+    Serial_Print_Line("{\"message\": \"Please enter device manufacture date followed by + (example 052016): \"}\n");
+    val = Serial_Input_Long("+", 0);
+    store(device_manufacture, val);
+
+  } // if
+
+  // print
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
+                (unsigned)eeprom->device_id >> 24,
+                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
+                ((unsigned)eeprom->device_id & 0xff00) >> 8,
+                (unsigned)eeprom->device_id & 0xff,
+                DEVICE_FIRMWARE, eeprom->device_manufacture);
+  Serial_Print_CRC();
+
+  return;
+
+} // set_device_info()
 

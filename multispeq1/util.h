@@ -12,5 +12,11 @@ int compass_segment(float angle);
 void scan_i2c(void);
 void sleep_mode(int n);
 int battery_low(int leds);
+float sine_internal(float angle);
+float cosine_internal(float angle);
+//removed because doesn't work and probably unnecessary - see util.cpp comments for more details
+//float arctan_internal(float x, float y);
+//float float_max(float x, float y);
+//float float_min(float x, float y);
 
 

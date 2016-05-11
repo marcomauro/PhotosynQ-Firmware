@@ -54,7 +54,7 @@ void PAR_init()
 }  // PAR_init()
 
 uint16_t par_to_dac (float _par, uint16_t _pin) {                                             // convert dac value to par, in form y = mx + b where y is the dac value
-  int dac_value = _par * pow(eeprom->par_to_dac_slope1[_pin],2) + _par * eeprom->par_to_dac_slope2[_pin] + eeprom->par_to_dac_yint[_pin];
+  int dac_value = _par * (eeprom->par_to_dac_slope1[_pin] * eeprom->par_to_dac_slope1[_pin]) + _par * eeprom->par_to_dac_slope2[_pin] + eeprom->par_to_dac_yint[_pin];
   if (_par == 0) {                                                                           // regardless of the calibration, force a PAR of zero to lights off
     dac_value = 0;
   }

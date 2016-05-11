@@ -606,18 +606,8 @@ void do_command()
           float roll = getRoll(accY, accZ);
           float pitch = getPitch(accX, accY, accZ, roll);
           float yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
-
-          if (yaw < 0) {
-            yaw += 2 * PI;
-          }
-
+          
           Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
-
-
-          roll *= 180 / PI;
-          pitch *= 180 / PI;
-          yaw *= 180 / PI;
-
 
           Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
           Serial_Print_Line(getDirection(compass_segment(yaw)));

@@ -117,13 +117,12 @@ int check_protocol(char *str)
 // Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.
 // This should run just before any new protocol - if it’s too low, report to the user
 // return 1 if low, otherwise 0
-// for flash == 0, make no assumptions about pins being initialized
 
 const float MIN_BAT_LEVEL (3.4 * (16. / (16 + 47)) * (65536 / 1.2)); // 3.4V min battery voltage, voltage divider, 1.2V reference, 16 bit ADC
 
 int battery_low(int flash)         // 0 for no load, 1 to flash LEDs to create load
 {
-  return 0; // FIXME
+  return 0;
 
   // enable bat measurement
   pinMode(BATT_ME, OUTPUT);
@@ -207,7 +206,7 @@ int accel_changed()
   return changed;
 }  // accel_changed()
 
-const unsigned long SHUTDOWN = 30000;   // power down after X ms of inactivity
+const unsigned long SHUTDOWN = 60000;   // power down after X ms of inactivity
 static unsigned long last_activity = millis();
 
 // record that we have seen serial port activity (used with powerdown())
@@ -219,10 +218,8 @@ void activity() {
 
 void powerdown() {
 
-  return;    // this is still experimental
-  
-  if ((millis() - last_activity > SHUTDOWN /* && !Serial */) || battery_low(0)) {   // if USB is active, no timeout sleep
-
+  if ((millis() - last_activity > SHUTDOWN && !Serial) || battery_low(0)) {   // if USB is active, no timeout sleep
+#define LEGACY
 #ifdef LEGACY
     pinMode(POWERDOWN_REQUEST, OUTPUT);               // legacy: ask BLE to power down MCU (active low)
     digitalWriteFast(POWERDOWN_REQUEST, LOW);
@@ -237,7 +234,7 @@ void powerdown() {
     for (;;) {
       sleep_mode(2000);
 
-      if (accel_changed()) {    // note: accelerometer doesn't seem to need any initialization after being turned off then on
+      if (accel_changed()) {
         if (battery_low(0)) {
           sleep_mode(60000);    // longer sleep for low bat
           continue;
@@ -246,12 +243,10 @@ void powerdown() {
       } // if
     } // for
 
-    // note, peripherals are now in an unknown state
+    // turn on BLE
+    // TODO
 
-    // reboot to turn BLE on and re-intialize peripherals
-#define CPU_RESTART_ADDR ((uint32_t *)0xE000ED0C)
-#define CPU_RESTART_VAL 0x5FA0004
-    *CPU_RESTART_ADDR = CPU_RESTART_VAL;
+    activity();    // save currrent time
 
   } // if
 }  // powerdown()
@@ -270,6 +265,8 @@ void sleep_mode(const int n)
 
   Snooze.deepSleep( config );
   //    Snooze.hibernate( config );
+  //delay(1);      // maybe some time is needed before everything works?
+  // restore time from RTC?
 
 } // sleep_mode()
 
@@ -344,18 +341,21 @@ void applyMagCal(float * arr) {
 float getCompass(const float magX, const float magY, const float magZ, const float & pitch, const float & roll) {
   float negBfy = magZ * sine_internal(roll) - magY * cosine_internal(roll);
   float Bfx = magX * cosine_internal(pitch) + magY * sine_internal(roll) * sine_internal(pitch) + magZ * sine_internal(pitch) * cosine_internal(roll);
-
-  return atan2(negBfy, Bfx);
+  float compass = atan2(negBfy, Bfx);
+  if(compass < 0){
+    compass += 2 * PI;
+  }
+  return compass * 180 / PI;
 }
 
 //return roll (RADIANS) from accelerometer measurements
 float getRoll(const int accelY, const int accelZ) {
-  return atan2(accelY, accelZ);
+  return atan2(accelY, accelZ) * 180 / PI;
 }
 
 //return pitch (RADIANS) from accelerometer measurements + roll
 float getPitch(const int accelX, const int accelY, const int accelZ, const float & roll) {
-  return atan(-1 * accelX / (accelY * sine_internal(roll) + accelZ * cosine_internal(roll)));
+  return atan(-1 * accelX / (accelY * sine_internal(roll) + accelZ * cosine_internal(roll))) * 180 / PI;
 }
 
 // return 0-7 based on 8 segments of the compass
@@ -373,15 +373,17 @@ String getDirection(int segment) {
   }
 
   String names[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+
   return "\"" + names[segment] + "\"";
 }
 
 //calculate tilt angle and tilt direction given roll, pitch, compass heading
-Tilt calculateTilt(const float & roll, const float & pitch, float compass) {
-
-  compass *= 180 / PI;
+Tilt calculateTilt(float roll, float pitch, float compass) {
 
   Tilt deviceTilt;
+
+  roll *= (PI / 180);
+  pitch *= (PI / 180);
 
   //equation derived from rotation matricies in AN4248 by Freescale
   float a = (cosine_internal(roll) * cosine_internal(pitch));
@@ -402,6 +404,7 @@ Tilt calculateTilt(const float & roll, const float & pitch, float compass) {
   if (tilt_angle < 0) {
     tilt_angle += 360;
   }
+
 
   int tilt_segment = compass_segment(tilt_angle);
 
@@ -464,39 +467,3 @@ float float_min(float x, float y){
   return (x < y) ? x : y;
 }
 */
-
-
-//======================================
-
-// read/write device_id and manufacture_date to eeprom
-
-void get_set_device_info(const int _set) {
-
-  if (_set == 1) {
-    long val;
-
-    // please enter new device ID (lower 4 bytes of BLE MAC address as a long int) followed by '+'
-    Serial_Print_Line("{\"message\": \"Please enter device mac address (long int) followed by +: \"}\n");
-    val =  Serial_Input_Long("+", 0);              // save to eeprom
-    store(device_id, val);              // save to eeprom
-
-    // please enter new date of manufacture (yyyymm) followed by '+'
-    Serial_Print_Line("{\"message\": \"Please enter device manufacture date followed by + (example 052016): \"}\n");
-    val = Serial_Input_Long("+", 0);
-    store(device_manufacture, val);
-
-  } // if
-
-  // print
-  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
-                (unsigned)eeprom->device_id >> 24,
-                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
-                ((unsigned)eeprom->device_id & 0xff00) >> 8,
-                (unsigned)eeprom->device_id & 0xff,
-                DEVICE_FIRMWARE, eeprom->device_manufacture);
-  Serial_Print_CRC();
-
-  return;
-
-} // set_device_info()
-

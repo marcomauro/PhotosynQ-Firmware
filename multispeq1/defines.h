@@ -106,7 +106,7 @@ const uint8_t LED_to_pin[NUM_LEDS + 1] = {0, PULSE1, PULSE2, PULSE3, PULSE4, PUL
 
 //struct to hold tilt information
 struct Tilt {
-  double angle;
+  float angle;
   String angle_direction;
 };
 

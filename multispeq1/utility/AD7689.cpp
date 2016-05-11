@@ -7,10 +7,11 @@
 
 #include <SPI.h>		// include the new SPI library:
 #include "AD7689.h"
-#include "serial.h"
 
 // test code
 #if 0
+#include "serial.h"
+
 void
 setup ()
 {

@@ -5,13 +5,14 @@
 #include "defines.h"             // various globals                                                         // enable real time clock library
 #include "json/JsonParser.h"
 #include "DAC.h"
-#include "AD7689.h"               // external ADC
+#include "utility/AD7689.h"               // external ADC
 #include "eeprom.h"
 #include "serial.h"
 #include "flasher.h"
 #include "utility/crc32.h"
 #include <TimeLib.h>
-#include <math.h>
+//#include <math.h>
+#include "util.h"
 
 // function declarations
 
@@ -36,14 +37,8 @@ static void print_userdef (void);
 double expr(const char str[]);
 void do_protocol(void);
 void do_command(void);
-int battery_low(void);
 void print_calibrations(void);
-void applyMagCal(float* arr);
-double getCompass(const float magX, const float magY, const float magZ, const double& pitch, const double& roll);
-double getRoll(const int accelY, const int accelZ);
-double getPitch(const int accelX, const int accelY, const int accelZ, const double& roll);
-String getDirection(double compass);
-Tilt calculateTilt(const double& roll, const double& pitch, double compass);
+
 
 //////////////////////// MAIN LOOP /////////////////////////
 
@@ -60,8 +55,11 @@ void loop() {
 
     powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
 
-    if (c == -1)
-      continue;               // nothing available, try again
+    if (c == -1) {
+      for (int i = 0; i < 200; ++i)
+        sleep_cpu();                // save power for 200 ms - low impact, USB stays on
+      continue;                     // nothing available, try again
+    }
 
     activity();             // record fact that we have seen activity (used with powerdown())
 
@@ -114,13 +112,13 @@ void do_command()
     return;
   }
 
-  if  (choose[0] == '(') {             // an expression
+  if (choose[0] == '(') {             // an expression
     Serial_Printf("%g\n", expr(choose));
     return;
   }
 
   if (!isalnum(choose[0])) {
-    Serial_Print("{\"error\":\" bad command\"}\n");
+    Serial_Printf("{\"error\":\" bad command %s\"}\n", choose);
     return;                     // go read another command
   }
 
@@ -132,6 +130,8 @@ void do_command()
 
   // process command
   switch (val) {
+
+    static int dataArray[3][100];
 
     case hash("hello"):
     case 1000:                                                                    // print "Ready" to USB and/or Bluetooth
@@ -177,6 +177,7 @@ void do_command()
         }
       }
       break;
+
     case 1003:
       {
         Serial_Print_Line("\"message\": \"Enter led # setting followed by +: \"}");
@@ -193,7 +194,8 @@ void do_command()
       }
       break;
 
-    case 1004: {
+    case hash("set_date"):
+      {
         Serial_Print_Line("enter GMT hours+min+sec+day+month+year+");
         int hours, minutes, seconds, days, months, years;
         hours =  Serial_Input_Long("+");
@@ -206,7 +208,7 @@ void do_command()
         delay(2000);
       }
     // fall through to print
-    case 1005:
+    case hash("print_date"):
       // example: 2004-02-12T15:19:21.000Z
       if (year() >= 2016) {
         Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}\n", year(), month(), day(), hour(), minute(), second());
@@ -217,20 +219,19 @@ void do_command()
     case 1006:
       print_calibrations();
       break;
+
+    case hash("device_info"):
     case 1007:
       get_set_device_info(0);
       break;
 
     case hash("powerdown"):
-    case 1008:
-      Serial_Print_Line("a");
       pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
       digitalWrite(POWERDOWN_REQUEST, LOW);
-      Serial_Print_Line("b");
       delay(11000);                  // device should power off here - P0.5 (third pin) should go low
-      Serial_Print_Line("c");        // shouldn't get here
       digitalWrite(POWERDOWN_REQUEST, HIGH); // put it back
       break;
+
     case 1011:
       Serial_Print_Line("PULSE1");
       DAC_set(1, 50);
@@ -364,18 +365,22 @@ void do_command()
     case 1027:                                                                                // restart teensy (keep here!)
       _reboot_Teensyduino_();
       break;
+
     case 1028:
       print_userdef();                                                                        // print only the userdef eeprom values
       break;
+
     case 1029:
       print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
       break;
+
     case 1030:
       //      Serial_Print("{\"message\": \"input 3 magnetometer bias values, each followed by +: \"}");
       store(mag_bias[0], Serial_Input_Double("+", 0));
       store(mag_bias[1], Serial_Input_Double("+", 0));
       store(mag_bias[2], Serial_Input_Double("+", 0));
       break;
+
     case 1031:
       //      Serial_Print("{\"message\": \"input 9 magnetometer calibration values, each followed by +: \"}");
       for (int i = 0; i < 3; i++) {
@@ -569,71 +574,103 @@ void do_command()
         }
       }
       break;
-      
+
     case 1051:
-      Serial_Print_Line("Magnetometer Bias: ");
-      Serial_Print_Line(eeprom->mag_bias[0], 7);
-      Serial_Print_Line(eeprom->mag_bias[1], 7);
-      Serial_Print_Line(eeprom->mag_bias[2], 7);
+      Serial_Printf("Magnetometer Bias: %f, %f, %f", eeprom->mag_bias[0], eeprom->mag_bias[1], eeprom->mag_bias[2]);
       break;
-      
+
     case 1052:
       Serial_Print_Line("Magnetometer Rotation: ");
-      for(int i = 0; i < 3; i++){
-        for(int j = 0; j < 3; j++){
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
           Serial_Print_Line(eeprom->mag_cal[i][j], 7);
         }
       }
       break;
 
     case 1053:
-            {
-              int magX, magY, magZ, accX, accY, accZ;
-              MAG3110_read(&magX, &magY, &magZ);
-              MMA8653FC_read(&accX, &accY, &accZ);
-              
-              float coords[3] = {(float) magX, (float) magY, (float) magZ};
-              applyMagCal(coords);
-              
-              double roll = getRoll(accY, accZ);
-              double pitch = getPitch(accX, accY, accZ, roll);
-              double yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
+      {
+        int leave = 0;
+        while (leave != -1) {
+          leave = Serial_Input_Long("+", 1000);
+          int magX, magY, magZ, accX, accY, accZ;
+          MAG3110_read(&magX, &magY, &magZ);
+          MMA8653FC_read(&accX, &accY, &accZ);
 
-              roll *= 180 / PI;
-              pitch *= 180 / PI;
-              yaw *= 180/ PI;
+          float coords[3] = {(float) magX, (float) magY, (float) magZ};
+          applyMagCal(coords);
 
-              if(yaw < 0) {
-                yaw = yaw * -1 + 180;
-              }
+          float roll = getRoll(accY, accZ);
+          float pitch = getPitch(accX, accY, accZ, roll);
+          float yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
 
-              Serial_Print_Line("Roll: ");
-              Serial_Print_Line(roll, 3);
-              Serial_Print_Line("Pitch: ");
-              Serial_Print_Line(pitch, 3);
-              Serial_Print_Line("Compass: ");
-              Serial_Print_Line(yaw, 3);
+          if (yaw < 0) {
+            yaw += 2 * PI;
+          }
 
-              Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
+          Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
 
-              Serial_Printf("Tilt angle: %d, Tilt direction: ", deviceTilt.angle);
-              Serial_Print_Line(deviceTilt.angle_direction);
-              
-            }
-            break;
-    
+
+          roll *= 180 / PI;
+          pitch *= 180 / PI;
+          yaw *= 180 / PI;
+
+
+          Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
+          Serial_Print_Line(getDirection(compass_segment(yaw)));
+
+
+
+          Serial_Printf("Tilt angle: %f, Tilt direction: ", deviceTilt.angle);
+          Serial_Print_Line(deviceTilt.angle_direction);
+        }
+
+      }
+      break;
+
+
+    case hash("collect"):
+      int x, y, z;
+      Serial_Print("Disconnect the cable");
+      delay(5000);
+      for (int i = 0; i < 100; i++)
+      {
+        MAG3110_read(&x, &y, &z);
+        dataArray[0][i] = x;
+        dataArray[1][i] = y;
+        dataArray[2][i] = z;
+        delay(100);
+      }
+      break;
+
+    case hash("dump"):
+      for (int i = 0; i < 100; i++) {
+        Serial_Printf("%d, %d, %d \n", dataArray[0][i], dataArray[1][i], dataArray[2][i]);
+      }
+      break;
+      
     case hash("upgrade"):
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
       break;
 
     case hash("battery"):
-      battery_low();  // test battery
+      battery_low(1);  // test battery with LEDs on
+      break;
+
+    case hash("scan_i2c"):
+      scan_i2c();
       break;
 
     case 1100:
       break;
-    case 1101:
+
+    case hash("sleep"):
+      sleep_mode(5000);
+      Serial_Print_Line("done sleeping");
+      break;
+
+    case hash("packet_test"):
       {
         Serial_Print("let's start with a test, this is more than 20 chars long.\n");
         Serial_Flush_Output();
@@ -658,8 +695,8 @@ void do_command()
       break;
 
     case hash("temp"):
-      Serial_Printf("BME2801 Temperature = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
-      Serial_Printf("BME2802 Temperature = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
+      Serial_Printf("BME2801 Temp = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
+      Serial_Printf("BME2802 Temp = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
       break;
 
     case hash("single_pulse"):
@@ -740,7 +777,7 @@ void do_command()
         // read multiple pulses with increasing intensity or pulse width for linearity test
         // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
         const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
-        Serial_Print_Line("using 2 timers - wait...");
+        Serial_Print_Line("wait...");
         AD7689_set(0);                                  // 0 is main detector
         DAC_set(LED, 200);                               // set initial LED intensity
         DAC_change();
@@ -1881,82 +1918,6 @@ float get_thickness (int notRaw, int _averages) {
   }
 }
 
-//apply the calibration values for magnetometer from EEPROM
-void applyMagCal(float* arr) {
-
-  arr[0] -= eeprom->mag_bias[0];
-  arr[1] -= eeprom->mag_bias[1];
-  arr[2] -= eeprom->mag_bias[2];
-
-  float tempY = arr[0] * eeprom->mag_cal[0][0] + arr[1] * eeprom->mag_cal[0][1] + arr[2] * eeprom->mag_cal[0][2];
-  float tempX = arr[0] * eeprom->mag_cal[1][0] + arr[1] * eeprom->mag_cal[1][1] + arr[2] * eeprom->mag_cal[1][2];
-  float tempZ = arr[0] * eeprom->mag_cal[2][0] + arr[1] * eeprom->mag_cal[2][1] + arr[2] * eeprom->mag_cal[2][2];
-
-  arr[0] = tempX;
-  arr[1] = tempY;
-  arr[2] = tempZ;
-
-  arr[1] *= -1;
-  arr[0] *= -1;
-}
-
-//return compass heading (RADIANS) given pitch, roll and magentotmeter measurements
-double getCompass(const float magX, const float magY, const float magZ, const double & pitch, const double & roll) {
-  double negBfy = magZ * sin(roll) - magY * cos(roll);
-  double Bfx = magX * cos(pitch) + magY * sin(roll) * sin(pitch) + magZ * sin(pitch) * cos(roll);
-
-  return atan2(negBfy, Bfx);
-}
-
-//return roll (RADIANS) from accelerometer measurements
-double getRoll(const int accelY, const int accelZ) {
-  return atan2(accelY, accelZ);
-}
-
-//return pitch (RADIANS) from accelerometer measurements + roll
-double getPitch(const int accelX, const int accelY, const int accelZ, const double & roll) {
-  return atan(-1 * accelX / (accelY * sin(roll) + accelZ * cos(roll)));
-}
-
-// return 0-7 based on 8 segments of the compass
-
-int compass_segment(float angle)    // in degrees, assume no negatives
-{
-  return (round( angle / 45) % 8);
-}
-
-//get the direction (N/S/E/W/NW/NE/SW/SE) from the compass heading
-String getDirection(int segment) {
-
-  if(segment > 7 || segment < 0){
-    return "Invalid compass segment";
-  }
-
-  String names[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-
-  return names[segment];
-}
-
-//calculate tilt angle and tilt direction given roll, pitch, compass heading
-Tilt calculateTilt(const double & roll, const double & pitch, double compass) {
-
-  compass *= 180 / PI;
-
-  Tilt deviceTilt;
-  deviceTilt.angle = acos(sqrt(cos(roll) * cos(roll) + cos(pitch) * cos(pitch))) * 180 / PI;
-
-  if (0 <= compass && compass <= 360) {
-    deviceTilt.angle_direction = "Invalid compass heading";
-  }
-
-  int tilt_segment = compass_segment(deviceTilt.angle);
-
-  int comp_segment = compass_segment(compass) + tilt_segment;
-  comp_segment = comp_segment % 8;
-
-  deviceTilt.angle_direction = getDirection(comp_segment);
-  return deviceTilt;
-}
 
 // check for commands to read various envirmental sensors
 // also output the value on the final call
@@ -2031,7 +1992,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
       }
     }
 
-    if ((String) environmental.getArray(i).getString(0) == "compass_raw"){
+    if ((String) environmental.getArray(i).getString(0) == "compass_raw") {
       int magX, magY, magZ;
       MAG3110_read(&magX, &magY, &magZ);
       Serial_Printf("\"x_compass\":%d,\"y_compass\":%d,\"z_compass\":%d", magX, magY, magZ);

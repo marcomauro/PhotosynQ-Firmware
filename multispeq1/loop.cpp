@@ -231,7 +231,7 @@ void do_command()
       delay(11000);                  // device should power off here - P0.5 (third pin) should go low
       digitalWrite(POWERDOWN_REQUEST, HIGH); // put it back
       break;
-
+/* // CLEANME - we can make this a single case - enter led, enter value, set for 5 seconds... done
     case 1011:
       Serial_Print_Line("PULSE1");
       DAC_set(1, 50);
@@ -332,7 +332,7 @@ void do_command()
       DAC_set(10, 0);
       DAC_change();
       break;
-
+*/
     case 1021:                                                                            // variety of test commands used during development
       {
         /*
@@ -373,6 +373,8 @@ void do_command()
     case 1029:
       print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
       break;
+
+//CLEANME- can we consolidate these print statements at all?  Especially the debugs "error" statements below?
 
     case 1030:
       //      Serial_Print("{\"message\": \"input 3 magnetometer bias values, each followed by +: \"}");
@@ -699,6 +701,8 @@ void do_command()
       Serial_Printf("BME2802 Temp = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
       break;
 
+/* // CLEANME - for these can we just uncomment when we want to try them?  Then we can save the code.  
+
     case hash("single_pulse"):
       {
         // JZ test - do not remove
@@ -820,7 +824,7 @@ void do_command()
         Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
       }
       break;
-
+*/
     default:
       Serial_Printf("{\"error\":\"bad command %s\"}\n", choose);
       break;
@@ -903,14 +907,14 @@ void do_protocol()
 
   } // no more need for the serial input buffer
 
-  if (DEBUGSIMPLE) {
+#ifdef DEBUGSIMPLE
     Serial_Printf("got %d protocols\n", number_of_protocols);
 
     // print each json
     for (int i = 0; i < number_of_protocols; i++) {
       Serial_Printf("Incoming JSON %d as received by Teensy : %s\n", i, json2[i].c_str());
     } // for
-  } // DEBUGSIMPLE
+#endif
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);   // change to : format?
   Serial_Printf(",\"device_version\":%s", DEVICE_VERSION);
@@ -1069,7 +1073,7 @@ void do_protocol()
         for (int i = 0; i < size_of_data_raw; ++i)                                                 // zero it
           data_raw_average[i] = 0;
 
-        if (DEBUGSIMPLE) {
+#ifdef DEBUGSIMPLE
           Serial_Print_Line("");
           Serial_Print("size of data raw:  ");
           Serial_Print_Line(size_of_data_raw);
@@ -1099,7 +1103,7 @@ void do_protocol()
             Serial_Print(", ");
           }
           Serial_Print_Line("");
-        } // DEBUGSIMPLE
+#endif
 
         Serial_Print("{");
 
@@ -1172,38 +1176,6 @@ void do_protocol()
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           uint16_t _number_samples = 0;                                                               // create the adc sampling rate number
-          //          lux_local = 0;                                                                     // reset local (this measurement) light levels
-          //          r_local = 0;
-          //          g_local = 0;
-          //          b_local = 0;
-
-          //      options for relative humidity, temperature, contactless temperature. light_intensity,co2
-          //           0 - take before spectroscopy measurements
-          //           1 - take after spectroscopy measurements
-          environmentals(environmental, averages, x, 0);
-
-          //&&
-          //          analogReadAveraging(analog_averageds);                                      // set analog averaging (ie ADC takes one signal per ~3u)
-
-          //////////////////////ADC SETUP////////////////////////
-
-          //int actfull = 0;
-          //          int _tcs_to_act = 0;
-
-          //          float _light_intensity = 0;
-
-          //          float _light_intensity = lux_to_uE(lux_local);
-          //          _tcs_to_act = (uE_to_intensity(act_background_light,_light_intensity)*tcs_to_act)/100;  // set intensity of actinic background light
-
-          if (DEBUGSIMPLE) {
-            Serial_Print_Line("");
-            Serial_Print("tcs to act: ");
-            //Serial_Print_Line(_tcs_to_act);
-            Serial_Print("ambient light in uE: ");
-            //Serial_Print_Line(lux_to_uE(lux_local));
-            Serial_Print("ue to intensity result:  ");
-            //Serial_Print_Line(uE_to_intensity(act_background_light, lux_to_uE(lux_local))); // NOTE: wait turn flip DAC switch until later.
-          } // DEBUGSIMPLE
 
           for (int z = 0; z < total_pulses; z++) {                                      // cycle through all of the pulses from all cycles
             int first_flag = 0;                                                           // flag to note the first pulse of a cycle
@@ -1509,12 +1481,12 @@ void do_protocol()
                         }
             */
 
-            if (DEBUGSIMPLE) {
+#ifdef DEBUGSIMPLE
               Serial_Print("data count, size of raw data                                   ");
               Serial_Print((int)data_count);
               Serial_Print(",");
               Serial_Print_Line(size_of_data_raw);
-            } // DEBUGSIMPLE
+#endif
 
             if (_spec != 1) {                                                    // if spec_on is not equal to 1, then coralspeq is off and proceed as per normal MultispeQ measurement.
               if (_meas_light  != 0) {                                                      // save the data, so long as the measurement light is not equal to zero.
@@ -1534,13 +1506,12 @@ void do_protocol()
             led_off = 0;                                                                // reset pulse status flags
             pulse++;                                                                     // progress the pulse counter and measurement number counter
 
-            if (DEBUGSIMPLE) {
+#ifdef DEBUGSIMPLE
               Serial_Print("data point average, current data                               ");
               Serial_Print((int)data_raw_average[meas_number]);
               Serial_Print("!");
               Serial_Print_Line(data);
-            } // DEBUGSIMPLE
-
+#endif
             interrupts();                                                              // done with volatile variables, turn interrupts back on
             meas_number++;                                                              // progress measurement number counters
 
@@ -1631,7 +1602,7 @@ void do_protocol()
           Serial_Print("]}");
         }
 
-        if (DEBUGSIMPLE) {
+#ifdef DEBUGSIMPLE
           Serial_Print("# of protocols repeats, current protocol repeat, number of total protocols, current protocol      ");
           Serial_Print(protocols);
           Serial_Print(",");
@@ -1640,7 +1611,7 @@ void do_protocol()
           Serial_Print(number_of_protocols);
           Serial_Print(",");
           Serial_Print_Line(q);
-        } // DEBUGSIMPLE
+#endif
 
         if (q < number_of_protocols - 1 || u < protocols - 1) {                           // if it's not the last protocol in the measurement and it's not the last repeat of the current protocol, add a comma
           Serial_Print(",");
@@ -1662,19 +1633,6 @@ void do_protocol()
         for (unsigned i = 0; i < NUM_LEDS; i++) {
           _a_lights[i] = 0;
         }
-        /*
-          relative_humidity_average = 0;                                                // reset all environmental variables to zero
-          temperature_average = 0;
-          objt_average = 0;
-          lux_averaged = 0;
-          r_averaged = 0;
-          g_averaged = 0;
-          b_averaged = 0;
-          lux_averaged_forpar = 0;
-          r_averaged_forpar = 0;
-          g_averaged_forpar = 0;
-          b_averaged_forpar = 0;
-        */
 
         if (CORAL_SPEQ) {
           for (int i = 0; i < SPEC_CHANNELS; i++)
@@ -1683,11 +1641,6 @@ void do_protocol()
 
         act_background_light_prev = act_background_light;                               // set current background as previous background for next protocol
         spec_on = 0;                                                                    // reset flag that spec is turned on for this measurement
-
-        if (DEBUGSIMPLE) {
-          Serial_Print_Line("previous light set to:   ");
-          Serial_Print_Line(act_background_light_prev);
-        } // DEBUGSIMPLE
       }
     }
     Serial_Flush_Input();
@@ -1702,14 +1655,6 @@ void do_protocol()
     } // if
 
   }  // for each measurement
-
-  /*
-    // make sure one last time that all of the lights are turned off, including background light!
-    for (unsigned i = 0; i < sizeof(LED_to_pin) / sizeof(unsigned short); i++) {
-      digitalWriteFast(LED_to_pin[i], LOW);
-      Serial_Print_Line(LED_to_pin[i]);
-    }
-  */
 
 abort:
 
@@ -2030,13 +1975,13 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
       // TODO sanity checks
 
-      if (DEBUGSIMPLE) {
+#ifdef DEBUGSIMPLE
         Serial_Print_Line(pin);
         Serial_Print_Line(pin);
         Serial_Print_Line(wait);
         Serial_Print_Line(setting);
         Serial_Print_Line(freq);
-      } // DEBUGSIMPLE
+#endif
 
       pinMode(pin, OUTPUT);
       analogWriteFrequency(pin, freq);                                                           // set analog frequency

@@ -36,6 +36,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     // set return value, return true
     *value = light_intensity_averaged;
     return PARSER_TRUE;
+    /*
   } else if (strcmp( name, "light_intensity_raw" ) == 0 ) {
     // set return value, return true
     *value = light_intensity_raw;
@@ -266,6 +267,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
+    */
   } else  if (strncmp( name, "mag_bias[", 9) == 0 ) {
     unsigned index = atoi(name + 9);
     if (index < 3)

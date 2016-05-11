@@ -333,6 +333,8 @@ void get_set_device_info(const int _set) {
 
 } // set_device_info()
 
+
+
 #if CORAL_SPEQ == 1
 
 void readSpectrometer(int intTime, int delay_time, int read_time, int accumulateMode)
@@ -461,4 +463,6 @@ void print_data()
   Serial_Print("]");
 }
 #endif
+
+
 

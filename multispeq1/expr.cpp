@@ -267,7 +267,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
-    */
   } else  if (strncmp( name, "mag_bias[", 9) == 0 ) {
     unsigned index = atoi(name + 9);
     if (index < 3)
@@ -282,6 +281,22 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
+  } else  if (strncmp( name, "ir_baseline_slope[", 18) == 0 ) {
+    unsigned index = atoi(name + 18);
+    if (index < NUM_LEDS + 1)
+      *value = eeprom->ir_baseline_slope[index];
+    else
+      *value = NAN;
+    return PARSER_TRUE;
+  } else  if (strncmp( name, "ir_baseline_yint[", 17) == 0 ) {
+    unsigned index = atoi(name + 17);
+    if (index < NUM_LEDS + 1)
+      *value = eeprom->ir_baseline_yint[index];
+    else
+      *value = NAN;
+    return PARSER_TRUE;
+    */
+    
   } else  if (strncmp( name, "par_to_dac_slope1[", 18) == 0 ) {
     unsigned index = atoi(name + 17);
     if (index < NUM_LEDS + 1)
@@ -303,20 +318,6 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
-  } else  if (strncmp( name, "ir_baseline_slope[", 18) == 0 ) {
-    unsigned index = atoi(name + 18);
-    if (index < NUM_LEDS + 1)
-      *value = eeprom->ir_baseline_slope[index];
-    else
-      *value = NAN;
-    return PARSER_TRUE;
-  } else  if (strncmp( name, "ir_baseline_yint[", 17) == 0 ) {
-    unsigned index = atoi(name + 17);
-    if (index < NUM_LEDS + 1)
-      *value = eeprom->ir_baseline_yint[index];
-    else
-      *value = NAN;
-    return PARSER_TRUE;
   } else  if (strncmp( name, "colorcal_intensity1_slope[", 26) == 0 ) {
     unsigned index = atoi(name + 26);
     if (index < NUM_LEDS + 1)
@@ -324,6 +325,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
+      /*
   } else  if (strncmp( name, "colorcal_intensity2_slope[", 26) == 0 ) {
     unsigned index = atoi(name + 26);
     if (index < NUM_LEDS + 1)
@@ -338,12 +340,14 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
+    */
   } else  if (strncmp( name, "colorcal_intensity1_yint[", 25) == 0 ) {
     unsigned index = atoi(name + 25);
     if (index < NUM_LEDS + 1)
       *value = eeprom->colorcal_intensity1_yint[index];
     else
       *value = NAN;
+      /*
     return PARSER_TRUE;
   } else  if (strncmp( name, "colorcal_intensity2_yint[", 25) == 0 ) {
     unsigned index = atoi(name + 25);
@@ -359,6 +363,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     else
       *value = NAN;
     return PARSER_TRUE;
+    */
   } else  if (strncmp( name, "colorcal_blank1[", 16) == 0 ) {
     unsigned index = atoi(name + 16);
     if (index < NUM_LEDS + 1)

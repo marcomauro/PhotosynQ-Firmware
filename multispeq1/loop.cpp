@@ -512,6 +512,7 @@ void do_command()
         }
       }
       break;
+      /*
     case 1047:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
@@ -544,6 +545,7 @@ void do_command()
         }
       }
       break;
+      */
     case 1049:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for blank at thickness 1 (true blank), thickness 2 (1 piece of white paper), and thickness 3 (3 pieces of white paper), each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
@@ -2134,6 +2136,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity1_yint[i]);
     }
   }
+  /*
   Serial_Print("\"colorcal_intensity2_slope\": [");
   for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float) - 1) {
@@ -2170,6 +2173,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
     }
   }
+  */
   Serial_Print("\"colorcal_blank1\": [");
   for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank1) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_blank1) / sizeof(float) - 1) {

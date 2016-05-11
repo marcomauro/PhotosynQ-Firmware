@@ -63,11 +63,12 @@ class eeprom_class
 
      volatile float colorcal_intensity1_slope[NUM_LEDS+1]; // slope from calibration to Minolta SPAD at intensity 1 (use colorcal_blank1 as blank)
      volatile float colorcal_intensity1_yint[NUM_LEDS+1]; // y intercept from calibration to Minolta SPAD at intensity 1 (use colorcal_blank1 as blank)
+/*
      volatile float colorcal_intensity2_slope[NUM_LEDS+1]; // slope from calibration to Minolta SPAD at intensity 2 (use colorcal_blank1 as blank)
      volatile float colorcal_intensity2_yint[NUM_LEDS+1]; // y intercept from calibration to Minolta SPAD at intensity 2 (use colorcal_blank1 as blank)
      volatile float colorcal_intensity3_slope[NUM_LEDS+1]; // slope from calibration to Minolta SPAD at intensity 3 (use colorcal_blank1 as blank)
      volatile float colorcal_intensity3_yint[NUM_LEDS+1]; // y intercept from calibration to Minolta SPAD at intensity 3 (use colorcal_blank1 as blank)
-
+*/
     // user set values
      volatile float userdef[NUM_USERDEFS+1];  
  

@@ -107,30 +107,30 @@ void do_command()
       choose[i] = 0;
   }
 
-  if (strlen(choose) < 3) {        // short or null command, quietly ignore it
+  if (strlen(choose) < 3) {         // short or null command, quietly ignore it
     return;
   }
 
-  if (choose[0] == '(') {             // an expression
+  if (choose[0] == '(') {           // an expression
     Serial_Printf("%g\n", expr(choose));
     return;
   }
 
   if (!isalnum(choose[0])) {
     Serial_Printf("{\"error\":\" bad command %s\"}\n", choose);
-    return;                     // go read another command
+    return;                         // go read another command
   }
 
   unsigned val;                     // we accept int or alpha commands
   if (isdigit(choose[0]))
     val = atoi(choose);
   else
-    val = hash(choose);       // convert alpha command to an int
+    val = hash(choose);             // convert alpha command to an int
 
   // process command
   switch (val) {
 
-    static int dataArray[3][100];
+    static int dataArray[3][100];  // Kevin TODO - delete this
 
     case hash("hello"):
     case 1000:                                                                    // print "Ready" to USB and/or Bluetooth
@@ -193,28 +193,7 @@ void do_command()
       }
       break;
 
-    case hash("set_date"):
-      {
-        Serial_Print_Line("enter GMT hours+min+sec+day+month+year+");
-        int hours, minutes, seconds, days, months, years;
-        hours =  Serial_Input_Long("+");
-        minutes =  Serial_Input_Long("+");
-        seconds =  Serial_Input_Long("+");
-        days =  Serial_Input_Long("+");
-        months =  Serial_Input_Long("+");
-        years =  Serial_Input_Long("+");
-        setTime(hours, minutes, seconds, days, months, years);
-        delay(2000);
-      }
-    // fall through to print
-    case hash("print_date"):
-      // example: 2004-02-12T15:19:21.000Z
-      if (year() >= 2016) {
-        Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}\n", year(), month(), day(), hour(), minute(), second());
-        Serial_Printf("{\"device_time\":%u}\n", now()); // since 1970 format
-      }
-      break;
-
+ 
     case 1006:
       print_calibrations();
       break;
@@ -224,12 +203,7 @@ void do_command()
       get_set_device_info(0);
       break;
 
-    case hash("powerdown"):
-      pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
-      digitalWrite(POWERDOWN_REQUEST, LOW);
-      delay(11000);                  // device should power off here - P0.5 (third pin) should go low
-      digitalWrite(POWERDOWN_REQUEST, HIGH); // put it back
-      break;
+ 
 /* // CLEANME - we can make this a single case - enter led, enter value, set for 5 seconds... done
     case 1011:
       Serial_Print_Line("PULSE1");
@@ -562,6 +536,7 @@ void do_command()
         }
       }
       break;
+
     case 1050:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
@@ -612,15 +587,12 @@ void do_command()
           Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
           Serial_Print_Line(getDirection(compass_segment(yaw)));
 
-
-
           Serial_Printf("Tilt angle: %f, Tilt direction: ", deviceTilt.angle);
           Serial_Print_Line(deviceTilt.angle_direction);
         }
 
       }
       break;
-
 
     case hash("collect"):
       int x, y, z;
@@ -647,175 +619,11 @@ void do_command()
       upgrade_firmware();
       break;
 
-    case hash("battery"):
-      battery_low(1);  // test battery with LEDs on
-      break;
-
-    case hash("scan_i2c"):
-      scan_i2c();
-      break;
-
     case 1100:
       break;
 
-    case hash("sleep"):
-      sleep_mode(5000);
-      Serial_Print_Line("done sleeping");
-      break;
+#include "loop-switch-jz.h"
 
-    case hash("packet_test"):
-      {
-        Serial_Print("let's start with a test, this is more than 20 chars long.\n");
-        Serial_Flush_Output();
-        char c[2];
-        int count = 0;
-        c[1] = 0;
-        for (;;)  {
-          c[0] = Serial_Read();
-          Serial_Print(c);
-          if (c[0] < ' ') continue;
-          ++count;
-          if (c[0] == 'X')
-            break;
-        } // for
-        Serial_Printf("%d chars\n", count);
-        Serial_Flush_Output();
-      }
-      break;
-
-    case hash("compiled"):
-      Serial_Printf("Compiled on: %s %s\n", __DATE__, __TIME__);
-      break;
-
-    case hash("temp"):
-      Serial_Printf("BME2801 Temp = %fC, Humidity = %fC\n", bme1.readTempC(), bme1.readHumidity());
-      Serial_Printf("BME2802 Temp = %fC, Humidity = %fC\n", bme2.readTempC(), bme2.readHumidity());
-      break;
-
-/* // CLEANME - for these can we just uncomment when we want to try them?  Then we can save the code.  
-
-    case hash("single_pulse"):
-      {
-        // JZ test - do not remove
-        // read and analyze noise on ADC from a single LED pulse
-        const int LED = 5;                              // 1 = green, 2 = red, 5 = IR
-        const int SAMPLES = 100;
-        uint16_t val[SAMPLES];
-        Serial_Print_Line("JZ test");
-        DAC_set(LED, 300);                             // set LED intensity
-        DAC_change();
-        AD7689_set(0);                                  // select ADC channel
-        digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-        delay(1000);
-        noInterrupts();
-        digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
-        delayMicroseconds(30);                          // allow slow actopulser to stabilize (longer is better)
-        digitalWriteFast(HOLDM, LOW);                   // start integrating (could take baseline value here)
-        delayMicroseconds(10);                          // measuring width
-        digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
-        delayMicroseconds(60);                          // experimental - some early samples are rising
-        uint32_t delta_time = micros();
-        AD7689_read_array(val, SAMPLES);                // read values
-        delta_time = micros() - delta_time;
-        interrupts();
-        for (int i = 0; i < SAMPLES; ++i) {
-          val[i] += i * 1.4;                                // adjust for droop (about 1 count per sample)
-          Serial_Printf(" % d\n", (int)val[i]);
-        }
-        Serial_Printf("single pulse stdev = % .2f AD counts\n", stdev16(val, SAMPLES));
-        Serial_Printf("time = % d usec for % d samples\n", delta_time, SAMPLES);
-      }
-      break;
-
-    case hash("p2p"):
-      {
-        // JZ test - do not remove
-        // read multiple pulses with increasing intensity or pulse width for linearity test
-        // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
-        const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
-        Serial_Print_Line("using delay - wait...");
-        AD7689_set(0);                                  // 0 is main detector
-        DAC_set(LED, 700);                               // set initial LED intensity
-        DAC_change();
-        const int MAX = 100;                            // try a variety of intensities 0 up to 4095
-        int count = 0;
-        uint16_t data[100];
-
-        for (int i = 0; i < MAX; i += MAX / 100) {
-          //DAC_set(LED, i);                              // change LED intensity
-          //DAC_change();
-          digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-          delay(33);                                     // also allows LED to cool and DC filter to adjust
-          noInterrupts();
-          digitalWriteFast(LED_to_pin[LED], HIGH);        // turn on LED
-          delayMicroseconds(10);                          // allow slow actopulser to stabilize
-          digitalWriteFast(HOLDM, LOW);                   // start integrating
-          delayMicroseconds(i);                          // pulse width (depends on sensitivity needed)
-          digitalWriteFast(LED_to_pin[LED], LOW);         // turn off LED
-          const int SAMPLES = 21;                         // reduce noise with multiple reads
-          uint16_t val[SAMPLES];
-          AD7689_read_array(val, SAMPLES);                // read values
-          interrupts();
-          data[count] = median16(val, SAMPLES);
-          if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-          Serial_Printf(" % d, % d\n", i, data[count]);
-          ++count;
-        } // for
-        // results from each pulse are in data[]
-        Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
-      }
-      break;
-
-    case 4048:
-      {
-        // JZ test - do not remove
-        // read multiple pulses with increasing intensity or pulse width for linearity test
-        // with constant DAC value and pulse width, it is good for a pulse-to-pulse stdev test
-        const int LED = 5;                              // 1 = green, 2 = red, 3 = yellow, 5 = IR (keep DAC < 100)
-        Serial_Print_Line("wait...");
-        AD7689_set(0);                                  // 0 is main detector
-        DAC_set(LED, 200);                               // set initial LED intensity
-        DAC_change();
-        const int MAX = 200;                            // try a variety of intensities 0 up to 4095
-        int count = 0;
-        uint16_t data[100];
-
-        _meas_light = LED;
-        _pulsesize = 30 + 10;                  // account for actopulser delay
-        unsigned _pulsedistance = 2000;                 // lower has less jitter
-
-        startTimers(_pulsedistance);        // schedule continuous LED pulses
-
-        for (int i = 1; i < MAX; i += MAX / 100) {
-          //DAC_set(LED, i);                              // change LED intensity
-          //DAC_change();
-          digitalWriteFast(HOLDM, HIGH);                  // discharge cap
-
-          led_off = 0;
-
-          while (led_off == 0) {}                  // wait till pulse is done
-
-          // a pulse completed
-          noInterrupts();
-
-          const int SAMPLES = 19;                         // reduce noise with multiple reads
-          uint16_t val[SAMPLES];
-          AD7689_read_array(val, SAMPLES);                // read values
-          interrupts();
-
-          data[count] = median16(val, SAMPLES);
-          if (data[count] >= 65535) break;                 // saturated the ADC, no point in continuing
-          //Serial_Printf(" % d, % d\n", i, data[count]);
-          ++count;
-        } // for
-
-        stopTimers();
-
-        // results from each pulse are in data[]
-        Serial_Printf("pulse to pulse stdev = % .2f AD counts, first = % d\n\n", stdev16(data, count), data[0]);
-      }
-      break;
-*/
     default:
       Serial_Printf("{\"error\":\"bad command %s\"}\n", choose);
       break;
@@ -823,8 +631,6 @@ void do_command()
   }  // switch()
 
 } // do_command()
-
-
 
 
 // read in and execute a protocol

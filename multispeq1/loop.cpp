@@ -11,7 +11,6 @@
 #include "flasher.h"
 #include "utility/crc32.h"
 #include <TimeLib.h>
-//#include <math.h>
 #include "util.h"
 
 // function declarations

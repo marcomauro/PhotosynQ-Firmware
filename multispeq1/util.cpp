@@ -117,6 +117,7 @@ int check_protocol(char *str)
 // Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.
 // This should run just before any new protocol - if it’s too low, report to the user
 // return 1 if low, otherwise 0
+// for flash == 0, make no assumptions about pins being initialized
 
 const float MIN_BAT_LEVEL (3.4 * (16. / (16 + 47)) * (65536 / 1.2)); // 3.4V min battery voltage, voltage divider, 1.2V reference, 16 bit ADC
 
@@ -218,10 +219,10 @@ void activity() {
 
 void powerdown() {
 
-  return;
+  return;    // this is still experimental
   
-  if ((millis() - last_activity > SHUTDOWN /* && !Serial */) || battery_low(0)) {   // if USB is active, no timeout sleep 
-#define LEGACY
+  if ((millis() - last_activity > SHUTDOWN /* && !Serial */) || battery_low(0)) {   // if USB is active, no timeout sleep
+
 #ifdef LEGACY
     pinMode(POWERDOWN_REQUEST, OUTPUT);               // legacy: ask BLE to power down MCU (active low)
     digitalWriteFast(POWERDOWN_REQUEST, LOW);
@@ -229,14 +230,14 @@ void powerdown() {
 
     // turn off BLE, turn off analog circuitry (should already be off), then enter a sleep loop
     // TODO
-    
+
     // wake up if the device has changed orientation
     accel_changed();     // update values with current
 
     for (;;) {
       sleep_mode(2000);
 
-      if (accel_changed()) {
+      if (accel_changed()) {    // note: accelerometer doesn't seem to need any initialization after being turned off then on
         if (battery_low(0)) {
           sleep_mode(60000);    // longer sleep for low bat
           continue;
@@ -245,10 +246,12 @@ void powerdown() {
       } // if
     } // for
 
-    // turn on BLE
-    // FIXME
+    // note, peripherals are now in an unknown state
 
-    activity();    // save currrent time
+    // reboot to turn BLE on and re-intialize peripherals
+#define CPU_RESTART_ADDR ((uint32_t *)0xE000ED0C)
+#define CPU_RESTART_VAL 0x5FA0004
+    *CPU_RESTART_ADDR = CPU_RESTART_VAL;
 
   } // if
 }  // powerdown()
@@ -267,8 +270,6 @@ void sleep_mode(const int n)
 
   Snooze.deepSleep( config );
   //    Snooze.hibernate( config );
-  //delay(1);      // maybe some time is needed before everything works?
-  // restore time from RTC?
 
 } // sleep_mode()
 
@@ -398,17 +399,17 @@ Tilt calculateTilt(const float & roll, const float & pitch, float compass) {
   float tilt_angle = atan2((sin(roll)), cos(roll) * sin(pitch));
   tilt_angle *= 180 / PI;
 
-  if(tilt_angle < 0){
+  if (tilt_angle < 0) {
     tilt_angle += 360;
   }
 
   int tilt_segment = compass_segment(tilt_angle);
-  
+
   int comp_segment = compass_segment(compass) + tilt_segment;
   comp_segment = comp_segment % 8;
 
   deviceTilt.angle_direction = getDirection(comp_segment);
-  
+
   return deviceTilt;
 }
 
@@ -433,15 +434,15 @@ void get_set_device_info(const int _set) {
     store(device_manufacture, val);
 
   } // if
-  
-    // print
-    Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
-                  (unsigned)eeprom->device_id >> 24,
-                  ((unsigned)eeprom->device_id & 0xff0000) >> 16,
-                  ((unsigned)eeprom->device_id & 0xff00) >> 8,
-                  (unsigned)eeprom->device_id & 0xff,
-                  DEVICE_FIRMWARE, eeprom->device_manufacture);
-    Serial_Print_CRC();
+
+  // print
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
+                (unsigned)eeprom->device_id >> 24,
+                ((unsigned)eeprom->device_id & 0xff0000) >> 16,
+                ((unsigned)eeprom->device_id & 0xff00) >> 8,
+                (unsigned)eeprom->device_id & 0xff,
+                DEVICE_FIRMWARE, eeprom->device_manufacture);
+  Serial_Print_CRC();
 
   return;
 

@@ -210,6 +210,9 @@ void PAR_init(void);               // initialize PAR and RGB sensor
 
 void setup() {
 
+  // TODO
+  // turn on BLE module
+  
   delay(700);
 
   // set up serial ports (Serial and Serial1)

@@ -369,7 +369,7 @@ int compass_segment(float angle)    // in degrees, assume no negatives
 String getDirection(int segment) {
 
   if (segment > 7 || segment < 0) {
-    return "Invalid compass segment";
+    return "\"Invalid compass segment\"";
   }
 
   String names[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
@@ -414,7 +414,41 @@ Tilt calculateTilt(float roll, float pitch, float compass) {
   deviceTilt.angle_direction = getDirection(comp_segment);
 
   return deviceTilt;
+
 }
+//====================================== 
+ 
+// read/write device_id and manufacture_date to eeprom 
+ 
+void get_set_device_info(const int _set) { 
+ 
+  if (_set == 1) { 
+    long val; 
+ 
+    // please enter new device ID (lower 4 bytes of BLE MAC address as a long int) followed by '+' 
+    Serial_Print_Line("{\"message\": \"Please enter device mac address (long int) followed by +: \"}\n"); 
+    val =  Serial_Input_Long("+", 0);              // save to eeprom 
+    store(device_id, val);              // save to eeprom 
+ 
+    // please enter new date of manufacture (yyyymm) followed by '+' 
+    Serial_Print_Line("{\"message\": \"Please enter device manufacture date followed by + (example 052016): \"}\n"); 
+    val = Serial_Input_Long("+", 0); 
+    store(device_manufacture, val); 
+ 
+  } // if 
+   
+    // print 
+    Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION, 
+                  (unsigned)eeprom->device_id >> 24, 
+                  ((unsigned)eeprom->device_id & 0xff0000) >> 16, 
+                  ((unsigned)eeprom->device_id & 0xff00) >> 8, 
+                  (unsigned)eeprom->device_id & 0xff, 
+                  DEVICE_FIRMWARE, eeprom->device_manufacture); 
+    Serial_Print_CRC(); 
+ 
+  return; 
+ 
+} // set_device_info() 
 
 //Internal sine calculation in RADIANS
 float sine_internal(float angle) {

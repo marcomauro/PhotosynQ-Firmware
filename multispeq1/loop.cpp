@@ -1168,6 +1168,8 @@ void do_protocol()
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           uint16_t _number_samples = 0;                                                               // create the adc sampling rate number
 
+          environmentals(environmental, averages, x, 0);
+
           for (int z = 0; z < total_pulses; z++) {                                      // cycle through all of the pulses from all cycles
             int first_flag = 0;                                                           // flag to note the first pulse of a cycle
             int _spec = 0;                                                              // create the spec flag for the coralspeq
@@ -1917,7 +1919,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "compass_and_angle") {                             // measure tilt in -180 - 180 degrees
       get_compass_and_angle(1, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass).c_str(), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
+        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass).c_str(), compass_averaged*(180/PI), angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
       }
     }
 

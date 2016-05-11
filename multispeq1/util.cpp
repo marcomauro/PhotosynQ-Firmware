@@ -206,7 +206,7 @@ int accel_changed()
   return changed;
 }  // accel_changed()
 
-const unsigned long SHUTDOWN = 60000;   // power down after X ms of inactivity
+const unsigned long SHUTDOWN = 30000;   // power down after X ms of inactivity
 static unsigned long last_activity = millis();
 
 // record that we have seen serial port activity (used with powerdown())
@@ -218,7 +218,9 @@ void activity() {
 
 void powerdown() {
 
-  if ((millis() - last_activity > SHUTDOWN && !Serial) || battery_low(0)) {   // if USB is active, no timeout sleep 
+  return;
+  
+  if ((millis() - last_activity > SHUTDOWN /* && !Serial */) || battery_low(0)) {   // if USB is active, no timeout sleep 
 #define LEGACY
 #ifdef LEGACY
     pinMode(POWERDOWN_REQUEST, OUTPUT);               // legacy: ask BLE to power down MCU (active low)

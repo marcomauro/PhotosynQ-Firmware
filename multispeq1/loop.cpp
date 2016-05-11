@@ -512,6 +512,7 @@ void do_command()
         }
       }
       break;
+      /*
     case 1047:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
@@ -544,6 +545,7 @@ void do_command()
         }
       }
       break;
+      */
     case 1049:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for blank at thickness 1 (true blank), thickness 2 (1 piece of white paper), and thickness 3 (3 pieces of white paper), each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
@@ -1176,6 +1178,8 @@ void do_protocol()
           float _reference_start = 0;                                                            // reference value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           float _main_start = 0;                                                               // main detector (sample) value at data point 0 - initial value for normalizing the reference (normalized based on the values from main and reference in the first point in the trace)
           uint16_t _number_samples = 0;                                                               // create the adc sampling rate number
+
+          environmentals(environmental, averages, x, 0);
 
           for (int z = 0; z < total_pulses; z++) {                                      // cycle through all of the pulses from all cycles
             int first_flag = 0;                                                           // flag to note the first pulse of a cycle
@@ -1926,7 +1930,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "compass_and_angle") {                             // measure tilt in -180 - 180 degrees
       get_compass_and_angle(1, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass).c_str(), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
+        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass).c_str(), compass_averaged*(180/PI), angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
       }
     }
 
@@ -2134,6 +2138,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity1_yint[i]);
     }
   }
+  /*
   Serial_Print("\"colorcal_intensity2_slope\": [");
   for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float) - 1) {
@@ -2170,6 +2175,7 @@ void print_calibrations() {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
     }
   }
+  */
   Serial_Print("\"colorcal_blank1\": [");
   for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank1) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_blank1) / sizeof(float) - 1) {

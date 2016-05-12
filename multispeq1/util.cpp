@@ -128,6 +128,7 @@ Tilt calculateTilt(float roll, float pitch, float compass) {
   return deviceTilt;
 
 }
+
 //Internal sine calculation in RADIANS
 float sine_internal(float angle) {
   if (angle > PI) {

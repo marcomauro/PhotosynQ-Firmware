@@ -868,6 +868,7 @@ void do_protocol()
         } // for each pulse
 
         unsigned long data_raw_average[size_of_data_raw];                                          // buffer for ADC output data
+
         for (int i = 0; i < size_of_data_raw; ++i)                                                 // zero it
           data_raw_average[i] = 0;
 
@@ -1189,9 +1190,8 @@ void do_protocol()
             //            uint16_t endTimer;
 
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
-              sleep_cpu();                  // save some power
-              if (abort_cmd())
-                goto abort;  // or just reboot?
+              //if (abort_cmd())
+              //  goto abort;  // or just reboot?
             }
 
             if (_reference != 0) {

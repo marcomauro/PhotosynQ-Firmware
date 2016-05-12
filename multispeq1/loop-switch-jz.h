@@ -5,6 +5,17 @@
 
 {
 
+case hash("expr"):
+     char c[100];
+     Serial_Input_Chars(c,"\r\n",5000,sizeof(c)-1);
+     Serial_Printf("%g\n",expr(c));
+     break;
+     
+case hash("testmode"):
+    extern int jz_test_mode;
+    jz_test_mode = 1;
+    break;
+    
 case hash("readonce"):
     // bytes in 0xE and 0xF are the serial number
     Serial_Printf("0,E,F = %8.8x %8.8x %8.8x\n",read_once(0x0), read_once(0xe), read_once(0xf));

@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-const unsigned NUM_USERDEFS=50;
+const int NUM_USERDEFS=50;
 
 class eeprom_class
 {

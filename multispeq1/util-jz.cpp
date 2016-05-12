@@ -14,6 +14,8 @@
 unsigned int read_once(unsigned char address);
 void program_once(unsigned char address, unsigned int value);
 
+int jz_test_mode = 0;
+
 // qsort uint16_t comparison function (tri-state) - needed for median16()
 
 static int uint16_cmp(const void *a, const void *b)

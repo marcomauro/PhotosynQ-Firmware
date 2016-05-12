@@ -112,13 +112,8 @@ void do_command()
     return;
   }
 
-  if (choose[0] == '(') {           // an expression
-    Serial_Printf("%g\n", expr(choose));
-    return;
-  }
-
   if (!isalnum(choose[0])) {
-    Serial_Printf("{\"error\":\" bad command %s\"}\n", choose);
+    Serial_Printf("{\"error\":\" bad command: %s\"}\n", choose);
     return;                         // go read another command
   }
 
@@ -340,7 +335,9 @@ void do_command()
       _reboot_Teensyduino_();
       break;
 
+    case hash("userdefs"):
     case 1028:
+      store(userdef[49],1234.0);
       print_userdef();                                                                        // print only the userdef eeprom values
       break;
 
@@ -626,7 +623,7 @@ void do_command()
 #include "loop-switch-jz.h"
 
     default:
-      Serial_Printf("{\"error\":\"bad command %s\"}\n", choose);
+      Serial_Printf("{\"error\":\"bad command: %s\"}\n", choose);
       break;
 
   }  // switch()
@@ -683,8 +680,9 @@ void do_protocol()
     Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);       // input the protocol
 
     if (!check_protocol(serial_buffer)) {         // sanity check
-      Serial_Print("{\"error\":\"bad json protocol (braces or CRC) got:\"}");
+      Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received:");
       Serial_Print(serial_buffer);
+      Serial_Print_Line("\"}\n");
       return;
     }
 
@@ -1799,6 +1797,8 @@ static void print_all () {
 
 static void print_userdef () {
   // print only the userdef values which can be defined by the user
+  for (unsigned i = 0; i < NUM_USERDEFS; ++i)
+      Serial_Printf("userdef[%d]=%g\n",i,eeprom->userdef[i]);
 }
 
 // ??  why

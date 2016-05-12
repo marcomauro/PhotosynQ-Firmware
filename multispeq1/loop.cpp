@@ -575,16 +575,22 @@ void do_command()
           int magX, magY, magZ, accX, accY, accZ;
           MAG3110_read(&magX, &magY, &magZ);
           MMA8653FC_read(&accX, &accY, &accZ);
+          
+          float mag_coords[3] = {(float) magX, (float) magY, (float) magZ};
+          applyMagCal(mag_coords);
 
-          float coords[3] = {(float) magX, (float) magY, (float) magZ};
-          applyMagCal(coords);
-
-          float roll = getRoll(accY, accZ);
-          float pitch = getPitch(accX, accY, accZ, roll);
-          float yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
+          int acc_coords[3] = {accX, accY, accZ};
+          applyAccCal(acc_coords);
+          
+          float roll = getRoll(acc_coords[1], acc_coords[2]);
+          float pitch = getPitch(acc_coords[0], acc_coords[1], acc_coords[2], roll);
+          float yaw = getCompass(mag_coords[0], mag_coords[1], mag_coords[2], pitch, roll);
           
           Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
 
+          rad_to_deg(&roll, &pitch, &yaw);
+
+         
           Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
           Serial_Print_Line(getDirection(compass_segment(yaw)));
 

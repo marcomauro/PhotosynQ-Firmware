@@ -3,6 +3,8 @@
 // functions in util.cpp
 
 void applyMagCal(float* arr);
+void applyAccCal(int* arr);
+void rad_to_deg(float* roll, float* pitch, float* yaw);
 float getCompass(const float magX, const float magY, const float magZ, const float& pitch, const float& roll);
 float getRoll(const int accelY, const int accelZ);
 float getPitch(const int accelX, const int accelY, const int accelZ, const float& roll);

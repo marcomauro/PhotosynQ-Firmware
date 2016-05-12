@@ -126,7 +126,7 @@ void do_command()
   // process command
   switch (val) {
 
-    static int dataArray[3][100];  // Kevin TODO - delete this
+      static int dataArray[3][100];  // Kevin TODO - delete this
 
     case hash("hello"):
     case 1000:                                                                    // print "Ready" to USB and/or Bluetooth
@@ -189,7 +189,7 @@ void do_command()
       }
       break;
 
- 
+
     case 1006:
       print_calibrations();
       break;
@@ -199,117 +199,117 @@ void do_command()
       get_set_device_info(0);
       break;
 
- 
-/* // CLEANME - we can make this a single case - enter led, enter value, set for 5 seconds... done
-    case 1011:
-      Serial_Print_Line("PULSE1");
-      DAC_set(1, 50);
-      DAC_change();
-      digitalWriteFast(PULSE1, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE1, LOW);
-      DAC_set(1, 0);
-      DAC_change();
-      break;
-    case 1012:
-      Serial_Print_Line("PULSE2");
-      DAC_set(2, 50);
-      DAC_change();
-      digitalWriteFast(PULSE2, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE2, LOW);
-      DAC_set(2, 0);
-      DAC_change();
-      break;
-    case 1013:
-      Serial_Print_Line("PULSE3");
-      DAC_set(3, 50);
-      DAC_change();
-      digitalWriteFast(PULSE3, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE3, LOW);
-      DAC_set(3, 0);
-      DAC_change();
-      break;
-    case 1014:
-      Serial_Print_Line("PULSE4");
-      DAC_set(4, 50);
-      DAC_change();
-      digitalWriteFast(PULSE4, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE4, LOW);
-      DAC_set(4, 0);
-      DAC_change();
-      break;
-    case 1015:
-      Serial_Print_Line("PULSE5");
-      DAC_set(5, 50);
-      DAC_change();
-      digitalWriteFast(PULSE5, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE5, LOW);
-      DAC_set(5, 0);
-      DAC_change();
-      break;
-    case 1016:
-      Serial_Print_Line("PULSE6");
-      DAC_set(6, 50);
-      DAC_change();
-      digitalWriteFast(PULSE6, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE6, LOW);
-      DAC_set(6, 0);
-      DAC_change();
-      break;
-    case 1017:
-      Serial_Print_Line("PULSE7");
-      DAC_set(7, 50);
-      DAC_change();
-      digitalWriteFast(PULSE7, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE7, LOW);
-      DAC_set(7, 0);
-      DAC_change();
-      break;
-    case 1018:
-      Serial_Print_Line("PULSE8");
-      DAC_set(8, 50);
-      DAC_change();
-      digitalWriteFast(PULSE8, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE8, LOW);
-      DAC_set(8, 0);
-      DAC_change();
-      break;
-    case 1019:
-      Serial_Print_Line("PULSE9");
-      DAC_set(9, 50);
-      DAC_change();
-      digitalWriteFast(PULSE9, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE9, LOW);
-      DAC_set(9, 0);
-      DAC_change();
-      break;
-    case 1020:
-      Serial_Print_Line("PULSE10");
-      DAC_set(10, 50);
-      DAC_change();
-      digitalWriteFast(PULSE10, HIGH);
-      delay(1000);
-      digitalWriteFast(PULSE10, LOW);
-      DAC_set(10, 0);
-      DAC_change();
-      break;
-*/
+
+    /* // CLEANME - we can make this a single case - enter led, enter value, set for 5 seconds... done
+        case 1011:
+          Serial_Print_Line("PULSE1");
+          DAC_set(1, 50);
+          DAC_change();
+          digitalWriteFast(PULSE1, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE1, LOW);
+          DAC_set(1, 0);
+          DAC_change();
+          break;
+        case 1012:
+          Serial_Print_Line("PULSE2");
+          DAC_set(2, 50);
+          DAC_change();
+          digitalWriteFast(PULSE2, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE2, LOW);
+          DAC_set(2, 0);
+          DAC_change();
+          break;
+        case 1013:
+          Serial_Print_Line("PULSE3");
+          DAC_set(3, 50);
+          DAC_change();
+          digitalWriteFast(PULSE3, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE3, LOW);
+          DAC_set(3, 0);
+          DAC_change();
+          break;
+        case 1014:
+          Serial_Print_Line("PULSE4");
+          DAC_set(4, 50);
+          DAC_change();
+          digitalWriteFast(PULSE4, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE4, LOW);
+          DAC_set(4, 0);
+          DAC_change();
+          break;
+        case 1015:
+          Serial_Print_Line("PULSE5");
+          DAC_set(5, 50);
+          DAC_change();
+          digitalWriteFast(PULSE5, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE5, LOW);
+          DAC_set(5, 0);
+          DAC_change();
+          break;
+        case 1016:
+          Serial_Print_Line("PULSE6");
+          DAC_set(6, 50);
+          DAC_change();
+          digitalWriteFast(PULSE6, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE6, LOW);
+          DAC_set(6, 0);
+          DAC_change();
+          break;
+        case 1017:
+          Serial_Print_Line("PULSE7");
+          DAC_set(7, 50);
+          DAC_change();
+          digitalWriteFast(PULSE7, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE7, LOW);
+          DAC_set(7, 0);
+          DAC_change();
+          break;
+        case 1018:
+          Serial_Print_Line("PULSE8");
+          DAC_set(8, 50);
+          DAC_change();
+          digitalWriteFast(PULSE8, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE8, LOW);
+          DAC_set(8, 0);
+          DAC_change();
+          break;
+        case 1019:
+          Serial_Print_Line("PULSE9");
+          DAC_set(9, 50);
+          DAC_change();
+          digitalWriteFast(PULSE9, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE9, LOW);
+          DAC_set(9, 0);
+          DAC_change();
+          break;
+        case 1020:
+          Serial_Print_Line("PULSE10");
+          DAC_set(10, 50);
+          DAC_change();
+          digitalWriteFast(PULSE10, HIGH);
+          delay(1000);
+          digitalWriteFast(PULSE10, LOW);
+          DAC_set(10, 0);
+          DAC_change();
+          break;
+    */
     case 1021:                                                                            // variety of test commands used during development
       {
 
-                          Serial_Print("Enter 1/2/3/4+\n");
-                  long setserial = Serial_Input_Long();
-                  Serial_Printf("set serial to %d\n", (int)setserial);
-                  Serial_Set((int) setserial);
-                  Serial_Print_Line("test print");
+        Serial_Print("Enter 1/2/3/4+\n");
+        long setserial = Serial_Input_Long();
+        Serial_Printf("set serial to %d\n", (int)setserial);
+        Serial_Set((int) setserial);
+        Serial_Print_Line("test print");
 
         /*
                   char S[10];
@@ -317,11 +317,11 @@ void do_command()
                   Serial_Input_Chars(S, "+", 20000, sizeof(S));
                   Serial_Printf("output is %s \n", S);
                   eeprom->userdef[0] = atof(S);
-        Serial_Print_Line(eeprom->userdef[1], 4);
-        store(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
+          Serial_Print_Line(eeprom->userdef[1], 4);
+          store(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
 
-        Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
-        // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
+          Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
+          // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
         */
         /*
                   Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");                         //  Change the baud rate of the BLE
@@ -344,7 +344,7 @@ void do_command()
 
     case hash("userdefs"):
     case 1028:
-      store(userdef[49],1234.0);
+      store(userdef[49], 1234.0);
       print_userdef();                                                                        // print only the userdef eeprom values
       break;
 
@@ -352,7 +352,7 @@ void do_command()
       print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
       break;
 
-//CLEANME- can we consolidate these print statements at all?  Especially the debugs "error" statements below?
+    //CLEANME- can we consolidate these print statements at all?  Especially the debugs "error" statements below?
 
     case 1030:
       //      Serial_Print("{\"message\": \"input 3 magnetometer bias values, each followed by +: \"}");
@@ -490,40 +490,40 @@ void do_command()
         }
       }
       break;
-      /*
-    case 1047:
+    /*
+      case 1047:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 2, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
-        int led = Serial_Input_Double("+", 0);
-        if (led == -1) {                                    // user can bail with -1+ setting as LED
-          break;
-        }
-        else if (led > 0 || led < NUM_LEDS + 1) {
-          store(colorcal_intensity2_slope[led], Serial_Input_Double("+", 0));
-          store(colorcal_intensity2_yint[led], Serial_Input_Double("+", 0));
-        }
-        else {
-          Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
-        }
+      int led = Serial_Input_Double("+", 0);
+      if (led == -1) {                                    // user can bail with -1+ setting as LED
+        break;
+      }
+      else if (led > 0 || led < NUM_LEDS + 1) {
+        store(colorcal_intensity2_slope[led], Serial_Input_Double("+", 0));
+        store(colorcal_intensity2_yint[led], Serial_Input_Double("+", 0));
+      }
+      else {
+        Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
+      }
       }
       break;
-    case 1048:
+      case 1048:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for color calibration 3, each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
-        int led = Serial_Input_Double("+", 0);
-        if (led == -1) {                                    // user can bail with -1+ setting as LED
-          break;
-        }
-        else if (led > 0 || led < NUM_LEDS + 1) {
-          store(colorcal_intensity3_slope[led], Serial_Input_Double("+", 0));
-          store(colorcal_intensity3_yint[led], Serial_Input_Double("+", 0));
-        }
-        else {
-          Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
-        }
+      int led = Serial_Input_Double("+", 0);
+      if (led == -1) {                                    // user can bail with -1+ setting as LED
+        break;
+      }
+      else if (led > 0 || led < NUM_LEDS + 1) {
+        store(colorcal_intensity3_slope[led], Serial_Input_Double("+", 0));
+        store(colorcal_intensity3_yint[led], Serial_Input_Double("+", 0));
+      }
+      else {
+        Serial_Printf("\"error\": \" User entered incorrect value.  Should be between 0 and %d", NUM_LEDS + 1);
+      }
       }
       break;
-      */
+    */
     case 1049:
       //      Serial_Print_Line("{\"message\": \"input the LED #, slope, and y intercept for blank at thickness 1 (true blank), thickness 2 (1 piece of white paper), and thickness 3 (3 pieces of white paper), each followed by +.  Set LED to -1 followed by + to exit loop: \"}");
       for (;;) {
@@ -579,22 +579,22 @@ void do_command()
           int magX, magY, magZ, accX, accY, accZ;
           MAG3110_read(&magX, &magY, &magZ);
           MMA8653FC_read(&accX, &accY, &accZ);
-          
+
           float mag_coords[3] = {(float) magX, (float) magY, (float) magZ};
           applyMagCal(mag_coords);
 
           int acc_coords[3] = {accX, accY, accZ};
           applyAccCal(acc_coords);
-          
+
           float roll = getRoll(acc_coords[1], acc_coords[2]);
           float pitch = getPitch(acc_coords[0], acc_coords[1], acc_coords[2], roll);
           float yaw = getCompass(mag_coords[0], mag_coords[1], mag_coords[2], pitch, roll);
-          
+
           Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
 
           rad_to_deg(&roll, &pitch, &yaw);
 
-         
+
           Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
           Serial_Print_Line(getDirection(compass_segment(yaw)));
 
@@ -624,7 +624,7 @@ void do_command()
         Serial_Printf("%d, %d, %d \n", dataArray[0][i], dataArray[1][i], dataArray[2][i]);
       }
       break;
-      
+
     case hash("upgrade"):
     case 1078:                                                                   // over the air update of firmware.   DO NOT MOVE THIS!
       upgrade_firmware();
@@ -695,7 +695,9 @@ void do_protocol()
     if (!check_protocol(serial_buffer)) {         // sanity check
       Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received:");
       Serial_Print(serial_buffer);
-      Serial_Print_Line("\"}\n");
+      Serial_Print("\"}");
+      Serial_Print_CRC();
+      Serial_Flush_Output();
       return;
     }
 
@@ -717,12 +719,12 @@ void do_protocol()
   } // no more need for the serial input buffer
 
 #ifdef DEBUGSIMPLE
-    Serial_Printf("got %d protocols\n", number_of_protocols);
+  Serial_Printf("got %d protocols\n", number_of_protocols);
 
-    // print each json
-    for (int i = 0; i < number_of_protocols; i++) {
-      Serial_Printf("Incoming JSON %d as received by Teensy : %s\n", i, json2[i].c_str());
-    } // for
+  // print each json
+  for (int i = 0; i < number_of_protocols; i++) {
+    Serial_Printf("Incoming JSON %d as received by Teensy : %s\n", i, json2[i].c_str());
+  } // for
 #endif
 
   Serial_Printf("{\"device_id\":%ld", eeprom->device_id);   // change to : format?
@@ -884,35 +886,35 @@ void do_protocol()
           data_raw_average[i] = 0;
 
 #ifdef DEBUGSIMPLE
-          Serial_Print_Line("");
-          Serial_Print("size of data raw:  ");
-          Serial_Print_Line(size_of_data_raw);
+        Serial_Print_Line("");
+        Serial_Print("size of data raw:  ");
+        Serial_Print_Line(size_of_data_raw);
 
-          Serial_Print_Line("");
-          Serial_Print("total number of pulses:  ");
-          Serial_Print_Line(total_pulses);
+        Serial_Print_Line("");
+        Serial_Print("total number of pulses:  ");
+        Serial_Print_Line(total_pulses);
 
-          Serial_Print_Line("");
-          Serial_Print("all data in data_raw_average:  ");
-          for (int i = 0; i < size_of_data_raw; i++) {
-            Serial_Print((unsigned)data_raw_average[i]);
-          }
+        Serial_Print_Line("");
+        Serial_Print("all data in data_raw_average:  ");
+        for (int i = 0; i < size_of_data_raw; i++) {
+          Serial_Print((unsigned)data_raw_average[i]);
+        }
 
-          Serial_Print_Line("");
-          Serial_Print("number of pulses:  ");
-          Serial_Print_Line(pulses.getLength());
+        Serial_Print_Line("");
+        Serial_Print("number of pulses:  ");
+        Serial_Print_Line(pulses.getLength());
 
-          Serial_Print_Line("");
-          Serial_Print("arrays in meas_lights:  ");
-          Serial_Print_Line(meas_lights.getLength());
+        Serial_Print_Line("");
+        Serial_Print("arrays in meas_lights:  ");
+        Serial_Print_Line(meas_lights.getLength());
 
-          Serial_Print_Line("");
-          Serial_Print("length of meas_lights arrays:  ");
-          for (int i = 0; i < meas_lights.getLength(); i++) {
-            Serial_Print(meas_lights.getArray(i).getLength());
-            Serial_Print(", ");
-          }
-          Serial_Print_Line("");
+        Serial_Print_Line("");
+        Serial_Print("length of meas_lights arrays:  ");
+        for (int i = 0; i < meas_lights.getLength(); i++) {
+          Serial_Print(meas_lights.getArray(i).getLength());
+          Serial_Print(", ");
+        }
+        Serial_Print_Line("");
 #endif
 
         Serial_Print("{");
@@ -1293,10 +1295,10 @@ void do_protocol()
             */
 
 #ifdef DEBUGSIMPLE
-              Serial_Print("data count, size of raw data                                   ");
-              Serial_Print((int)data_count);
-              Serial_Print(",");
-              Serial_Print_Line(size_of_data_raw);
+            Serial_Print("data count, size of raw data                                   ");
+            Serial_Print((int)data_count);
+            Serial_Print(",");
+            Serial_Print_Line(size_of_data_raw);
 #endif
 
             if (_spec != 1) {                                                    // if spec_on is not equal to 1, then coralspeq is off and proceed as per normal MultispeQ measurement.
@@ -1318,10 +1320,10 @@ void do_protocol()
             pulse++;                                                                     // progress the pulse counter and measurement number counter
 
 #ifdef DEBUGSIMPLE
-              Serial_Print("data point average, current data                               ");
-              Serial_Print((int)data_raw_average[meas_number]);
-              Serial_Print("!");
-              Serial_Print_Line(data);
+            Serial_Print("data point average, current data                               ");
+            Serial_Print((int)data_raw_average[meas_number]);
+            Serial_Print("!");
+            Serial_Print_Line(data);
 #endif
             interrupts();                                                              // done with volatile variables, turn interrupts back on
             meas_number++;                                                              // progress measurement number counters
@@ -1414,14 +1416,14 @@ void do_protocol()
         }
 
 #ifdef DEBUGSIMPLE
-          Serial_Print("# of protocols repeats, current protocol repeat, number of total protocols, current protocol      ");
-          Serial_Print(protocols);
-          Serial_Print(",");
-          Serial_Print(u);
-          Serial_Print(",");
-          Serial_Print(number_of_protocols);
-          Serial_Print(",");
-          Serial_Print_Line(q);
+        Serial_Print("# of protocols repeats, current protocol repeat, number of total protocols, current protocol      ");
+        Serial_Print(protocols);
+        Serial_Print(",");
+        Serial_Print(u);
+        Serial_Print(",");
+        Serial_Print(number_of_protocols);
+        Serial_Print(",");
+        Serial_Print_Line(q);
 #endif
 
         if (q < number_of_protocols - 1 || u < protocols - 1) {                           // if it's not the last protocol in the measurement and it's not the last repeat of the current protocol, add a comma
@@ -1787,11 +1789,11 @@ static void environmentals(JsonArray environmental, const int _averages, const i
       // TODO sanity checks
 
 #ifdef DEBUGSIMPLE
-        Serial_Print_Line(pin);
-        Serial_Print_Line(pin);
-        Serial_Print_Line(wait);
-        Serial_Print_Line(setting);
-        Serial_Print_Line(freq);
+      Serial_Print_Line(pin);
+      Serial_Print_Line(pin);
+      Serial_Print_Line(wait);
+      Serial_Print_Line(setting);
+      Serial_Print_Line(freq);
 #endif
 
       pinMode(pin, OUTPUT);
@@ -1811,7 +1813,7 @@ static void print_all () {
 static void print_userdef () {
   // print only the userdef values which can be defined by the user
   for (unsigned i = 0; i < NUM_USERDEFS; ++i)
-      Serial_Printf("userdef[%d]=%g\n",i,eeprom->userdef[i]);
+    Serial_Printf("userdef[%d]=%g\n", i, eeprom->userdef[i]);
 }
 
 // ??  why
@@ -1948,42 +1950,42 @@ void print_calibrations() {
     }
   }
   /*
-  Serial_Print("\"colorcal_intensity2_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
+    Serial_Print("\"colorcal_intensity2_slope\": [");
+    for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_slope[i]);
     }
     else {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity2_slope[i]);
     }
-  }
-  Serial_Print("\"colorcal_intensity2_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
+    }
+    Serial_Print("\"colorcal_intensity2_yint\": [");
+    for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity2_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity2_yint[i]);
     }
     else {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity2_yint[i]);
     }
-  }
-  Serial_Print("\"colorcal_intensity3_slope\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
+    }
+    Serial_Print("\"colorcal_intensity3_slope\": [");
+    for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity3_slope) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_slope[i]);
     }
     else {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_slope[i]);
     }
-  }
-  Serial_Print("\"colorcal_intensity3_yint\": [");
-  for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
+    }
+    Serial_Print("\"colorcal_intensity3_yint\": [");
+    for (unsigned i = 0; i < sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float); i++) {
     if (i != sizeof(eeprom->colorcal_intensity3_yint) / sizeof(float) - 1) {
       Serial_Printf("\"%f\",", eeprom->colorcal_intensity3_yint[i]);
     }
     else {
       Serial_Printf("\"%f\"],\n", eeprom->colorcal_intensity3_yint[i]);
     }
-  }
+    }
   */
   Serial_Print("\"colorcal_blank1\": [");
   for (unsigned i = 0; i < sizeof(eeprom->colorcal_blank1) / sizeof(float); i++) {

@@ -33,7 +33,8 @@ int DAC_init(void)
 
   // initialize DACs
   for (int i = 0; i < NUM_DACS; ++i) {
-    dac[i] = new mcp4728(i + 1);            // create it - avoid using address 0 (the default chip address)
+    if (dac[i] == 0)
+       dac[i] = new mcp4728(i + 1);            // create it - avoid using address 0 (the default chip address)
     dac[i]->setVref(1, 1, 1, 1);
     dac[i]->setGain(0, 0, 0, 0);
     for (int j = 0; j < 4; ++j)             // set all initial values to zero

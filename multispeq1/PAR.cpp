@@ -1,23 +1,15 @@
 
-
 // code related to the PAR/color sensor
 
 #include <Arduino.h>
 #include "utility/TCS3471.h"              // color sensor
 #include "serial.h"
-#include "utility/crc32.h"
-#include "json/JsonParser.h"
-#include "utility/mcp4728.h"              // DAC
 #include "defines.h"
 #include "eeprom.h"
 
 // external function declarations
 void i2cWrite(byte address, byte count, byte* buffer);
 void i2cRead(byte address, byte count, byte* buffer);
-
-// external variables
-extern int averages;  // ??
-mcp4728 dac1 = mcp4728(1); // instantiate mcp4728 object, Device ID = 1
 
 // global variables 
 extern float light_intensity;
@@ -30,7 +22,8 @@ extern float g;
 extern float g_averaged;
 extern float b;
 extern float b_averaged;
-static TCS3471 *par_sensor;
+
+static TCS3471 *par_sensor=0;
 
 
 // initialize the PAR/color sensor
@@ -39,22 +32,19 @@ void PAR_init()
 {
   // color sensor init
 
-  par_sensor = new TCS3471(i2cWrite, i2cRead);
+  if (par_sensor == 0)
+     par_sensor = new TCS3471(i2cWrite, i2cRead);
 
   par_sensor->setWaitTime(200.0);
   par_sensor->setIntegrationTime(700.0);
   par_sensor->setGain(TCS3471_GAIN_1X);
   par_sensor->enable();
 
-  //  use new DAC() routines
-  //dac1.setVref(1, 1, 1, 1);
-  //dac1.setGain(0, 0, 0, 0);
-  //delay(1);
-
 }  // PAR_init()
 
 uint16_t par_to_dac (float _par, uint16_t _pin) {                                             // convert dac value to par, in form y = mx + b where y is the dac value
   int dac_value = _par * (eeprom->par_to_dac_slope1[_pin] * eeprom->par_to_dac_slope1[_pin]) + _par * eeprom->par_to_dac_slope2[_pin] + eeprom->par_to_dac_yint[_pin];
+  
   if (_par == 0) {                                                                           // regardless of the calibration, force a PAR of zero to lights off
     dac_value = 0;
   }

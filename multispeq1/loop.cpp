@@ -12,6 +12,7 @@
 #include "utility/crc32.h"
 #include <TimeLib.h>
 #include "util.h"
+#include "malloc.h"
 
 // function declarations
 

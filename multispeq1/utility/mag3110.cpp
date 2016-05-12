@@ -54,8 +54,6 @@ loop()
 
 #define MAG_ADDR  0x0E    // 7-bit address for the MAG3110, doesn't change
 
-
-
 int
 MAG3110_who_am_i (void)
 {
@@ -93,9 +91,6 @@ MAG3110_init (void)
   else
      return 0;                          // chip detected
 }
-
-
-
 
 // return temp in degrees C.  Note, uncalibrated offset is way off, so use only as a relative reading
 

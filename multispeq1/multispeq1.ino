@@ -207,6 +207,7 @@ void MLX90615_init(void);         // initialize contactless temperature sensor
 void PAR_init(void);               // initialize PAR and RGB sensor
 
 // This routine is called first
+// Note: assume that this routine may be called multiple times - watch for memory leaks
 
 void setup() {
 

@@ -196,9 +196,8 @@ void do_command()
 
     case hash("device_info"):
     case 1007:
-      get_set_device_info(0);
+      get_set_device_info(1);
       break;
-
 
     /* // CLEANME - we can make this a single case - enter led, enter value, set for 5 seconds... done
         case 1011:

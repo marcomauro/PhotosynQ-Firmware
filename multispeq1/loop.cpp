@@ -309,18 +309,25 @@ void do_command()
 */
     case 1021:                                                                            // variety of test commands used during development
       {
+
+                          Serial_Print("Enter 1/2/3/4+\n");
+                  long setserial = Serial_Input_Long();
+                  Serial_Printf("set serial to %d\n", (int)setserial);
+                  Serial_Set((int) setserial);
+                  Serial_Print_Line("test print");
+
         /*
                   char S[10];
                   Serial_Print_Line(eeprom->userdef[0], 4);                                                                   // test the Serial_Input_Chars() command and saving values in userdef
                   Serial_Input_Chars(S, "+", 20000, sizeof(S));
                   Serial_Printf("output is %s \n", S);
                   eeprom->userdef[0] = atof(S);
-        */
         Serial_Print_Line(eeprom->userdef[1], 4);
         store(userdef[1], Serial_Input_Double("+", 20000));                                                      // test Serial_Input_Double, save as userdef and recall
 
         Serial_Printf("output is %f \n", (float) eeprom->userdef[1]);
         // so measure the size of the string and if it's > 5000 then tell the user that the protocol is too long
+        */
         /*
                   Serial_Print("enter BLE baud rate (9600, 19200, 38400,57600) followed by +");                         //  Change the baud rate of the BLE
                   long baudrate = Serial_Input_Long();

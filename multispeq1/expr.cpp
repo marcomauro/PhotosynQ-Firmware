@@ -12,21 +12,23 @@ extern "C" {
 }
 
 // any reference to a variable must be processed here
-
-int variable_callback( void *user_data, const char *name, double *value ) {
+__attribute__ ((noinline ))        // workaround compiler bug
+int variable_callback(void *user_data, const char *name, double *value )
+{
   // look up the variables by name
   // set return value, return true
 
-  // could make a function that given a variable name string, return the address
-  // only useful if writes are needed
+  *value = NAN;
   
+  // could add a function that given a variable name string, returns the address
+  // only useful if writes are also needed
+
   // Userdef commands
   if (strncmp( name, "userdef[", 8) == 0) {  // handles all userdef[x] references
     unsigned index = atoi(name + 8);
     if (index < NUM_USERDEFS)
       *value = eeprom->userdef[index];
-    else
-      *value = NAN;
+    //Serial_Printf("parse |%s|, index = %u, val = %g\n", name, index, *value);
     return PARSER_TRUE;
   } else if (strcmp( name, "light_intensity" ) == 0 ) {
     // set return value, return true
@@ -37,236 +39,236 @@ int variable_callback( void *user_data, const char *name, double *value ) {
     *value = light_intensity_averaged;
     return PARSER_TRUE;
     /*
-  } else if (strcmp( name, "light_intensity_raw" ) == 0 ) {
-    // set return value, return true
-    *value = light_intensity_raw;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "light_intensity_raw_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = light_intensity_raw_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "r" ) == 0 ) {
-    // set return value, return true
-    *value = r;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "r_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = r_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "g" ) == 0 ) {
-    // set return value, return true
-    *value = g;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "g_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = g_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "b" ) == 0 ) {
-    // set return value, return true
-    *value = b;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "b_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = b_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "thickness" ) == 0 ) {
-    // set return value, return true
-    *value = thickness;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "thickness_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = thickness_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "thickness_raw" ) == 0 ) {
-    // set return value, return true
-    *value = thickness_raw;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "thickness_raw_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = thickness_raw_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "contactless_temp" ) == 0 ) {
-    // set return value, return true
-    *value = contactless_temp;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "contactless_temp_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = contactless_temp_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "compass" ) == 0 ) {
-    // set return value, return true
-    *value = compass;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "compass_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = compass_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "x_compass_raw" ) == 0 ) {
-    // set return value, return true
-    *value = x_compass_raw;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "y_compass_raw" ) == 0 ) {
-    // set return value, return true
-    *value = y_compass_raw;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "z_compass_raw" ) == 0 ) {
-    // set return value, return true
-    *value = z_compass_raw;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "x_compass_raw_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = x_compass_raw_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "y_compass_raw_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = y_compass_raw_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "z_compass_raw_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = z_compass_raw_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "angle" ) == 0 ) {
-    // set return value, return true
-    *value = angle;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "angle_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = angle_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "pitch" ) == 0 ) {
-    // set return value, return true
-    *value = pitch;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "pitch_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = pitch_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "roll" ) == 0 ) {
-    // set return value, return true
-    *value = roll;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "roll_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = roll_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "x_tilt" ) == 0 ) {
-    // set return value, return true
-    *value = x_tilt;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "y_tilt" ) == 0 ) {
-    // set return value, return true
-    *value = y_tilt;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "z_tilt" ) == 0 ) {
-    // set return value, return true
-    *value = z_tilt;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "x_tilt_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = x_tilt_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "y_tilt_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = y_tilt_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "z_tilt_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = z_tilt_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "temperature" ) == 0 ) {
-    // set return value, return true
-    *value = temperature;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "humidity" ) == 0 ) {
-    // set return value, return true
-    *value = humidity;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "pressure" ) == 0 ) {
-    // set return value, return true
-    *value = pressure;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "temperature_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = temperature_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "humidity_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = humidity_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "pressure_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = pressure_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "temperature2" ) == 0 ) {
-    // set return value, return true
-    *value = temperature2;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "humidity2" ) == 0 ) {
-    // set return value, return true
-    *value = humidity2;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "pressure2" ) == 0 ) {
-    // set return value, return true
-    *value = pressure2;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "temperature2_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = temperature2_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "humidity2_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = humidity2_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "pressure2_averaged" ) == 0 ) {
-    // set return value, return true
-    *value = pressure2_averaged;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "light_yint" ) == 0 ) {
-    // set return value, return true
-    *value = eeprom->light_yint;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "light_slope_all" ) == 0 ) {
-    // set return value, return true
-    *value = eeprom->light_slope_all;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "light_slope_r" ) == 0 ) {
-    // set return value, return true
-    *value = eeprom->light_slope_r;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "light_slope_g" ) == 0 ) {
-    // set return value, return true
-    *value = eeprom->light_slope_g;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "light_slope_b" ) == 0 ) {
-    // set return value, return true
-    *value = eeprom->light_slope_b;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "thickness_a" ) == 0 ) {
-    // set return value, return true
-    *value = eeprom->thickness_a;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "thickness_b" ) == 0 ) {
-    // set return value, return true
-    *value = eeprom->thickness_b;
-    return PARSER_TRUE;
-  } else if (strcmp( name, "thickness_d" ) == 0 ) {
-    // set return value, return true
-    *value = eeprom->thickness_d;
-    return PARSER_TRUE;
-  } else  if (strncmp( name, "detector_offset_slope[", 22) == 0 ) {
-    unsigned index = atoi(name + 22);
-    if (index < 4)
-      *value = eeprom->detector_offset_slope[index];
-    else
-      *value = NAN;
-    return PARSER_TRUE;
-  } else  if (strncmp( name, "detector_offset_yint[", 21) == 0 ) {
-    unsigned index = atoi(name + 21);
-    if (index < 4)
-      *value = eeprom->detector_offset_yint[index];
-    else
-      *value = NAN;
-    return PARSER_TRUE;
+      } else if (strcmp( name, "light_intensity_raw" ) == 0 ) {
+      // set return value, return true
+      value = light_intensity_raw;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "light_intensity_raw_averaged" ) == 0 ) {
+      // set return value, return true
+      value = light_intensity_raw_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "r" ) == 0 ) {
+      // set return value, return true
+      value = r;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "r_averaged" ) == 0 ) {
+      // set return value, return true
+      value = r_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "g" ) == 0 ) {
+      // set return value, return true
+      value = g;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "g_averaged" ) == 0 ) {
+      // set return value, return true
+      value = g_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "b" ) == 0 ) {
+      // set return value, return true
+      value = b;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "b_averaged" ) == 0 ) {
+      // set return value, return true
+      value = b_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "thickness" ) == 0 ) {
+      // set return value, return true
+      value = thickness;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "thickness_averaged" ) == 0 ) {
+      // set return value, return true
+      value = thickness_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "thickness_raw" ) == 0 ) {
+      // set return value, return true
+      value = thickness_raw;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "thickness_raw_averaged" ) == 0 ) {
+      // set return value, return true
+      value = thickness_raw_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "contactless_temp" ) == 0 ) {
+      // set return value, return true
+      value = contactless_temp;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "contactless_temp_averaged" ) == 0 ) {
+      // set return value, return true
+      value = contactless_temp_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "compass" ) == 0 ) {
+      // set return value, return true
+      value = compass;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "compass_averaged" ) == 0 ) {
+      // set return value, return true
+      value = compass_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "x_compass_raw" ) == 0 ) {
+      // set return value, return true
+      value = x_compass_raw;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "y_compass_raw" ) == 0 ) {
+      // set return value, return true
+      value = y_compass_raw;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "z_compass_raw" ) == 0 ) {
+      // set return value, return true
+      value = z_compass_raw;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "x_compass_raw_averaged" ) == 0 ) {
+      // set return value, return true
+      value = x_compass_raw_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "y_compass_raw_averaged" ) == 0 ) {
+      // set return value, return true
+      value = y_compass_raw_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "z_compass_raw_averaged" ) == 0 ) {
+      // set return value, return true
+      value = z_compass_raw_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "angle" ) == 0 ) {
+      // set return value, return true
+      value = angle;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "angle_averaged" ) == 0 ) {
+      // set return value, return true
+      value = angle_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "pitch" ) == 0 ) {
+      // set return value, return true
+      value = pitch;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "pitch_averaged" ) == 0 ) {
+      // set return value, return true
+      value = pitch_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "roll" ) == 0 ) {
+      // set return value, return true
+      value = roll;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "roll_averaged" ) == 0 ) {
+      // set return value, return true
+      value = roll_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "x_tilt" ) == 0 ) {
+      // set return value, return true
+      value = x_tilt;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "y_tilt" ) == 0 ) {
+      // set return value, return true
+      value = y_tilt;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "z_tilt" ) == 0 ) {
+      // set return value, return true
+      value = z_tilt;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "x_tilt_averaged" ) == 0 ) {
+      // set return value, return true
+      value = x_tilt_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "y_tilt_averaged" ) == 0 ) {
+      // set return value, return true
+      value = y_tilt_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "z_tilt_averaged" ) == 0 ) {
+      // set return value, return true
+      value = z_tilt_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "temperature" ) == 0 ) {
+      // set return value, return true
+      value = temperature;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "humidity" ) == 0 ) {
+      // set return value, return true
+      value = humidity;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "pressure" ) == 0 ) {
+      // set return value, return true
+      value = pressure;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "temperature_averaged" ) == 0 ) {
+      // set return value, return true
+      value = temperature_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "humidity_averaged" ) == 0 ) {
+      // set return value, return true
+      value = humidity_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "pressure_averaged" ) == 0 ) {
+      // set return value, return true
+      value = pressure_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "temperature2" ) == 0 ) {
+      // set return value, return true
+      value = temperature2;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "humidity2" ) == 0 ) {
+      // set return value, return true
+      value = humidity2;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "pressure2" ) == 0 ) {
+      // set return value, return true
+      value = pressure2;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "temperature2_averaged" ) == 0 ) {
+      // set return value, return true
+      value = temperature2_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "humidity2_averaged" ) == 0 ) {
+      // set return value, return true
+      value = humidity2_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "pressure2_averaged" ) == 0 ) {
+      // set return value, return true
+      value = pressure2_averaged;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "light_yint" ) == 0 ) {
+      // set return value, return true
+      value = eeprom->light_yint;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "light_slope_all" ) == 0 ) {
+      // set return value, return true
+      value = eeprom->light_slope_all;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "light_slope_r" ) == 0 ) {
+      // set return value, return true
+      value = eeprom->light_slope_r;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "light_slope_g" ) == 0 ) {
+      // set return value, return true
+      value = eeprom->light_slope_g;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "light_slope_b" ) == 0 ) {
+      // set return value, return true
+      value = eeprom->light_slope_b;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "thickness_a" ) == 0 ) {
+      // set return value, return true
+      value = eeprom->thickness_a;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "thickness_b" ) == 0 ) {
+      // set return value, return true
+      value = eeprom->thickness_b;
+      return PARSER_TRUE;
+      } else if (strcmp( name, "thickness_d" ) == 0 ) {
+      // set return value, return true
+      value = eeprom->thickness_d;
+      return PARSER_TRUE;
+      } else  if (strncmp( name, "detector_offset_slope[", 22) == 0 ) {
+      unsigned index = atoi(name + 22);
+      if (index < 4)
+       value = eeprom->detector_offset_slope[index];
+      else
+       value = NAN;
+      return PARSER_TRUE;
+      } else  if (strncmp( name, "detector_offset_yint[", 21) == 0 ) {
+      unsigned index = atoi(name + 21);
+      if (index < 4)
+       value = eeprom->detector_offset_yint[index];
+      else
+       value = NAN;
+      return PARSER_TRUE;
     */
   } else  if (strncmp( name, "mag_bias[", 9) == 0 ) {
     unsigned index = atoi(name + 9);
@@ -383,9 +385,11 @@ int variable_callback( void *user_data, const char *name, double *value ) {
   }
 
   // failed to find variable, return false
-  return PARSER_FALSE;
+  *value = NAN;
+  return PARSER_FALSE;   // causes it to hang
 }
 
+#if 0
 /**
   @brief user-defined function callback. see expression_parser.h for more details.
   @param[in] user_data input pointer to any user-defined state variables needed.  in this case, this pointer is the maximum number of arguments allowed to the functions (as a contrived example usage).
@@ -395,6 +399,7 @@ int variable_callback( void *user_data, const char *name, double *value ) {
   @param[out] value output evaluated result of the function call
   @return true if the function exists and was evaluated successfully with the result stored in value, false otherwise.
 */
+
 int function_callback( void *user_data, const char *name, const int num_args, const double *args, double *value ) {
   int i, max_args;
   double tmp;
@@ -426,10 +431,15 @@ int function_callback( void *user_data, const char *name, const int num_args, co
 
   // failed to evaluate function, return false
   return PARSER_FALSE;
+
 }
 
-// given an expression, evaluate it
+#endif
 
+// given an expression, evaluate it
+// TODO - is buggy.  For example, expr("(foo())" hangs
+
+#if 0
 double expr(const char str[])
 {
   int num_arguments = 3;
@@ -437,7 +447,16 @@ double expr(const char str[])
   if (str == 0 || str[0] == 0)
     return NAN;
 
-  Serial_Flush_Output();
-
   return parse_expression_with_callbacks( str, variable_callback, function_callback, &num_arguments );
 }  // expr()
+#else
+double expr(const char str[])
+{ 
+    double value;
+    
+    if (variable_callback((void *)0, str, &value))
+       return value;
+    else
+       return NAN;
+}
+#endif

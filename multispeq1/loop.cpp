@@ -112,13 +112,8 @@ void do_command()
     return;
   }
 
-  if (choose[0] == '(') {           // an expression
-    Serial_Printf("%g\n", expr(choose));
-    return;
-  }
-
   if (!isalnum(choose[0])) {
-    Serial_Printf("{\"error\":\" bad command %s\"}\n", choose);
+    Serial_Printf("{\"error\":\" bad command: %s\"}\n", choose);
     return;                         // go read another command
   }
 
@@ -347,7 +342,9 @@ void do_command()
       _reboot_Teensyduino_();
       break;
 
+    case hash("userdefs"):
     case 1028:
+      store(userdef[49],1234.0);
       print_userdef();                                                                        // print only the userdef eeprom values
       break;
 
@@ -582,16 +579,22 @@ void do_command()
           int magX, magY, magZ, accX, accY, accZ;
           MAG3110_read(&magX, &magY, &magZ);
           MMA8653FC_read(&accX, &accY, &accZ);
+          
+          float mag_coords[3] = {(float) magX, (float) magY, (float) magZ};
+          applyMagCal(mag_coords);
 
-          float coords[3] = {(float) magX, (float) magY, (float) magZ};
-          applyMagCal(coords);
-
-          float roll = getRoll(accY, accZ);
-          float pitch = getPitch(accX, accY, accZ, roll);
-          float yaw = getCompass(coords[0], coords[1], coords[2], pitch, roll);
+          int acc_coords[3] = {accX, accY, accZ};
+          applyAccCal(acc_coords);
+          
+          float roll = getRoll(acc_coords[1], acc_coords[2]);
+          float pitch = getPitch(acc_coords[0], acc_coords[1], acc_coords[2], roll);
+          float yaw = getCompass(mag_coords[0], mag_coords[1], mag_coords[2], pitch, roll);
           
           Tilt deviceTilt = calculateTilt(roll, pitch, yaw);
 
+          rad_to_deg(&roll, &pitch, &yaw);
+
+         
           Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
           Serial_Print_Line(getDirection(compass_segment(yaw)));
 
@@ -633,7 +636,7 @@ void do_command()
 #include "loop-switch-jz.h"
 
     default:
-      Serial_Printf("{\"error\":\"bad command %s\"}\n", choose);
+      Serial_Printf("{\"error\":\"bad command: %s\"}\n", choose);
       break;
 
   }  // switch()
@@ -690,8 +693,9 @@ void do_protocol()
     Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);       // input the protocol
 
     if (!check_protocol(serial_buffer)) {         // sanity check
-      Serial_Print("{\"error\":\"bad json protocol (braces or CRC) got:\"}");
+      Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received:");
       Serial_Print(serial_buffer);
+      Serial_Print_Line("\"}\n");
       return;
     }
 
@@ -875,6 +879,7 @@ void do_protocol()
         } // for each pulse
 
         unsigned long data_raw_average[size_of_data_raw];                                          // buffer for ADC output data
+
         for (int i = 0; i < size_of_data_raw; ++i)                                                 // zero it
           data_raw_average[i] = 0;
 
@@ -1196,9 +1201,8 @@ void do_protocol()
             //            uint16_t endTimer;
 
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
-              sleep_cpu();                  // save some power
-              if (abort_cmd())
-                goto abort;  // or just reboot?
+              //if (abort_cmd())
+              //  goto abort;  // or just reboot?
             }
 
             if (_reference != 0) {
@@ -1806,6 +1810,8 @@ static void print_all () {
 
 static void print_userdef () {
   // print only the userdef values which can be defined by the user
+  for (unsigned i = 0; i < NUM_USERDEFS; ++i)
+      Serial_Printf("userdef[%d]=%g\n",i,eeprom->userdef[i]);
 }
 
 // ??  why

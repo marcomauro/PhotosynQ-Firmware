@@ -17,14 +17,11 @@
 #error NOT SUPPORTED
 #endif
 
-
-void upgrade_firmware(void);
-void boot_check(void);
-
-
 // apparently better - thanks to Frank Boesing
 #define RAMFUNC  __attribute__ ((section(".fastrun"), noinline, noclone, optimize("Os") ))
 
-
-
+void upgrade_firmware(void);
+void boot_check(void);
+uint32_t  read_once(unsigned char address);
+void program_once(unsigned char address, uint32_t value);
 

@@ -24,7 +24,7 @@ also do compression (requires binary)?
 https://www.embeddedrelated.com/showarticle/113.php
 
 
-// available in stock config
+// available in stock Arduino config
 
 AccelStepper       CapacitiveSensor  i2c_t3             OSC             Time
 Adafruit_CC3000    DmxSimple         ILI9341_t3         Ping            TimeAlarms

@@ -1,7 +1,17 @@
 
 // If your name isn't Jon, don't touch this file
 
+// more + commands
+
 {
+
+case hash("readonce"):
+    // bytes in 0xE and 0xF are the serial number
+    Serial_Printf("0,E,F = %8.8x %8.8x %8.8x\n",read_once(0x0), read_once(0xe), read_once(0xf));
+    //program_once(0xe,0xABCD);
+    delay(1);
+    //Serial_Printf("0,E,F = %x %x %x\n",read_once(0x0), read_once(0xe), read_once(0xf));   
+    break;
 
 case hash("set_date"):
   {

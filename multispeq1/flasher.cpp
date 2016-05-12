@@ -373,7 +373,7 @@ flash_hex_line (const char *line)
   //int parse_hex_line(const char *theline, char bytes, unsigned int *addr, unsigned int *num, unsigned int *code);
 
   // must be a hex data line
-  if (! parse_hex_line ((const char *)line, (char *)data, (unsigned int *) &address, (unsigned int*) &byte_count,(unsigned int*) &code))
+  if (! parse_hex_line ((const char *)line, (char *)data, (unsigned int *) &address, (unsigned int*) &byte_count, (unsigned int*) &code))
   {
     Serial_Printf ("bad hex line %s\n", line);
     error = 1;
@@ -489,22 +489,63 @@ flash_block (uint32_t address, uint32_t * bytes, int count)
 }				// flash_block()
 
 
+// read a WORD from the write once flash area
+// address is 0 to 0xF
+
+RAMFUNC uint32_t read_once(unsigned char address)
+{
+  __disable_irq ();
+  
+  // read long word
+  FTFL_FCCOB0 = 0x41;   // RDONCE
+  FTFL_FCCOB1 = address;
+
+  FTFL_FSTAT = FTFL_FSTAT_CCIF;  // execute!
+
+  while ((FTFL_FSTAT & FTFL_FSTAT_CCIF) != FTFL_FSTAT_CCIF) {} // wait for ready
+
+  __enable_irq ();
+  return (FTFL_FCCOB4 << 24) | (FTFL_FCCOB5 << 16) | (FTFL_FCCOB6 << 8) | FTFL_FCCOB7;
+}
+
+// write a 4 byte WORD to the write once flash area
+// address is 0 to 0xF
+
+RAMFUNC void program_once(unsigned char address, uint32_t word_value)
+{
+  __disable_irq ();
+  
+  // program long word
+  FTFL_FCCOB0 = 0x43;   // PGMONCE
+  FTFL_FCCOB1 = address;
+  FTFL_FCCOB4 = word_value >> 24;
+  FTFL_FCCOB5 = word_value >> 16;
+  FTFL_FCCOB6 = word_value >> 8;
+  FTFL_FCCOB7 = word_value;
+
+  FTFL_FSTAT = FTFL_FSTAT_CCIF;  // execute!
+
+  while ((FTFL_FSTAT & FTFL_FSTAT_CCIF) != FTFL_FSTAT_CCIF) {} // wait for ready
+
+  FMC_PFB0CR |= 0xF << 20;  // flush cache
+  __enable_irq ();
+}
 
 // **********************************************************
 
 /* Intel Hex records:
 
-Start code, one character, an ASCII colon ':'.
-Byte count, two hex digits, indicating the number of bytes (hex digit pairs) in the data field.
-Address, four hex digits
-Record type (see record types below), two hex digits, 00 to 05, defining the meaning of the data field.
-Data, a sequence of n bytes of data, represented by 2n hex digits.
-Checksum, two hex digits, a computed value that can be used to verify the record has no errors.
+  Start code, one character, an ASCII colon ':'.
+  Byte count, two hex digits, indicating the number of bytes (hex digit pairs) in the data field.
+  Address, four hex digits
+  Record type (see record types below), two hex digits, 00 to 05, defining the meaning of the data field.
+  Data, a sequence of n bytes of data, represented by 2n hex digits.
+  Checksum, two hex digits, a computed value that can be used to verify the record has no errors.
 
-Example:
-:109D3000711F0000AD38000005390000F546000035
-:049D400001480000D6
-:00000001FF
+  Example:
+  :109D3000711F0000AD38000005390000F546000035
+  :049D400001480000D6
+  :00000001FF
 
 */
 
@@ -570,5 +611,4 @@ parse_hex_line (const char *theline, char *bytes, unsigned int *addr, unsigned i
     return 0;			/* checksum error */
   return 1;
 }
-
 

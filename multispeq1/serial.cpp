@@ -475,6 +475,8 @@ long Serial_Input_Long(const char *terminators, long unsigned int timeout) {
 }  // Serial_Input_Long()
 
 
+// Caution: only good for short strings
+
 String Serial_Input_String(const char *terminators, long unsigned int timeout)
 {
   static String serial_string;

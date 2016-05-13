@@ -45,7 +45,7 @@ void Serial_Flush_Input(void)
 void Serial_SYN(void)
 {
 
-  
+
 }
 
 // specify which ports to send output to
@@ -63,6 +63,8 @@ void Serial_Set(int s)
 }
 
 // Do a printf to either port
+// CAUTION: only 200 bytes
+
 #define SIZE 200
 
 void Serial_Printf(const char * format, ... )
@@ -167,20 +169,22 @@ uint16_t crc16(const char* data_p, unsigned char length) {
     crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x << 5)) ^ ((uint16_t)x);
   }
   return crc;
-}
+} // crc16()
 
 // output to the BLE serial port, but buffer it up into packets with a retry protocol
 
 #define PACKET_SIZE 35
 #define ETX 04
-//#define ETX 'X'  
+//#define SEQ_NUMBER               // also send a sequence number in the packet?
+//#define ETX 'X'
 #define ACK 06
-//#define ACK 'Z'   
+//#define ACK 'Z'
 
-static char packet_buffer[PACKET_SIZE + 4 + 1 + 1];  // extra room for CRC then ETX then null - multiple of 20 + 1
+static char packet_buffer[PACKET_SIZE + 4 + 1 + 1 + 1];  // extra room for CRC then SEQ then ETX then null - multiple of 20 + 1
 static int packet_count = 0;                         // how many bytes currently in the above buffer
+static int seq = 0;                                  // goes A-Z and then wraps back to A - sent with each packet
 const int RETRIES = 4;
-const int RETRY_DELAY=200;       // ms
+const int RETRY_DELAY = 1000;     // ms
 
 // push a full or partial packet out
 // retry until ACK, give up eventually
@@ -198,6 +202,10 @@ static void flush_packet()
   packet_buffer[packet_count++] = nybble_chars[(crc >> 4) & 0xf];;
   packet_buffer[packet_count++] = nybble_chars[(crc >> 0) & 0xf];;
 
+#ifdef SEQ_NUMBER
+  packet_buffer[packet_count++] = seq + 'A';   // ascii A-Z
+#endif
+
   // add end of packet marker
   packet_buffer[packet_count++] = ETX;
 
@@ -212,24 +220,27 @@ static void flush_packet()
 
     Serial_Print_BLE(packet_buffer);     // send data
     flush_BLE();                         // force it out
-    
+
     // look for ACK, NAK or timeout
     unsigned char c = 0;
     unsigned t = millis();
 
-    while (millis() - t < RETRY_DELAY) {     
+    while (millis() - t < RETRY_DELAY) {
       if (Serial1.peek() != -1) {
-        c = Serial1.read();           // got some character (probably ACK or NAK)
-        break;
+        do {                                // got some character (probably ACK or NAK)
+          c = Serial1.read();
+        } while (Serial1.peek() != -1);     // remove any excess characters
+        break;          
       }
     } // while
 
     if (c == ACK)
-      break;                         // note: any other character will cause a retry
+      break;                                // note: any other character will cause a retry
 
   } // for
 
-  packet_count = 0;      // start new packet
+  packet_count = 0;          // start new packet
+  seq = (seq + 1) % 26;      // move to next SEQ letter A-Z
 
 }  // flush_packet()
 

@@ -58,6 +58,7 @@ void loop() {
 
       for (int i = 0; i < 10; ++i)
         sleep_cpu();                // save power - low impact since power stays on
+      
       continue;                     // nothing available, try again
     }
 
@@ -196,6 +197,10 @@ void do_command()
 
     case hash("device_info"):
     case 1007:
+      get_set_device_info(0);
+      break;
+
+    case hash("set_device_info"):
       get_set_device_info(1);
       break;
 

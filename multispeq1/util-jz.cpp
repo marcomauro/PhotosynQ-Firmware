@@ -350,7 +350,7 @@ void get_set_device_info(const int _set) {
   } // if
 
   // print
-  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%x:%x:%x:%x\",\"device_firmware\":\"%s\",\"device_manufacture\":\"%d\"}", DEVICE_NAME, DEVICE_VERSION,
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%2.2x:%2.2x:%2.2x:%2.2x\",\"device_firmware\":\"%s\",\"device_manufacture\":%6.6d}", DEVICE_NAME, DEVICE_VERSION,
                 (unsigned)eeprom->device_id >> 24,
                 ((unsigned)eeprom->device_id & 0xff0000) >> 16,
                 ((unsigned)eeprom->device_id & 0xff00) >> 8,

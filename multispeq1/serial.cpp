@@ -45,7 +45,6 @@ void Serial_Flush_Input(void)
 void Serial_SYN(void)
 {
 
-
 }
 
 // specify which ports to send output to
@@ -173,17 +172,17 @@ uint16_t crc16(const char* data_p, unsigned char length) {
 
 // output to the BLE serial port, but buffer it up into packets with a retry protocol
 
-#define PACKET_SIZE 249
+#define PACKET_SIZE 234          // Note: must end up with a packet size that is a multiple of 20 (not counting null)
 #define ETX 04
 #define SEQ_NUMBER               // also send a sequence number in the packet?
 //#define ETX 'X'
 #define ACK 06
 //#define ACK 'Z'
 
-static char packet_buffer[PACKET_SIZE + 4 + 1 + 1 + 1];  // extra room for CRC then SEQ then ETX then null - multiple of 20 + 1
+static char packet_buffer[PACKET_SIZE + 1 + 4 + 1 + 1];  // extra room for SEQ then CRC then ETX then null - (multiple of 20) + 1
 static int packet_count = 0;                         // how many bytes currently in the above buffer
 static int seq = 0;                                  // goes A-Z and then wraps back to A - sent with each packet
-const int RETRIES = 4;
+const int RETRIES = 5;
 const int RETRY_DELAY = 1000;     // ms
 
 // push a full or partial packet out
@@ -194,12 +193,11 @@ static void flush_packet()
   if (packet_count == 0)     // we have nothing buffered, don't send an empty packet
     return;
 
-  // calc and add ascii CRC (exactly 4 chars)
 #ifdef SEQ_NUMBER
   packet_buffer[packet_count++] = seq + 'A';   // ascii A-Z
 #endif
 
-
+  // calc and add ascii CRC (exactly 4 chars)
   uint16_t crc = crc16(packet_buffer, packet_count);
   const char nybble_chars[] = "0123456789ABCDEF";
   packet_buffer[packet_count++] = nybble_chars[(crc >> 12) & 0xf];

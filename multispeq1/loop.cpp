@@ -113,9 +113,6 @@ void do_command()
   }
 
   if (!isalnum(choose[0])) {
-    // TODO This may be invalid json, escape `choose`
-    //Serial_Printf("{\"error\":\" bad command: %s\"}\n", choose);
-
     Serial_Printf("{\"error\":\" bad command\"}\n");
     return;                         // go read another command
   }
@@ -622,7 +619,7 @@ void do_command()
 #include "loop-switch-jz.h"
 
     default:
-      Serial_Printf("{\"error\":\"bad command: %s\"}\n", choose);
+      Serial_Printf("{\"error\":\"bad command\"}\n");
       break;
 
   }  // switch()
@@ -687,8 +684,7 @@ void do_protocol()
       //Serial_Print(serial_buffer);
       //Serial_Print("\"}");
 
-      Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received\"");
-      Serial_Print("}");
+      Serial_Print("{\"error\":\"bad json protocol (braces or CRC)\"}");
       Serial_Print_CRC();
       Serial_Flush_Output();
       return;

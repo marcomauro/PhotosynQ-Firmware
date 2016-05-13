@@ -113,7 +113,10 @@ void do_command()
   }
 
   if (!isalnum(choose[0])) {
-    Serial_Printf("{\"error\":\" bad command: %s\"}\n", choose);
+    // TODO This may be invalid json, escape `choose`
+    //Serial_Printf("{\"error\":\" bad command: %s\"}\n", choose);
+
+    Serial_Printf("{\"error\":\" bad command\"}\n");
     return;                         // go read another command
   }
 
@@ -692,9 +695,16 @@ void do_protocol()
     Serial_Input_Chars(serial_buffer, "\r\n", 500, serial_buffer_size);       // input the protocol
 
     if (!check_protocol(serial_buffer)) {         // sanity check
-      Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received:");
-      Serial_Print(serial_buffer);
-      Serial_Print("\"}");
+
+      // as `received` is not valid json, this trows out the json parser on the other end
+      // would be nice if the json payload was escaped
+      
+      //Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received\"");
+      //Serial_Print(serial_buffer);
+      //Serial_Print("\"}");
+
+      Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received\"");
+      Serial_Print("}");
       Serial_Print_CRC();
       Serial_Flush_Output();
       return;

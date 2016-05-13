@@ -22,7 +22,7 @@ static void flush_BLE();
 static int Serial_Port = 3;   // which port to print to: 1 == Serial, 2 == Serial1, 3 = both  (ignored during automatic mode)
 static int automatic = 0;     // automatic means that writes will only go to the serial port that last had a byte read (Serial_Port is ignored)
 static int last_read = 0;     // where last incoming byte was from, 0 = Serial, 1 = Serial1
-int packet_mode = 0;          // wait for ACK every n characters, resend if needed
+int packet_mode = 1;          // wait for ACK every n characters, resend if needed
 
 // set baud rates
 
@@ -173,9 +173,9 @@ uint16_t crc16(const char* data_p, unsigned char length) {
 
 // output to the BLE serial port, but buffer it up into packets with a retry protocol
 
-#define PACKET_SIZE 35
+#define PACKET_SIZE 249
 #define ETX 04
-//#define SEQ_NUMBER               // also send a sequence number in the packet?
+#define SEQ_NUMBER               // also send a sequence number in the packet?
 //#define ETX 'X'
 #define ACK 06
 //#define ACK 'Z'
@@ -195,16 +195,17 @@ static void flush_packet()
     return;
 
   // calc and add ascii CRC (exactly 4 chars)
+#ifdef SEQ_NUMBER
+  packet_buffer[packet_count++] = seq + 'A';   // ascii A-Z
+#endif
+
+
   uint16_t crc = crc16(packet_buffer, packet_count);
   const char nybble_chars[] = "0123456789ABCDEF";
   packet_buffer[packet_count++] = nybble_chars[(crc >> 12) & 0xf];
   packet_buffer[packet_count++] = nybble_chars[(crc >> 8) & 0xf];;
   packet_buffer[packet_count++] = nybble_chars[(crc >> 4) & 0xf];;
   packet_buffer[packet_count++] = nybble_chars[(crc >> 0) & 0xf];;
-
-#ifdef SEQ_NUMBER
-  packet_buffer[packet_count++] = seq + 'A';   // ascii A-Z
-#endif
 
   // add end of packet marker
   packet_buffer[packet_count++] = ETX;

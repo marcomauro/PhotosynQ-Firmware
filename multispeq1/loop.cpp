@@ -53,22 +53,22 @@ void loop() {
   for (;;) {
     int c = Serial_Peek();
 
-    powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
-
     if (c == -1) {
-      for (int i = 0; i < 200; ++i)
-        sleep_cpu();                // save power for 200 ms - low impact, USB stays on
+      powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
+
+      for (int i = 0; i < 10; ++i)
+        sleep_cpu();                // save power - low impact since power stays on
       continue;                     // nothing available, try again
     }
 
     activity();             // record fact that we have seen activity (used with powerdown())
 
-    crc32_init();
-
     if (c == '[')
       break;                // start of json, exit this for loop to process it
 
     // received a non '[' char - processs n+ command
+
+    crc32_init();
 
     do_command();
 
@@ -668,7 +668,6 @@ void do_protocol()
   for (int i = 0; i < max_jsons; i++) {
     json2[i] = "";                                                              // reset all json2 char's to zero (ie reset all protocols)
   }
-
 
   { // create limited scope for serial_buffer
     char serial_buffer[serial_buffer_size + 1];     // large buffer for reading in a json protocol from serial port

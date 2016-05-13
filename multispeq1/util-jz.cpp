@@ -214,7 +214,7 @@ int accel_changed()
   return changed;
 }  // accel_changed()
 
-const unsigned long SHUTDOWN = 30000;   // power down after X ms of inactivity
+const unsigned long SHUTDOWN = 90000;   // power down after X ms of inactivity
 static unsigned long last_activity = millis();
 
 // record that we have seen serial port activity (used with powerdown())
@@ -226,7 +226,7 @@ void activity() {
 
 void powerdown() {
 
-  return;    // this is still experimental
+  //return;    // this is still experimental
   
   if ((millis() - last_activity > SHUTDOWN /* && !Serial */) || battery_low(0)) {   // if USB is active, no timeout sleep
 
@@ -240,7 +240,7 @@ void powerdown() {
 
     // wake up if the device has changed orientation
     accel_changed();     // update values with current
-
+    
     for (;;) {
       sleep_mode(2000);
 
@@ -255,6 +255,7 @@ void powerdown() {
 
     // note, peripherals are now in an unknown state
 
+    // calling setup() might also work
     // reboot to turn BLE on and re-intialize peripherals
 #define CPU_RESTART_ADDR ((uint32_t *)0xE000ED0C)
 #define CPU_RESTART_VAL 0x5FA0004

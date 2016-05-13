@@ -83,13 +83,13 @@ void Serial_Printf(const char * format, ... )
 int Serial_Read()
 {
   for (;;) {
-    if (Serial && Serial.available())  {
-      last_read = 0;
-      return Serial.read();
-    }
     if (Serial1.available()) {
       last_read = 1;
       return Serial1.read();
+    }
+    if (Serial && Serial.available())  {
+      last_read = 0;
+      return Serial.read();
     }
   } // for
 }  // Serial_Read()
@@ -110,12 +110,11 @@ unsigned Serial_Available()
 
 int Serial_Peek()
 {
-  if (Serial && Serial.available())
-    return Serial.peek();
-
   if (Serial1.available())
     return Serial1.peek();
 
+  if (Serial && Serial.available())
+    return Serial.peek();
 
   return -1;
 }  // Serial_Available()
@@ -436,18 +435,19 @@ char *Serial_Input_Chars(char *string, const char *terminators, long unsigned in
 
   // loop forever or until a condition is met
   for (;;) {
-    int c = Serial_Peek();
+    unsigned now = millis();
 
-    if (timeout > 0 && (millis() - start) > timeout)  // timeout
+    if (timeout > 0 && (now - start) > timeout)       // timeout
       break;                                          // done
 
+    int c = Serial_Peek();
     if (c == -1) continue;                            // nothing available
 
     char b = Serial_Read();
     if (strchr(terminators, b))                       // terminator char seen - throw it away
       break;
 
-    start = millis();                                 // restart interval
+    start = now;                                      // restart interval
 
     string[count++] = b;                              // add to string
 

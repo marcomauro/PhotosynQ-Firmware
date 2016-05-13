@@ -199,7 +199,7 @@ void do_command()
 
     case hash("device_info"):
     case 1007:
-      get_set_device_info(1);
+      get_set_device_info(0);
       break;
 
     /* // CLEANME - we can make this a single case - enter led, enter value, set for 5 seconds... done
@@ -701,6 +701,7 @@ void do_protocol()
       
       //Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received\"");
       //Serial_Print(serial_buffer);
+      Serial_Print_Line(serial_buffer);
       //Serial_Print("\"}");
 
       Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received\"");

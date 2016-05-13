@@ -58,18 +58,18 @@ void loop() {
 
       for (int i = 0; i < 10; ++i)
         sleep_cpu();                // save power - low impact since power stays on
-      
+
       continue;                     // nothing available, try again
     }
 
     activity();             // record fact that we have seen activity (used with powerdown())
 
+    crc32_init();
+
     if (c == '[')
       break;                // start of json, exit this for loop to process it
 
     // received a non '[' char - processs n+ command
-
-    crc32_init();
 
     do_command();
 
@@ -584,7 +584,7 @@ void do_command()
 
 
           Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
-          Serial_Print_Line(getDirection(compass_segment(yaw)));
+          Serial_Printf("%s, ",getDirection(compass_segment(yaw)));
 
           Serial_Printf("Tilt angle: %f, Tilt direction: ", deviceTilt.angle);
           Serial_Print_Line(deviceTilt.angle_direction);
@@ -683,7 +683,7 @@ void do_protocol()
 
       // as `received` is not valid json, this trows out the json parser on the other end
       // would be nice if the json payload was escaped
-      
+
       //Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received\"");
       //Serial_Print(serial_buffer);
       //Serial_Print("\"}");
@@ -710,6 +710,14 @@ void do_protocol()
     }  // for
 
   } // no more need for the serial input buffer
+
+  // check battery before proceeding
+  if (battery_low(1)) {
+    Serial_Print("{\"error\":\"battery is too low\"}");
+    Serial_Print_CRC();
+    Serial_Flush_Output();
+    return;
+  }
 
 #ifdef DEBUGSIMPLE
   Serial_Printf("got %d protocols\n", number_of_protocols);
@@ -1732,7 +1740,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "compass_and_angle") {                             // measure tilt in -180 - 180 degrees
       get_compass_and_angle(1, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass_segment(compass)).c_str(), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
+        Serial_Printf("\"compass_direction\":\"%s\",\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass_segment(compass)), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
       }
     }
 

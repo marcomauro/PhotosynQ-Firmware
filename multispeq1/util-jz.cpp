@@ -121,31 +121,25 @@ int check_protocol(char *str)
 
 
 
-// Battery check: Calculate battery output based on flashing the 4 IR LEDs at 250 mA each for 10uS.
+// Battery check:
+// 0 - just read voltage (quick)
+// 1 - level while flashing the 4 IR LEDs at 250 mA each for awhile
 // This should run just before any new protocol - if it’s too low, report to the user
 // return 1 if low, otherwise 0
-// for flash == 0, make no assumptions about pins being initialized
 
-const float MIN_BAT_LEVEL (3.4 * (16. / (16 + 47)) * (65536 / 1.2)); // 3.4V min battery voltage, voltage divider, 1.2V reference, 16 bit ADC
+//const float MIN_BAT_LEVEL = (3.4 * (16. / (16 + 47)) * (65536 / 1.2)); // 3.4V min battery voltage, voltage divider, 1.2V reference, 16 bit ADC
+const float MIN_BAT_LEVEL = 1;  // TODO - remove
 
 int battery_low(int flash)         // 0 for no load, 1 to flash LEDs to create load
 {
-  return 0;
-
-  // enable bat measurement
-  pinMode(BATT_ME, OUTPUT);
-  digitalWriteFast(BATT_ME, LOW);
-  delay(20);
+  uint32_t initial_value = 0;
 
   // find voltage before high load
-  uint32_t initial_value = 0;
-  uint32_t value;
-
   for (int i = 0 ; i < 100; ++i)
     initial_value += analogRead(BATT_TEST);  // test A10 analog input
   initial_value /= 100;
 
-  value = initial_value;
+  uint32_t value = initial_value;
 
   if (flash) {   // flash LEDs if needed to create load
     // set DAC values to 1/4 of full output to create load
@@ -175,9 +169,6 @@ int battery_low(int flash)         // 0 for no load, 1 to flash LEDs to create l
     digitalWriteFast(PULSE2, 0);
     digitalWriteFast(PULSE5, 0);
     digitalWriteFast(PULSE6, 0);
-
-    // turn off BATT_ME (let float)
-    pinMode(BATT_ME, INPUT);
 
     //Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
 
@@ -246,7 +237,7 @@ void powerdown() {
 
       if (accel_changed()) {    // note: accelerometer doesn't seem to need any initialization after being turned off then on
         if (battery_low(0)) {
-          sleep_mode(60000);    // longer sleep for low bat
+          sleep_mode(60000);    // sleep much longer for low bat
           continue;
         } else
           break;

@@ -78,15 +78,15 @@ int compass_segment(float angle)    // in degrees, assume no negatives
 }
 
 //get the direction (N/S/E/W/NW/NE/SW/SE) from the compass heading
-String getDirection(int segment) {
+const char * getDirection(int segment) {
 
   if (segment > 7 || segment < 0) {
     return "\"Invalid compass segment\"";
   }
 
-  String names[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+  static const char *names[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
 
-  return "\"" + names[segment] + "\"";
+  return names[segment];
 }
 
 //calculate tilt angle and tilt direction given roll, pitch, compass heading

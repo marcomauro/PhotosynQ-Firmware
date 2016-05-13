@@ -249,6 +249,10 @@ void setup() {
   pinMode(HOLDADD, OUTPUT);
   digitalWriteFast(HOLDADD, HIGH);                // discharge cap
 
+  // enable bat measurement 
+  pinMode(BATT_ME, OUTPUT);
+  digitalWriteFast(BATT_ME, LOW);
+
 #if CORALSPEQ == 1
   // Set pinmodes for the coralspeq
   //pinMode(SPEC_EOS, INPUT);

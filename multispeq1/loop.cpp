@@ -387,26 +387,10 @@ void do_command()
       //      Serial_Print_Line(eeprom->light_slope_all);
       //      Serial_Print_Line("{\"message\": \"input light slope for ambient par calibration followed by +: \"}");
       store(light_slope_all, Serial_Input_Double("+", 0));
-      break;
-    case 1035:
-      //      Serial_Print_Line(eeprom->light_yint);
-      //      Serial_Print_Line("{\"message\": \"input y intercept for ambient par calibration followed by +: \"}");
-      store(light_yint, Serial_Input_Double("+", 0));
-      break;
-    case 1036:
-      //      Serial_Print_Line(eeprom->light_slope_r);
-      //      Serial_Print_Line("{\"message\": \"input r slope for ambient par calibration followed by +: \"}");
       store(light_slope_r, Serial_Input_Double("+", 0));
-      break;
-    case 1037:
-      //      Serial_Print_Line(eeprom->light_slope_g);
-      //      Serial_Print_Line("{\"message\": \"input g slope for ambient par calibration followed by +: \"}");
       store(light_slope_g, Serial_Input_Double("+", 0));
-      break;
-    case 1038:
-      //      Serial_Print_Line(eeprom->light_slope_b);
-      //      Serial_Print_Line("{\"message\": \"input b slope for ambient par calibration followed by +: \"}");
       store(light_slope_b, Serial_Input_Double("+", 0));
+      store(light_yint, Serial_Input_Double("+", 0));
       break;
     case 1039:
       //      Serial_Print_Linef("%f, %f, %f",eeprom->thickness_a,eeprom->thickness_a,eeprom->thickness_a);
@@ -1860,7 +1844,6 @@ void print_calibrations() {
   Serial_Printf("\"light_slope_g\": \"%f\",\n", eeprom->light_slope_g);
   Serial_Printf("\"light_slope_b\": \"%f\",\n", eeprom->light_slope_b);
   Serial_Printf("\"light_yint\": \"%f\",\n", eeprom->light_yint);
-  Serial_Printf("\"light_slope_all\": \"%f\",\n", eeprom->light_slope_all);
   Serial_Printf("\"detector_offset_slope\": [\"%f\",\"%f\",\"%f\",\"%f\"],\n", eeprom->detector_offset_slope[0], eeprom->detector_offset_slope[1], eeprom->detector_offset_slope[2], eeprom->detector_offset_slope[3]);
   Serial_Printf("\"detector_offset_yint\": [\"%f\",\"%f\",\"%f\",\"%f\"],\n", eeprom->detector_offset_yint[0], eeprom->detector_offset_yint[1], eeprom->detector_offset_yint[2], eeprom->detector_offset_yint[3]);
   Serial_Printf("\"thickness_a\": \"%f\",\n", eeprom->thickness_a);

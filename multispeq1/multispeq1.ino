@@ -1,18 +1,18 @@
 
 // Firmware for MultispeQ 1.0 hardware.   Part of the PhotosynQ project.
 
-// setup()
+// setup() - initize things on startup
 // main loop is in loop.cpp
+
+/*
 
 // update DAC and get lights working in [{}]
 // once lights work, comparison test old and new adc routines, with timing
 //
-
-/*
-
   change 0,1 to before/after for environmentals
   consider adding _raw option as "raw" option in json
 
+  RTC doesn't work
   X test get_device_info - WORKS!  But set to a string (currently it's a long)
   test sensors in "environmental" make sure averages works as it should - WORKS!
   test par_to_dac an light_intensity_raw_to_par
@@ -69,7 +69,8 @@
   Attach par sensor to USB-C breakout, make calibration routine.
   Look up and see why iOS doesn’t connect to BLE.
   Test the power down feature from the bluetooth.  Determine how long it takes when powered down to come back to life (from bluetooth).  Include auto power off in the main while loop - auto-off after 10 seconds.
-  Test BLE packet mode
+  x Test BLE packet mode
+  also do packet mode from Android to MS?
   Troubleshoot issues with bluetooth between protocols.
 
   Start documenting the commands + parameters to pass…
@@ -84,7 +85,6 @@
    First thing - go through eeprom.h and set all of the variables in top and bottom of file...
    expose only a portion to users via 1000+ commands
 
-   x I suggest that all userdefs be a single float - JZ
    read_userdef - option to get a single userdef or all userdefs.  include the long arrays (like calibration_slope) as well as the offset and other variables which are not currently saved as userdefs.  All saved values are saveable in get_userdef.  This should have a print option when someone wants to also print it, and a get all option to print all userdefs (as JSON follow existing structure).
    replaces get_calibration, get_calibration_userdef, call_print_calibration, print_sensor_calibration, print_offset, set_device_info
 

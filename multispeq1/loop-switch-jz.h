@@ -48,6 +48,7 @@ case hash("print_date"):
   break;
 
 case hash("powerdown"):
+  // legacy version
   pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
   digitalWrite(POWERDOWN_REQUEST, LOW);
   delay(11000);                  // device should power off here - P0.5 (third pin) should go low

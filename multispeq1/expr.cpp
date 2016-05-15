@@ -335,7 +335,7 @@ float variable(const char *name)
 
   }
 
-  Serial_Printf("variable %s=%g\n",name,value);
+  //Serial_Printf("variable %s=%g\n",name,value);
   return value;
 }
 
@@ -368,7 +368,7 @@ static float factor() {
   }
   else if (isdigit(ch) || ch == '.' || ch == '+' || ch == '-') {  // beware of leading + or -
     val = strtod(ptr-1, (char **)&ptr);
-  } else if (isalpha(ch)) {   // variable such as "userdef[1]"
+  } else if (isalpha(ch) || ch == '_') {   // variable such as "userdef[1]"
     const char *p = ptr;
     --ptr;
     while (isalnum(*p) || *p == '[' || *p == ']' || *p == '_')     // move past variable (only first has to be alpha)
@@ -416,6 +416,7 @@ static float expression() {
   return val;
 }
 
+// given a string, evaluate it.   Example "2*(userdef[49]+2)"
 float expr(const char *s) {
   ptr = s;
   return expression();

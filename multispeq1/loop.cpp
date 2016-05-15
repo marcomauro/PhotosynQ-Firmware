@@ -2,10 +2,10 @@
 // main loop and some support routines
 
 #define EXTERN
-#include "defines.h"             // various globals                                                         // enable real time clock library
+#include "defines.h"            // various globals  
 #include "json/JsonParser.h"
 #include "DAC.h"
-#include "utility/AD7689.h"               // external ADC
+#include "utility/AD7689.h"     // external ADC
 #include "eeprom.h"
 #include "serial.h"
 #include "flasher.h"
@@ -596,7 +596,6 @@ void do_command()
       break;
 
     case hash("collect"):
-
       Serial_Print("Disconnect the cable");
       delay(5000);
       for (int i = 0; i < 100; i++)
@@ -1059,7 +1058,7 @@ void do_protocol()
               first_flag = 1;                                                                                   // flip flag indicating that it's the 0th pulse and a new cycle
               if (cycle == 0) {                                                                                 // if it's the beginning of a measurement (cycle == 0 and pulse == 0), then...
                 digitalWriteFast(act_background_light_prev, LOW);                                               // turn off actinic background light and...
-                startTimers(_pulsedistance);                                                                    // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
+                startTimers(_pulsedistance);                                                                    // Use one ISR to turn on and off the measuring lights.
               }
               else if (cycle != 0 && (_pulsedistance != _pulsedistance_prev || _pulsesize != _pulsesize_prev)) {    // if it's not the 0th cycle and the last pulsesize or pulsedistance was different than the current one, then stop the old timers and set new ones.   If they were the same, avoid resetting the timers by skipping this part.
                 //              stopTimers();                                                                                   // stop the old timers
@@ -1209,6 +1208,7 @@ void do_protocol()
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
               //if (abort_cmd())
               //  goto abort;  // or just reboot?
+              sleep_cpu();     // any ISR will cause this to immediately return
             }
 
             if (_reference != 0) {
@@ -1495,9 +1495,9 @@ abort:
 
 static void pulse3() {                           // ISR to turn on/off LED pulse - also controls integration switch
   const unsigned  STABILIZE = 10;                // this delay gives the LED current controller op amp the time needed to stabilize
-
   register int pin = LED_to_pin[_meas_light];
   register int pulse_size = _pulsesize;
+
   noInterrupts();
   digitalWriteFast(pin, HIGH);            // turn on measuring light
   delayMicroseconds(STABILIZE);           // this delay gives the LED current controller op amp the time needed to turn
@@ -1821,6 +1821,7 @@ static void print_userdef () {
     Serial_Printf("userdef[%d]=%g\n", i, eeprom->userdef[i]);
 }
 
+#if 0
 // ??  why
 void reset_freq() {
   analogWriteFrequency(5, 187500);                                               // reset timer 0
@@ -1846,7 +1847,7 @@ void reset_freq() {
 
   */
 }
-
+#endif
 
 void print_calibrations() {
   unsigned i;

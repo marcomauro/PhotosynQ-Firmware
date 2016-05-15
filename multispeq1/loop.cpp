@@ -34,7 +34,7 @@ uint16_t par_to_dac (float _par, uint16_t _pin);
 float light_intensity_raw_to_par (float _light_intensity_raw, float _r, float _g, float _b);
 static void print_all (void);
 static void print_userdef (void);
-double expr(const char str[]);
+float expr(const char str[]);
 void do_protocol(void);
 void do_command(void);
 void print_calibrations(void);
@@ -56,7 +56,9 @@ void loop() {
     if (c == -1) {
       powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
 
-      for (int i = 0; i < 10; ++i)
+      yield();                      // allow programmer to run
+
+      for (int i = 0; i < 10; ++i)  // 10 ms
         sleep_cpu();                // save power - low impact since power stays on
 
       continue;                     // nothing available, try again
@@ -348,10 +350,10 @@ void do_command()
 
     case hash("userdefs"):
     case 1028:
-      store(userdef[49], 1234.0);
       print_userdef();                                                                        // print only the userdef eeprom values
       break;
 
+    case hash("print_all"):
     case 1029:
       print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
       break;
@@ -584,7 +586,7 @@ void do_command()
 
 
           Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
-          Serial_Printf("%s, ",getDirection(compass_segment(yaw)));
+          Serial_Printf("%s, ", getDirection(compass_segment(yaw)));
 
           Serial_Printf("Tilt angle: %f, Tilt direction: ", deviceTilt.angle);
           Serial_Print_Line(deviceTilt.angle_direction);
@@ -594,11 +596,12 @@ void do_command()
       break;
 
     case hash("collect"):
-      int x, y, z;
+
       Serial_Print("Disconnect the cable");
       delay(5000);
       for (int i = 0; i < 100; i++)
       {
+        int x, y, z;
         MAG3110_read(&x, &y, &z);
         dataArray[0][i] = x;
         dataArray[1][i] = y;
@@ -637,15 +640,15 @@ void do_command()
 
 void do_protocol()
 {
-  static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
-  static const int max_jsons = 15;                                                   // max number of protocols per measurement
-  static const int MAX_JSON_ELEMENTS = 600;      //
+  const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
+  const int max_jsons = 15;                                                   // max number of protocols per measurement
+  const int MAX_JSON_ELEMENTS = 600;      //
 
-  static int averages = 1;                        // ??
-  static uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
-  static float data = 0;
-  static float data_ref = 0;
-  static int act_background_light = 0;
+  int averages = 1;                        // ??
+  uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
+  float data = 0;
+  float data_ref = 0;
+  int act_background_light = 0;
   //static float freqtimer0;
   //static float freqtimer1;
   //static float freqtimer2;
@@ -1809,6 +1812,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
 static void print_all () {
   // print every value saved in eeprom in valid json structure (even the undefined values which are still 0)
+  Serial_Printf("light_intensity:%g\n",light_intensity);
 }
 
 static void print_userdef () {

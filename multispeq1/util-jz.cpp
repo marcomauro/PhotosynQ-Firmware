@@ -218,7 +218,7 @@ void activity() {
 void powerdown() {
 
   //return;    // this is still experimental
-  
+
   if ((millis() - last_activity > SHUTDOWN /* && !Serial */) || battery_low(0)) {   // if USB is active, no timeout sleep
 
 #ifdef LEGACY
@@ -226,16 +226,16 @@ void powerdown() {
     digitalWriteFast(POWERDOWN_REQUEST, LOW);
 #endif
 
-    // turn off BLE, turn off analog circuitry (should already be off), then enter a sleep loop
-    // TODO
+    // TODO put accelerometer into lowest power mode
+
+    accel_changed();     // update values with current
 
     // wake up if the device has changed orientation
-    accel_changed();     // update values with current
-    
-    for (;;) {
-      sleep_mode(2000);
 
-      if (accel_changed()) {    // note: accelerometer doesn't seem to need any initialization after being turned off then on
+    for (;;) {
+      sleep_mode(200);          // sleep for 200 ms 
+                                // note: Accel runs fine down to 2V - ie, battery is fine
+      if (accel_changed()) {    //       Accel requires ~2ms from power on.  So leave it powered.
         if (battery_low(0)) {
           sleep_mode(60000);    // sleep much longer for low bat
           continue;
@@ -247,7 +247,7 @@ void powerdown() {
     // note, peripherals are now in an unknown state
 
     // calling setup() might also work
-    // reboot to turn BLE on and re-intialize peripherals
+    // reboot to turn everything on and re-intialize peripherals
 #define CPU_RESTART_ADDR ((uint32_t *)0xE000ED0C)
 #define CPU_RESTART_VAL 0x5FA0004
     *CPU_RESTART_ADDR = CPU_RESTART_VAL;
@@ -318,6 +318,69 @@ void scan_i2c(void)
     Serial.println("done\n");
 
 } // scan_i2c()
+
+#if 0
+
+int conv2d(const char* p) {
+  int v = 0;
+  if ('0' <= *p && *p <= '9')
+    v = *p - '0';
+  return 10 * v + *++p - '0';
+}
+
+#include <Time.h>
+
+// get the compiled time and use it to set the system time and the RTC
+
+void timefromcompiler(void) {
+  const char *date = __DATE__;
+  const char *time = __TIME__;
+
+  int _days, _month = 1, _year, _hour, _minute, _second;
+  uint32_t _ticks;
+
+  //Day
+  _days = conv2d(date + 4);
+
+  //Month
+  switch (date[0]) {
+    case 'J':
+      if (date[1] == 'a')  // Jan
+        _month = 1;
+      else if (date[2] == 'n')  // June
+        _month = 6;
+      else
+        _month = 7;  // July
+      break;
+    case 'F': _month = 2; break;
+    case 'A': _month = date[2] == 'r' ? 4 : 8; break;
+    case 'M': _month = date[2] == 'r' ? 3 : 5; break;
+    case 'S': _month = 9; break;
+    case 'O': _month = 10; break;
+    case 'N': _month = 11; break;
+    case 'D': _month = 12; break;
+  }
+
+  //Year
+  _year = conv2d(date + 9);
+
+  //Time
+  _hour = conv2d(time);
+  _minute = conv2d(time + 3);
+  _second = conv2d(time + 6);
+
+  // This sets the system time (NOT the Teensy RTC Clock)
+  // set your seperated date/time variables out as normal and update system time FIRST
+  setTime(_hour, _minute, _second, _days, _month, _year);
+
+  // now we can use the system time to update the Teensy's RTC bits
+  // This sets the RTC Clock from system time - epoch style, just like it wants :)
+  Teensy3Clock.set(now());
+
+   Serial_Printf("Set RTC to: %d-%d-%dT%d:%d:%d.000Z\n", year(), month(), day(), hour(), minute(), second());
+}
+
+#endif
 
 //======================================
 

@@ -1,7 +1,7 @@
 
 // Firmware for MultispeQ 1.0 hardware.   Part of the PhotosynQ project.
 
-// setup() 
+// setup()
 // main loop is in loop.cpp
 
 // update DAC and get lights working in [{}]
@@ -198,7 +198,9 @@
 //#include <ADC.h>                  // internal ADC
 #include "serial.h"
 #include "utility/crc32.h"
-#include <SPI.h>    // include the new SPI library:
+#include <SPI.h>    // include the new SPI library
+#include "util.h"
+#include <TimeLib.h>
 
 // function definitions used in this file
 int MAG3110_init(void);           // initialize compass
@@ -213,16 +215,12 @@ void setup() {
 
   // TODO
   // turn on BLE module
-  
-  delay(700);
+
+  // delay(700);             // doesn't work reliably
 
   // set up serial ports (Serial and Serial1)
   Serial_Set(4);             // auto switch between USB and BLE
   Serial_Begin(57600);
-
-#ifdef DEBUGSIMPLE
-  Serial_Print_Line("serial works");
-#endif
 
   // Set up I2C bus - CAUTION: any subsequent calls to Wire.begin() will mess this up
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_INT, I2C_RATE_400);  // using alternative wire library
@@ -232,7 +230,7 @@ void setup() {
 
   // initialize DACs
   DAC_init();
-  
+
   // set up MCU pins
 
   // set up LED on/off pins
@@ -240,16 +238,16 @@ void setup() {
     pinMode(LED_to_pin[i], OUTPUT);
 
   //pinMode(HALL_OUT, INPUT);                       // set hall effect sensor to input so it can be read
-  //pinMode(DEBUG_DC, INPUT_PULLUP);                                                    
-  //pinMode(DEBUG_DD, INPUT_PULLUP);                                                       
-  
+  //pinMode(DEBUG_DC, INPUT_PULLUP);
+  //pinMode(DEBUG_DD, INPUT_PULLUP);
+
   // pins used to turn on/off detector integration/discharge
   pinMode(HOLDM, OUTPUT);
   digitalWriteFast(HOLDM, HIGH);                  // discharge cap
   pinMode(HOLDADD, OUTPUT);
   digitalWriteFast(HOLDADD, HIGH);                // discharge cap
 
-  // enable bat measurement 
+  // enable bat measurement
   pinMode(BATT_ME, OUTPUT);
   digitalWriteFast(BATT_ME, LOW);
 
@@ -290,15 +288,7 @@ void setup() {
 
   assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
-#ifdef PACKET_TEST
-  extern int packet_mode;
-  packet_mode = 1;
-  Serial_Set(2);
-  Serial_Print_Line("This is a long test.  Does it work?  We may never know.  There are always hidden bugs.");
-  Serial_Flush_Output();
-  packet_mode = 0;   // restore to normal
-  Serial_Set(4);
-#endif
+  setTime(Teensy3Clock.get());             // set time from RTC - TODO RTC doesn't clock?
 
   Serial_Print(DEVICE_NAME);
   Serial_Print_Line(" Ready");

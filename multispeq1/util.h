@@ -20,5 +20,5 @@ float cosine_internal(float angle);
 //float arctan_internal(float x, float y);
 //float float_max(float x, float y);
 //float float_min(float x, float y);
-
+void timefromcompiler(void);
 

@@ -6,24 +6,26 @@
 {
 
 case hash("expr"):
-     char c[100];
-     Serial_Input_Chars(c,"\r\n",5000,sizeof(c)-1);
-     Serial_Printf("%g\n",expr(c));
-     break;
-     
-case hash("testmode"):
-    extern int jz_test_mode;
-    jz_test_mode = 1;
-    break;
-    
-case hash("readonce"):
-    // bytes in 0xE and 0xF are the serial number
-    Serial_Printf("0,E,F = %8.8x %8.8x %8.8x\n",read_once(0x0), read_once(0xe), read_once(0xf));
-    //program_once(0xe,0xABCD);
-    delay(1);
-    //Serial_Printf("0,E,F = %x %x %x\n",read_once(0x0), read_once(0xe), read_once(0xf));   
-    break;
+  {
+  char c[100];
+  Serial_Input_Chars(c, "\r\n", 5000, sizeof(c) - 1);  // no plus since that is a operator
+  Serial_Printf("%g\n", expr(c));
+  }
+  break;
 
+case hash("testmode"):
+  extern int jz_test_mode;
+  jz_test_mode = 1;
+  break;
+
+case hash("readonce"):
+  // bytes in 0xE and 0xF are the serial number
+  Serial_Printf("0,E,F = %8.8x %8.8x %8.8x\n", read_once(0x0), read_once(0xe), read_once(0xf));
+  //program_once(0xe,0xABCD);
+  delay(1);
+  //Serial_Printf("0,E,F = %x %x %x\n",read_once(0x0), read_once(0xe), read_once(0xf));
+  break;
+ 
 case hash("set_date"):
   {
     Serial_Print_Line("enter GMT hours+min+sec+day+month+year+");
@@ -34,19 +36,19 @@ case hash("set_date"):
     days =  Serial_Input_Long("+");
     months =  Serial_Input_Long("+");
     years =  Serial_Input_Long("+");
-    setTime(hours, minutes, seconds, days, months, years);
+    setTime(hours, minutes, seconds, days, months, years);  // set internal time
+    Teensy3Clock.set(now());                                // set RTC
     delay(2000);
   }
   // fall through to print
 case hash("print_date"):
   // example: 2004-02-12T15:19:21.000Z
-  if (year() >= 2016) {
-    Serial_Printf("{\"device_time\":\"%d-%d-%dT%d:%d:%d.000Z\"}\n", year(), month(), day(), hour(), minute(), second());
-    Serial_Printf("{\"device_time\":%u}\n", now()); // since 1970 format
-  }
+  Serial_Printf("{\"device_time\":\"%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.000Z\"}\n", year(), month(), day(), hour(), minute(), second());
+  Serial_Printf("{\"device_time\":%u}\n", now()); // since 1970 format
   break;
 
 case hash("powerdown"):
+  // legacy version
   pinMode(POWERDOWN_REQUEST, OUTPUT);     //  bring P0.6 (2nd pin) low
   digitalWrite(POWERDOWN_REQUEST, LOW);
   delay(11000);                  // device should power off here - P0.5 (third pin) should go low
@@ -111,7 +113,7 @@ case hash("memory"):
     // The difference is the free, available ram.
     int FreeRam = stackTop - heapTop;
 
-    Serial_Printf("heap used = %d, heap free = %d, stack + heap free = %d\n",mallinfo().uordblks ,mallinfo().fordblks, FreeRam);
+    Serial_Printf("heap used = %d, heap free = %d, stack + heap free = %d\n", mallinfo().uordblks , mallinfo().fordblks, FreeRam);
   }
   break;
 

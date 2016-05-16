@@ -5,7 +5,7 @@
 
 // DANGER:  do not do too many writes to eeprom variables - cycles are limited
 // WARNING: max size is 2K
-// WARNING: Write only with the save() function.  If not, program may freeze.
+// WARNING: Write only with the store() function.  If not, program may freeze.
 
 // Jon Zeeff 2016
 

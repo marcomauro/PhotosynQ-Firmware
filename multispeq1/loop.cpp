@@ -2,10 +2,10 @@
 // main loop and some support routines
 
 #define EXTERN
-#include "defines.h"             // various globals                                                         // enable real time clock library
+#include "defines.h"            // various globals  
 #include "json/JsonParser.h"
 #include "DAC.h"
-#include "utility/AD7689.h"               // external ADC
+#include "utility/AD7689.h"     // external ADC
 #include "eeprom.h"
 #include "serial.h"
 #include "flasher.h"
@@ -34,7 +34,7 @@ uint16_t par_to_dac (float _par, uint16_t _pin);
 float light_intensity_raw_to_par (float _light_intensity_raw, float _r, float _g, float _b);
 static void print_all (void);
 static void print_userdef (void);
-double expr(const char str[]);
+float expr(const char str[]);
 void do_protocol(void);
 void do_command(void);
 void print_calibrations(void);
@@ -56,20 +56,22 @@ void loop() {
     if (c == -1) {
       powerdown();            // power down if no activity for x seconds (could also be a timer interrupt)
 
-      for (int i = 0; i < 10; ++i)
+      yield();                      // allow programmer to run
+
+      for (int i = 0; i < 10; ++i)  // 10 ms
         sleep_cpu();                // save power - low impact since power stays on
-      
+
       continue;                     // nothing available, try again
     }
 
     activity();             // record fact that we have seen activity (used with powerdown())
 
+    crc32_init();
+
     if (c == '[')
       break;                // start of json, exit this for loop to process it
 
     // received a non '[' char - processs n+ command
-
-    crc32_init();
 
     do_command();
 
@@ -346,10 +348,10 @@ void do_command()
 
     case hash("userdefs"):
     case 1028:
-      store(userdef[49], 1234.0);
       print_userdef();                                                                        // print only the userdef eeprom values
       break;
 
+    case hash("print_all"):
     case 1029:
       print_all();                                                                            // print everything in the eeprom (all values defined in eeprom.h)
       break;
@@ -582,7 +584,7 @@ void do_command()
 
 
           Serial_Printf("Roll: %f, Pitch: %f, Compass: %f, Compass Direction: ", roll, pitch, yaw);
-          Serial_Print_Line(getDirection(compass_segment(yaw)));
+          Serial_Printf("%s, ", getDirection(compass_segment(yaw)));
 
           Serial_Printf("Tilt angle: %f, Tilt direction: ", deviceTilt.angle);
           Serial_Print_Line(deviceTilt.angle_direction);
@@ -592,11 +594,11 @@ void do_command()
       break;
 
     case hash("collect"):
-      int x, y, z;
       Serial_Print("Disconnect the cable");
       delay(5000);
       for (int i = 0; i < 100; i++)
       {
+        int x, y, z;
         MAG3110_read(&x, &y, &z);
         dataArray[0][i] = x;
         dataArray[1][i] = y;
@@ -635,15 +637,15 @@ void do_command()
 
 void do_protocol()
 {
-  static const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
-  static const int max_jsons = 15;                                                   // max number of protocols per measurement
-  static const int MAX_JSON_ELEMENTS = 600;      //
+  const int serial_buffer_size = 5000;                                        // max size of the incoming jsons
+  const int max_jsons = 15;                                                   // max number of protocols per measurement
+  const int MAX_JSON_ELEMENTS = 600;      //
 
-  static int averages = 1;                        // ??
-  static uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
-  static float data = 0;
-  static float data_ref = 0;
-  static int act_background_light = 0;
+  int averages = 1;                        // ??
+  uint8_t spec_on = 0;                    // flag to indicate that spec is being used during this measurement
+  float data = 0;
+  float data_ref = 0;
+  int act_background_light = 0;
   //static float freqtimer0;
   //static float freqtimer1;
   //static float freqtimer2;
@@ -681,7 +683,7 @@ void do_protocol()
 
       // as `received` is not valid json, this trows out the json parser on the other end
       // would be nice if the json payload was escaped
-      
+
       //Serial_Print("{\"error\":\"bad json protocol (braces or CRC), received\"");
       //Serial_Print(serial_buffer);
       //Serial_Print("\"}");
@@ -708,6 +710,14 @@ void do_protocol()
     }  // for
 
   } // no more need for the serial input buffer
+
+  // check battery before proceeding
+  if (battery_low(1)) {
+    Serial_Print("{\"error\":\"battery is too low\"}");
+    Serial_Print_CRC();
+    Serial_Flush_Output();
+    return;
+  }
 
 #ifdef DEBUGSIMPLE
   Serial_Printf("got %d protocols\n", number_of_protocols);
@@ -1046,7 +1056,7 @@ void do_protocol()
               first_flag = 1;                                                                                   // flip flag indicating that it's the 0th pulse and a new cycle
               if (cycle == 0) {                                                                                 // if it's the beginning of a measurement (cycle == 0 and pulse == 0), then...
                 digitalWriteFast(act_background_light_prev, LOW);                                               // turn off actinic background light and...
-                startTimers(_pulsedistance);                                                                    // Use the two interrupt service routines timers (pulse1 and pulse2) in order to turn on (pulse1) and off (pulse2) the measuring lights.
+                startTimers(_pulsedistance);                                                                    // Use one ISR to turn on and off the measuring lights.
               }
               else if (cycle != 0 && (_pulsedistance != _pulsedistance_prev || _pulsesize != _pulsesize_prev)) {    // if it's not the 0th cycle and the last pulsesize or pulsedistance was different than the current one, then stop the old timers and set new ones.   If they were the same, avoid resetting the timers by skipping this part.
                 //              stopTimers();                                                                                   // stop the old timers
@@ -1196,6 +1206,7 @@ void do_protocol()
             while (led_off == 0) {                                                                     // wait for LED pulse complete (in ISR)
               //if (abort_cmd())
               //  goto abort;  // or just reboot?
+              sleep_cpu();     // any ISR will cause this to immediately return
             }
 
             if (_reference != 0) {
@@ -1419,7 +1430,7 @@ void do_protocol()
 
         if (q < number_of_protocols - 1 || u < protocols - 1) {                           // if it's not the last protocol in the measurement and it's not the last repeat of the current protocol, add a comma
           Serial_Print(",");
-          if (protocols_delay > 0) {
+          if (protocols_delay > 0) {                                // delay for specified time or until + is entered
             Serial_Input_Long("+", protocols_delay * 1000);
           }
           if (protocols_delay_ms > 0) {
@@ -1445,12 +1456,16 @@ void do_protocol()
 
         act_background_light_prev = act_background_light;                               // set current background as previous background for next protocol
         spec_on = 0;                                                                    // reset flag that spec is turned on for this measurement
-      }
-    }
+        
+      }  // for each protocol repeat u
+      
+    }  // for each protocol q
+
     Serial_Flush_Input();
-    if (y < measurements - 1) {                                                    // add commas between measurements
-      Serial_Print(",");
-      if (measurements_delay > 0) {
+    if (y < measurements - 1) {                                 // if not last measurement                   
+      Serial_Print(",");                                        // add commas between measurements
+      
+      if (measurements_delay > 0) {                             // delay for specified time or until + is entered
         Serial_Input_Long("+", measurements_delay * 1000);
       }
       else if (measurements_delay_ms > 0) {
@@ -1458,7 +1473,7 @@ void do_protocol()
       }
     } // if
 
-  }  // for each measurement
+  }  // for each measurement y
 
 abort:
 
@@ -1482,9 +1497,9 @@ abort:
 
 static void pulse3() {                           // ISR to turn on/off LED pulse - also controls integration switch
   const unsigned  STABILIZE = 10;                // this delay gives the LED current controller op amp the time needed to stabilize
-
   register int pin = LED_to_pin[_meas_light];
   register int pulse_size = _pulsesize;
+
   noInterrupts();
   digitalWriteFast(pin, HIGH);            // turn on measuring light
   delayMicroseconds(STABILIZE);           // this delay gives the LED current controller op amp the time needed to turn
@@ -1730,7 +1745,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "compass_and_angle") {                             // measure tilt in -180 - 180 degrees
       get_compass_and_angle(1, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass_segment(compass)).c_str(), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
+        Serial_Printf("\"compass_direction\":\"%s\",\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass_segment(compass)), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
       }
     }
 
@@ -1799,6 +1814,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
 
 static void print_all () {
   // print every value saved in eeprom in valid json structure (even the undefined values which are still 0)
+  Serial_Printf("light_intensity:%g\n",light_intensity);
 }
 
 static void print_userdef () {
@@ -1807,6 +1823,7 @@ static void print_userdef () {
     Serial_Printf("userdef[%d]=%g\n", i, eeprom->userdef[i]);
 }
 
+#if 0
 // ??  why
 void reset_freq() {
   analogWriteFrequency(5, 187500);                                               // reset timer 0
@@ -1832,7 +1849,7 @@ void reset_freq() {
 
   */
 }
-
+#endif
 
 void print_calibrations() {
   unsigned i;

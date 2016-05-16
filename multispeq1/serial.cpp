@@ -441,7 +441,10 @@ char *Serial_Input_Chars(char *string, const char *terminators, long unsigned in
       break;                                          // done
 
     int c = Serial_Peek();
-    if (c == -1) continue;                            // nothing available
+    if (c == -1) {
+       sleep_cpu();                         // save power
+       continue;                            // nothing available
+    }
 
     char b = Serial_Read();
     if (strchr(terminators, b))                       // terminator char seen - throw it away

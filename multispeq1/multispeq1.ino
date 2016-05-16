@@ -1,18 +1,19 @@
 
 // Firmware for MultispeQ 1.0 hardware.   Part of the PhotosynQ project.
 
-// setup() 
+// setup() - initize things on startup
 // main loop is in loop.cpp
-
-// update DAC and get lights working in [{}]
-// once lights work, comparison test old and new adc routines, with timing
-//
 
 /*
 
+  add watchdog - need to know max delays
+// update DAC and get lights working in [{}]
+// once lights work, comparison test old and new adc routines, with timing
+//
   change 0,1 to before/after for environmentals
   consider adding _raw option as "raw" option in json
 
+  RTC doesn't work
   X test get_device_info - WORKS!  But set to a string (currently it's a long)
   test sensors in "environmental" make sure averages works as it should - WORKS!
   test par_to_dac an light_intensity_raw_to_par
@@ -69,7 +70,8 @@
   Attach par sensor to USB-C breakout, make calibration routine.
   Look up and see why iOS doesn’t connect to BLE.
   Test the power down feature from the bluetooth.  Determine how long it takes when powered down to come back to life (from bluetooth).  Include auto power off in the main while loop - auto-off after 10 seconds.
-  Test BLE packet mode
+  x Test BLE packet mode
+  also do packet mode from Android to MS?
   Troubleshoot issues with bluetooth between protocols.
 
   Start documenting the commands + parameters to pass…
@@ -84,7 +86,6 @@
    First thing - go through eeprom.h and set all of the variables in top and bottom of file...
    expose only a portion to users via 1000+ commands
 
-   x I suggest that all userdefs be a single float - JZ
    read_userdef - option to get a single userdef or all userdefs.  include the long arrays (like calibration_slope) as well as the offset and other variables which are not currently saved as userdefs.  All saved values are saveable in get_userdef.  This should have a print option when someone wants to also print it, and a get all option to print all userdefs (as JSON follow existing structure).
    replaces get_calibration, get_calibration_userdef, call_print_calibration, print_sensor_calibration, print_offset, set_device_info
 
@@ -198,7 +199,9 @@
 //#include <ADC.h>                  // internal ADC
 #include "serial.h"
 #include "utility/crc32.h"
-#include <SPI.h>    // include the new SPI library:
+#include <SPI.h>    // include the new SPI library
+#include "util.h"
+#include <TimeLib.h>
 
 // function definitions used in this file
 int MAG3110_init(void);           // initialize compass
@@ -213,16 +216,12 @@ void setup() {
 
   // TODO
   // turn on BLE module
-  
-  delay(700);
+
+  // delay(700);             // doesn't work reliably
 
   // set up serial ports (Serial and Serial1)
   Serial_Set(4);             // auto switch between USB and BLE
   Serial_Begin(57600);
-
-#ifdef DEBUGSIMPLE
-  Serial_Print_Line("serial works");
-#endif
 
   // Set up I2C bus - CAUTION: any subsequent calls to Wire.begin() will mess this up
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_INT, I2C_RATE_400);  // using alternative wire library
@@ -232,7 +231,7 @@ void setup() {
 
   // initialize DACs
   DAC_init();
-  
+
   // set up MCU pins
 
   // set up LED on/off pins
@@ -240,14 +239,18 @@ void setup() {
     pinMode(LED_to_pin[i], OUTPUT);
 
   //pinMode(HALL_OUT, INPUT);                       // set hall effect sensor to input so it can be read
-  //pinMode(DEBUG_DC, INPUT_PULLUP);                                                    
-  //pinMode(DEBUG_DD, INPUT_PULLUP);                                                       
-  
+  //pinMode(DEBUG_DC, INPUT_PULLUP);
+  //pinMode(DEBUG_DD, INPUT_PULLUP);
+
   // pins used to turn on/off detector integration/discharge
   pinMode(HOLDM, OUTPUT);
   digitalWriteFast(HOLDM, HIGH);                  // discharge cap
   pinMode(HOLDADD, OUTPUT);
   digitalWriteFast(HOLDADD, HIGH);                // discharge cap
+
+  // enable bat measurement
+  pinMode(BATT_ME, OUTPUT);
+  digitalWriteFast(BATT_ME, LOW);
 
 #if CORALSPEQ == 1
   // Set pinmodes for the coralspeq
@@ -286,15 +289,7 @@ void setup() {
 
   assert(sizeof(eeprom_class) < 2048);                    // check that we haven't exceeded eeprom space
 
-#ifdef PACKET_TEST
-  extern int packet_mode;
-  packet_mode = 1;
-  Serial_Set(2);
-  Serial_Print_Line("This is a long test.  Does it work?  We may never know.  There are always hidden bugs.");
-  Serial_Flush_Output();
-  packet_mode = 0;   // restore to normal
-  Serial_Set(4);
-#endif
+  setTime(Teensy3Clock.get());             // set time from RTC - TODO RTC doesn't clock?
 
   Serial_Print(DEVICE_NAME);
   Serial_Print_Line(" Ready");

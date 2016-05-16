@@ -204,7 +204,6 @@ void do_command()
       get_set_device_info(1);
       break;
 
-    /* // CLEANME - we can make this a single case - enter led, enter value, set for 5 seconds... done
         case 1011:
           Serial_Print_Line("PULSE1");
           DAC_set(1, 50);
@@ -305,7 +304,6 @@ void do_command()
           DAC_set(10, 0);
           DAC_change();
           break;
-    */
     case 1021:                                                                            // variety of test commands used during development
       {
 

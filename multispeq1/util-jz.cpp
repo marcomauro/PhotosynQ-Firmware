@@ -16,6 +16,27 @@ void program_once(unsigned char address, unsigned int value);
 
 int jz_test_mode = 0;
 
+
+void start_watchdog()
+{
+  WDOG_UNLOCK = WDOG_UNLOCK_SEQ1;
+  WDOG_UNLOCK = WDOG_UNLOCK_SEQ2;
+  delayMicroseconds(1); // Need to wait a bit..
+  WDOG_TOVALL = 0; // The next 2 lines sets the time-out value. This is the value that the watchdog timer compare itself to.
+  WDOG_TOVALH = 2;     // 65 seconds each 
+  WDOG_PRESC = 0;
+  WDOG_STCTRLH = (WDOG_STCTRLH_WAITEN | WDOG_STCTRLH_STOPEN | WDOG_STCTRLH_WDOGEN); // enable
+}
+
+void kick_watchdog()
+{
+  noInterrupts();
+  WDOG_REFRESH = 0xA602;
+  WDOG_REFRESH = 0xB480;
+  interrupts()
+}
+
+
 // qsort uint16_t comparison function (tri-state) - needed for median16()
 
 static int uint16_cmp(const void *a, const void *b)
@@ -233,8 +254,8 @@ void powerdown() {
     // wake up if the device has changed orientation
 
     for (;;) {
-      sleep_mode(200);          // sleep for 200 ms 
-                                // note: Accel runs fine down to 2V - ie, battery is fine
+      sleep_mode(200);          // sleep for 200 ms
+      // note: Accel runs fine down to 2V - ie, battery is fine
       if (accel_changed()) {    //       Accel requires ~2ms from power on.  So leave it powered.
         if (battery_low(0)) {
           sleep_mode(60000);    // sleep much longer for low bat
@@ -377,7 +398,7 @@ void timefromcompiler(void) {
   // This sets the RTC Clock from system time - epoch style, just like it wants :)
   Teensy3Clock.set(now());
 
-   Serial_Printf("Set RTC to: %d-%d-%dT%d:%d:%d.000Z\n", year(), month(), day(), hour(), minute(), second());
+  Serial_Printf("Set RTC to: %d-%d-%dT%d:%d:%d.000Z\n", year(), month(), day(), hour(), minute(), second());
 }
 
 #endif

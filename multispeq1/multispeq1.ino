@@ -6,6 +6,7 @@
 
 /*
 
+  add watchdog - need to know max delays
 // update DAC and get lights working in [{}]
 // once lights work, comparison test old and new adc routines, with timing
 //

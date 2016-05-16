@@ -1432,7 +1432,7 @@ void do_protocol()
 
         if (q < number_of_protocols - 1 || u < protocols - 1) {                           // if it's not the last protocol in the measurement and it's not the last repeat of the current protocol, add a comma
           Serial_Print(",");
-          if (protocols_delay > 0) {
+          if (protocols_delay > 0) {                                // delay for specified time or until + is entered
             Serial_Input_Long("+", protocols_delay * 1000);
           }
           if (protocols_delay_ms > 0) {
@@ -1458,12 +1458,16 @@ void do_protocol()
 
         act_background_light_prev = act_background_light;                               // set current background as previous background for next protocol
         spec_on = 0;                                                                    // reset flag that spec is turned on for this measurement
-      }
-    }
+        
+      }  // for each protocol repeat u
+      
+    }  // for each protocol q
+
     Serial_Flush_Input();
-    if (y < measurements - 1) {                                                    // add commas between measurements
-      Serial_Print(",");
-      if (measurements_delay > 0) {
+    if (y < measurements - 1) {                                 // if not last measurement                   
+      Serial_Print(",");                                        // add commas between measurements
+      
+      if (measurements_delay > 0) {                             // delay for specified time or until + is entered
         Serial_Input_Long("+", measurements_delay * 1000);
       }
       else if (measurements_delay_ms > 0) {
@@ -1471,7 +1475,7 @@ void do_protocol()
       }
     } // if
 
-  }  // for each measurement
+  }  // for each measurement y
 
 abort:
 

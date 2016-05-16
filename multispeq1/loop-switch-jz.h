@@ -9,6 +9,8 @@ case hash("expr"):
   {
   char c[100];
   Serial_Input_Chars(c, "\r\n", 5000, sizeof(c) - 1);  // no plus since that is a operator
+  Serial_Print_Line("this is c   ");
+  Serial_Print(c);
   Serial_Printf("%g\n", expr(c));
   }
   break;

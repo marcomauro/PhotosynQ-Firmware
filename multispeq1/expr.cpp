@@ -9,7 +9,7 @@
 
 float variable(const char *name)
 {
-    Serial_Printf("|%s|\n",name);
+  //Serial_Printf("\nvar = |%s|\n",name);
 
   // look up the variables by name
 
@@ -377,6 +377,7 @@ static float factor() {
       ++p;
     char string[50];
     strncpy(string, ptr, p - ptr);   // just to get the null
+    string[p - ptr] = 0;             // put in null
     val = variable(string);          // evaluate it
     ptr = p;
   } else

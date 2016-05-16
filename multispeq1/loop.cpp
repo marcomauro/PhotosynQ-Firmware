@@ -1019,9 +1019,9 @@ void do_protocol()
                 String intensity_string = a_intensities.getArray(cycle).getString(i);
                 _a_intensities[i] = expr(intensity_string.c_str());                       // evaluate as an expression
 
-                if (PULSERDEBUG) {
-                  Serial_Printf("\n all a_lights, intensities: %d,%d\n", _a_lights[i], _a_intensities[i]);
-                } // PULSERDEBUG
+//                if (PULSERDEBUG) {
+                  Serial_Printf("\n all a_lights, intensities: %d,%d,%s,%f\n", _a_lights[i], _a_intensities[i],intensity_string.c_str(),expr(intensity_string.c_str()));
+//                } // PULSERDEBUG
               }
               //              }
 
@@ -1745,7 +1745,7 @@ static void environmentals(JsonArray environmental, const int _averages, const i
     if ((String) environmental.getArray(i).getString(0) == "compass_and_angle") {                             // measure tilt in -180 - 180 degrees
       get_compass_and_angle(1, _averages);
       if (count == _averages - 1) {
-        Serial_Printf("\"compass_direction\":\"%s\",\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass_segment(compass)), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
+        Serial_Printf("\"compass_direction\":%s,\"compass\":%.2f,\"angle\":%.2f,\"angle_direction\":%s,\"pitch\":%.2f,\"roll\":%.2f,", getDirection(compass_segment(compass)), compass_averaged, angle_averaged, angle_direction.c_str(), pitch_averaged, roll_averaged);
       }
     }
 

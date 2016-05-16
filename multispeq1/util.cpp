@@ -84,7 +84,7 @@ const char * getDirection(int segment) {
     return "\"Invalid compass segment\"";
   }
 
-  const char *names[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+  const char *names[] = {"\"N\"", "\"NE\"", "\"E\"", "\"SE\"", "\"S\"", "\"SW\"", "\"W\"", "\"NW\""};
 
   return names[segment];
 }

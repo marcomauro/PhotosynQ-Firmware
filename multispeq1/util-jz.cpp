@@ -164,18 +164,20 @@ int battery_low(int flash)         // 0 for no load, 1 to flash LEDs to create l
 
   if (flash) {   // flash LEDs if needed to create load
     // set DAC values to 1/4 of full output to create load
-    DAC_set(1, 4096 / 4);
-    DAC_set(2, 4096 / 4);
-    DAC_set(5, 4906 / 4);
-    DAC_set(6, 4906 / 4);
+    DAC_set(5, 4096 / 4);
+    DAC_set(6, 4096 / 4);
+    DAC_set(8, 4906 / 4);
+    DAC_set(9, 4906 / 4);
+    DAC_set(10, 4906 / 4);
     DAC_change();
     delay(1);       // stabilize
 
     // turn on 4 LEDs
-    digitalWriteFast(PULSE1, 1);
-    digitalWriteFast(PULSE2, 1);
     digitalWriteFast(PULSE5, 1);
     digitalWriteFast(PULSE6, 1);
+    digitalWriteFast(PULSE8, 1);
+    digitalWriteFast(PULSE9, 1);
+    digitalWriteFast(PULSE10, 1);
 
     delay(20);          // there a slow filter on the circuit
 
@@ -186,10 +188,11 @@ int battery_low(int flash)         // 0 for no load, 1 to flash LEDs to create l
     value /= 100;
 
     // turn off 4 LEDs
-    digitalWriteFast(PULSE1, 0);
-    digitalWriteFast(PULSE2, 0);
     digitalWriteFast(PULSE5, 0);
     digitalWriteFast(PULSE6, 0);
+    digitalWriteFast(PULSE8, 0);
+    digitalWriteFast(PULSE9, 0);
+    digitalWriteFast(PULSE10, 0);
 
     //Serial_Printf("bat = %d counts %fV\n", value, value * (1.2 / 65536));
 
@@ -425,12 +428,15 @@ void get_set_device_info(const int _set) {
   } // if
 
   // print
-  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%2.2x:%2.2x:%2.2x:%2.2x\",\"device_firmware\":\"%s\",\"device_manufacture\":%6.6d}", DEVICE_NAME, DEVICE_VERSION,
+
+//  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%2.2x:%2.2x:%2.2x:%2.2x\",\"device_firmware\":\"%s\",\"device_manufacture\":%6.6d}", DEVICE_NAME, DEVICE_VERSION,
+  Serial_Printf("{\"device_name\":\"%s\",\"device_version\":\"%s\",\"device_id\":\"d4:f5:%2.2x:%2.2x:%2.2x:%2.2x\",\"device_firmware\":\"%s\",\"device_manufacture\":2016}", DEVICE_NAME, DEVICE_VERSION,    // I did this so it would work with chrome app
                 (unsigned)eeprom->device_id >> 24,
                 ((unsigned)eeprom->device_id & 0xff0000) >> 16,
                 ((unsigned)eeprom->device_id & 0xff00) >> 8,
-                (unsigned)eeprom->device_id & 0xff,
-                DEVICE_FIRMWARE, eeprom->device_manufacture);
+                (unsigned)eeprom->device_id & 0xff);
+//                ,DEVICE_FIRMWARE, eeprom->device_manufacture)
+
   Serial_Print_CRC();
 
   return;

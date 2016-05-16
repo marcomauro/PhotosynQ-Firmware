@@ -367,7 +367,7 @@ static float factor() {
     }
   }
   else if (isdigit(ch) || ch == '.' || ch == '+' || ch == '-') {  // beware of leading + or -
-    val = strtod(ptr-1, (char **)&ptr);
+    val = strtod(ptr - 1, (char **)&ptr);
   } else if (isalpha(ch) || ch == '_') {   // variable such as "userdef[1]"
     const char *p = ptr;
     --ptr;
@@ -395,7 +395,7 @@ static float term() {
       val /= b;
   }
   else --ptr;
-  
+
   return val;
 }
 
@@ -412,7 +412,7 @@ static float expression() {
       val -= b;
   }
   else --ptr;
-  
+
   return val;
 }
 

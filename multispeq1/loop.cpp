@@ -1019,9 +1019,9 @@ void do_protocol()
                 String intensity_string = a_intensities.getArray(cycle).getString(i);
                 _a_intensities[i] = expr(intensity_string.c_str());                       // evaluate as an expression
 
-//                if (PULSERDEBUG) {
+                if (PULSERDEBUG) {
                   Serial_Printf("\n all a_lights, intensities: %d,%d,|%s|,%f,%f,%f\n", _a_lights[i], _a_intensities[i],intensity_string.c_str(),expr(intensity_string.c_str()),light_intensity, light_intensity_averaged);
-//                } // PULSERDEBUG
+                } // PULSERDEBUG
               }
               //              }
 

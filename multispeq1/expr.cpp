@@ -22,11 +22,9 @@ float variable(const char *name)
       value = eeprom->userdef[index];
 
   } else if (strcmp( name, "light_intensity" ) == 0 ) {
-    Serial_Print_Line("I made it to light intensity!!");
     value = light_intensity;
 
   } else if (strcmp( name, "light_intensity_averaged" ) == 0 ) {
-    Serial_Print_Line("I made it to light intensity averaged!!");
     value = light_intensity_averaged;
 
   } else if (strcmp( name, "light_intensity_raw" ) == 0 ) {
